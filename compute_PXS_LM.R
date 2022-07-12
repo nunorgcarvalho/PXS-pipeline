@@ -1,6 +1,6 @@
 #setwd(commandArgs(trailingOnly = TRUE)[1])
 disease <- commandArgs(trailingOnly = TRUE)[1]
-sink(paste0(disease,"_compute_PXS_LM_RF.Rout"))
+sink(paste0(disease,"_compute_PXS_LM.Rout"))
 
 ## Libraries and directories ##
 library(tidyverse)
@@ -82,7 +82,9 @@ exposures <- levels(as.factor(exposures_tbl$field.x))
 # creates a second pheno table for just exposures and removes any individuals
 # with NA values for any of the exposures
 pheno_wide <- pheno %>% select(FID,IID,all_of(exposures)) %>% drop_na()
-removed_IIDs <- (pheno %>% filter(!(IID %in% pheno_wide$IID)))$IID
+removed_IIDs <- pheno %>% filter(!(IID %in% pheno_wide$IID)) %>% select(FID,IID)
+loc_out <- paste0(dir_out,"IIDs_NA_exposures.txt")
+write.table(removed_IIDs, loc_out, sep=" ", quote=FALSE, row.names=FALSE)
 pheno <- pheno %>% filter(IID %in% pheno_wide$IID)
 # expands the pheno table to have a column for each possible categorical answer
 # also sets negative quantitative values to 0 so they have no weight in the PXS
