@@ -5,7 +5,7 @@ sink(paste0(disease,"_compute_PXS_LM_RF.Rout"))
 ## Libraries and directories ##
 library(tidyverse)
 library(data.table)
-library(randomForest)
+#library(randomForest)
 
 loc_ukbpheno <- "../pheno_EC.txt"
 loc_coeffs <- "/n/groups/patel/yixuan/PXS_multi/all/coeffs_V9.csv"
@@ -155,10 +155,10 @@ summary(PXS_lm)
 print("Done computing envLM")
 
 ### Computes Random Forest
-set.seed(1)
-pheno.rf <- randomForest(PXS ~ . , data = PXS_lm_tbl,
-                         importance=TRUE, do.trace=TRUE)
-loc_out <- paste0("PXS_",disease,"_RF.rds")
-saveRDS(pheno.rf,loc_out)
-importance(pheno.rf)
-pheno.rf
+#set.seed(1)
+#pheno.rf <- randomForest(PXS ~ . , data = PXS_lm_tbl,
+#                         importance=TRUE, do.trace=TRUE)
+#loc_out <- paste0("PXS_",disease,"_RF.rds")
+#saveRDS(pheno.rf,loc_out)
+#importance(pheno.rf)
+#pheno.rf
