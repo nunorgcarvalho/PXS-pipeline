@@ -33,7 +33,7 @@ echo '#!/bin/sh
 --remove '${subfolder}'/IIDs_NA_exposures.txt \
 --remove '${dir_out}'bolt.in_plink_but_not_imputed.FID_IID.978.txt \
 --phenoFile '${subfolder}'/PXS_'${disease}'.txt \
---phenoCol '${disease}' \
+--phenoCol PXS_'${disease}' \
 --covarFile '${dir_out}'pheno_EC.txt \
 --covarCol f.31.0.0 \
 --covarCol f.54.0.0 \
@@ -73,7 +73,7 @@ echo '#!/bin/sh
 --remove '${subfolder}'/IIDs_NA_exposures.txt \
 --remove '${dir_out}'bolt.in_plink_but_not_imputed.FID_IID.978.txt \
 --phenoFile '${subfolder}'/PXS_'${disease}'.txt \
---phenoCol '${disease}' \
+--phenoCol PXS_'${disease}' \
 --covarFile '${dir_out}'pheno_EC.txt \
 --covarCol f.31.0.0 \
 --covarCol f.54.0.0 \
