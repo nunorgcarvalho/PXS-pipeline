@@ -37,7 +37,7 @@ fields <- tibble(
   use_type = "exposure"
 )
 
-# Adds the covariates, exposurs, and IID fields to the fields tibble
+# Adds the covariates, exposures, and IID fields to the fields tibble
 fields <- fields %>%
   add_row(code=NA,field=covars,use_type="covar") %>%
   left_join(tally, by=c("code"="X")) %>%
@@ -64,8 +64,10 @@ for (i in 1:nrow(fields)) {
 }
 fields <- fields %>% filter(pheno_NApct < 1)
 
+# Saves phenotype file containing exposures and covariates
 loc_out <- paste0(dir_out,"pheno_EC.txt")
 write.table(pheno,loc_out,sep=" ",row.names=FALSE,quote=FALSE)
 
+# Saves table with field information
 loc_out <- paste0(dir_out,"fields_tbl.txt")
 write.table(fields,loc_out,sep="\t",row.names=FALSE,quote=FALSE)

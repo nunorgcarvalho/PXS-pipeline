@@ -1,11 +1,9 @@
-#setwd(commandArgs(trailingOnly = TRUE)[1])
 disease <- commandArgs(trailingOnly = TRUE)[1]
 sink(paste0(disease,"_compute_PXS_LM.Rout"))
 
 ## Libraries and directories ##
 library(tidyverse)
 library(data.table)
-#library(randomForest)
 
 loc_ukbpheno <- "../pheno_EC.txt"
 loc_coeffs <- "/n/groups/patel/yixuan/PXS_multi/all/coeffs_V9.csv"
@@ -23,6 +21,7 @@ fields <- as_tibble(fread(loc_fields)) %>%
   filter((!!as.name(disease) != 0) | (use_type=="covar"))
 covars <- (fields %>% filter(use_type=="covar"))$field
 fields <- fields %>% filter(use_type=="exposure")
+
 # loads the file containing XWAS coefficients and filters to just to the disease
 coeffs <- as_tibble(fread(loc_coeffs)) %>%
   filter(!is.na(!!as.name(col_coeff))) %>% select(V1,X,term,ends_with(disease))
