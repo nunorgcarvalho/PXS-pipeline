@@ -23,7 +23,7 @@ covars <- c("f.31.0.0", # sex
 coeffs <- as_tibble(fread(loc_coeffs))
 tally <- as_tibble(fread(loc_tally))
 # loads list of CRFs
-CRFs <- (as_tibble(fread(loc_CFRs_tbl)))$field
+CRFs_tbl <- as_tibble(fread(loc_CFRs_tbl))
 
 categorical_vars <- coeffs %>% select(X) %>%
   filter(X %in% tally$X) %>%
@@ -43,7 +43,7 @@ fields <- tibble(
 # Adds the covariates, exposures, CFRs, and IID fields to the fields tibble
 fields <- fields %>%
   add_row(code=NA,field=covars,use_type="covar") %>%
-  add_row(code=NA,field=CRFs,use_type="CRF") %>%
+  add_row(code=NA,field=CRFs_tbl$field_raw,use_type="CRF") %>%
   left_join(tally, by=c("code"="X")) %>%
   add_row(code = NA, field=c("f.eid","FID","IID"), use_type="identification",category="", fieldname="") %>%
   left_join(categorical_vars, by=c("code"="X")) %>%
@@ -56,15 +56,13 @@ PCs40 <- as_tibble(fread(loc_40PCs)) %>% select(-FID)
 pheno <- as_tibble(fread(loc_pheno_full, select=fields$field))
 remaining_fields <- fields$field[!((fields$field) %in% colnames(pheno))]
 pheno2 <- as_tibble(fread(loc_pheno2_full, select=c("eid",remaining_fields)))
-# corrects field names to match others in pheno table and fields table
+# corrects field names to match others in pheno table, fields table, and CRFs table
 for (i in 2:length(colnames(pheno2))) {
-  oldfield <- colnames(pheno2[i])
-  fieldnum <- str_split(oldfield,"-")[[1]][1]
-  fieldinst <- str_split(oldfield,"-")[[1]][2]
-  field <- paste0("f.",fieldnum,".",fieldinst)
+  field_raw <- colnames(pheno2[i])
+  field <- CRFs_tbl[CRFs_tbl$field_raw==field_raw,"field"][[1]]
   colnames(pheno2)[i] <- field
   
-  fields[fields$field==oldfield,"field"] <- field
+  fields[fields$field==field_raw,"field"] <- field
 }
 pheno <- pheno %>%
   select(FID=f.eid, IID=f.eid,all_of(colnames(pheno[2:length(colnames(pheno))]))) %>%
