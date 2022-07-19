@@ -1,12 +1,19 @@
+#!/bin/bash
+#SBATCH -c 1
+#SBATCH -t 0-01:00
+#SBATCH -p short
+#SBATCH --mem=8G
+#SBATCH -o run_BOLT_exposure.out
+#SBATCH -e run_BOLT_exposure.err
+
 # sets directories and paths
 loc_exposures="exposures.txt" # will be created by make_exposures_list.R by this script
 dir_out="/home/nur479/scratch3/PXS_pipeline/" #include last forward slash /
 dir_script="/home/nur479/jobs/PXS_pipeline"
 
-# Makes list of exposures to analyze
-# Slow to run from non-interactive node, but it is doable (about 2 minutes)
+# Makes list of exposures to analyze, appends PXSs to pheno file, and makes list of CRFs for each
 module load gcc/9.2.0 R/4.1.2
-R CMD BATCH make_exposures_list.R
+R CMD BATCH prepare_exp_PXS_CRF.R
 echo 'Made list of exposures'
 
 dir_exposures=$(echo ${dir_out}exposures)
