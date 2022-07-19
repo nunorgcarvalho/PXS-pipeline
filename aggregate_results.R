@@ -36,7 +36,7 @@ extract_from_REML <- function(REML) {
 loc_phenolist <- paste0(dir_script,"phenotypes_ALL.txt")
 pheno_list <- readLines(loc_phenolist)
 
-REML_pheno_tbl <- tibble(
+REML_PXS_tbl <- tibble(
   field = as.character(),
   h2e = as.numeric(),
   h2e_err = as.numeric(),
@@ -44,14 +44,14 @@ REML_pheno_tbl <- tibble(
   h2g_err = as.numeric(),
   elapsed_hours = as.numeric()
 )
-REML_expo_tbl <- REML_pheno_tbl
+REML_expo_tbl <- REML_PXS_tbl
 for (pheno in pheno_list) {
   loc_REML <- paste0(dir_scratch,pheno,"/",pheno,"_PXS_BOLTREML.out")
   REML <- readLines(loc_REML)
   out <- extract_from_REML(REML)
   
   # adds row to table
-  REML_pheno_tbl <- REML_pheno_tbl %>%
+  REML_PXS_tbl <- REML_PXS_tbl %>%
     add_row(
       field = pheno,
       h2e = out[1],
@@ -97,5 +97,5 @@ ukb_dict <- as_tibble(fread(paste0(dir_data_showcase,"Data_Dictionary_Showcase.t
     fieldname = c("Atrial fibrillation", "Coronary artery disease", "Chronic obstructive pulmonary disease",
                   "Type 2 diabetes", "Forced expiratory volume in 1-second (FEV1)")
   )
-REML_pheno_tbl <- REML_pheno_tbl %>% left_join(ukb_dict, by="field")
+REML_PXS_tbl <- REML_PXS_tbl %>% left_join(ukb_dict, by="field")
 REML_expo_tbl <- REML_expo_tbl %>% left_join(ukb_dict, by="field")
