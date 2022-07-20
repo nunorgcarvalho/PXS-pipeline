@@ -15,7 +15,7 @@ dir_out <- "./"
 loc_fields <- paste0(dir_scratch,"fields_tbl.txt")
 
 phenolist <- readLines(loc_phenolist)
-fields <- tibble::as_tibble(fread(loc_fields))
+fields <- as_tibble(fread(loc_fields))
 exposures <- (fields %>%
   filter(use_type=="exposure") %>%
   select(field, all_of(phenolist)) %>%
