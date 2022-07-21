@@ -11,5 +11,5 @@
 4. `run_genCorr_CRFs.sh`: run BOLT-REML (genetic correlation) for each PXS and its disease's clinical risk factors
 
 ## Visualizing/Summarizing data:
-- `aggregate_results.R`: extracts important information from BOLT-REML results for XWAS diseases and exposures
+- `aggregate_results.R`: extracts important results from and makes plots of BOLT-REML AND BOLT-LMM data for XWAS diseases and exposures
 - `geographical_clustering.R`: calculates ANOVA and saves plots for PXS and exposures per assessment center

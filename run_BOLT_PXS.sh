@@ -18,7 +18,7 @@ cd ${subfolder}
 ########################################
 echo '#!/bin/sh
 #SBATCH -c 20
-#SBATCH -t 4-00:00
+#SBATCH -t 4-23:59
 #SBATCH -p medium
 #SBATCH --mem=125G
 #SBATCH -o '${disease}'_PXS_BOLTLMM.out
