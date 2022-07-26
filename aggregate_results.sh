@@ -6,6 +6,12 @@
 #SBATCH -o aggregate_results.out
 #SBATCH -e aggregate_results.err
 
+# Run this after running:
+# initial_setup.sh
+# run_BOLT_PXS.sh
+# run_BOLT_exposures.sh
+# run_BOLT_genCorr_CRFs.sh
+
 dir_script="/home/nur479/jobs/PXS_pipeline/"
 cd ${dir_script}
 

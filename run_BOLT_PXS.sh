@@ -1,5 +1,5 @@
 # sets directories and paths
-loc_phenos="phenotypes.txt"
+loc_phenos="phenotypes_ALL.txt"
 dir_out="/home/nur479/scratch3/PXS_pipeline/" #include last forward slash /
 dir_script="/home/nur479/jobs/PXS_pipeline/"
 

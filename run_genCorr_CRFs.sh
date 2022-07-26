@@ -2,7 +2,7 @@
 dir_out="/home/nur479/scratch3/PXS_pipeline/" #include last forward slash /
 dir_script="/home/nur479/jobs/PXS_pipeline/"
 
-loc_phenolist=$(echo ${dir_script}phenotypes.txt)
+loc_phenolist=$(echo ${dir_script}phenotypes_ALL.txt)
 
 phenos=$(cat $loc_phenolist)
 for pheno in $phenos
