@@ -31,10 +31,56 @@ extract_from_REML <- function(REML) {
   out <- c(h2e, h2e_err, h2g, h2g_err, elapsed_hours)
   out
 }
+extract_from_genCorr <- function(genCorr) {
+  N <- length(genCorr)
+  
+  # extract time for analysis
+  line <- genCorr[N]
+  elapsed_hours <- as.numeric(str_split(line," ")[[1]][7]) / (60 * 60)
+  
+  # extract h2g1
+  line <- genCorr[N-4]
+  line_split <- str_split(line, ": ")[[1]][2]
+  h2g1 <- as.numeric(str_split(line_split, " ")[[1]][1])
+  h2g1_err <- parse_number(str_split(line_split, " ")[[1]][2])
+  
+  # extract gencorr
+  line <- genCorr[N-3]
+  line_split <- str_split(line, ": ")[[1]][2]
+  gencorr <- as.numeric(str_split(line_split, " ")[[1]][1])
+  gencorr_err <- parse_number(str_split(line_split, " ")[[1]][2])
+  
+  # extract h2g2
+  line <- genCorr[N-2]
+  line_split <- str_split(line, ": ")[[1]][2]
+  h2g2 <- as.numeric(str_split(line_split, " ")[[1]][1])
+  h2g2_err <- parse_number(str_split(line_split, " ")[[1]][2])
+  
+  out <- c(h2g1, h2g1_err, gencorr, gencorr_err, h2g2, h2g2_err, elapsed_hours)
+  out
+}
+extract_from_envLM <- function(envLM) {
+  N <- length(envLM)
+  
+  # extract R2
+  line <- envLM[N-3]
+  line_split <- str_split(substr(line,22,nchar(line)),",\tAdjusted R-squared:  ")
+  R2 <- as.numeric(line_split[[1]][1])
+  R2adj <- as.numeric(line_split[[1]][2])
+  
+  # extract F and p
+  line <- envLM[N-2]
+  line_split <- str_split(substr(line,14,nchar(line))," ")
+  F_stat <- as.numeric(line_split[[1]][length(line_split[[1]]) - 9])
+  p <- as.numeric(line_split[[1]][length(line_split[[1]])])
+  
+  out <- c(R2, R2adj, F_stat, p)
+  out
+}
 
 ## Code ##
 
-### REML results for each phenotypes
+### REML+envLM results for each phenotypes
 loc_phenolist <- paste0(dir_script,"phenotypes_ALL.txt")
 pheno_list <- readLines(loc_phenolist)
 
@@ -47,7 +93,15 @@ REML_PXS_tbl <- tibble(
   elapsed_hours = as.numeric()
 )
 REML_expo_tbl <- REML_PXS_tbl
+envLM_PXS_tbl <- tibble(
+  field = as.character(),
+  R2 = as.numeric(),
+  R2adj = as.numeric(),
+  F_stat = as.numeric(),
+  p = as.numeric()
+)
 for (pheno in pheno_list) {
+  # REML
   loc_REML <- paste0(dir_scratch,pheno,"/",pheno,"_PXS_BOLTREML.out")
   REML <- readLines(loc_REML)
   out <- extract_from_REML(REML)
@@ -64,10 +118,25 @@ for (pheno in pheno_list) {
     )
   
   print(paste("Read REML results for",pheno))
+  
+  # enVLM
+  loc_envLM <- paste0(dir_scratch,pheno,"/",pheno,"_compute_PXS_LM.Rout")
+  envLM <- readLines(loc_envLM)
+  out <- extract_from_envLM(envLM)
+  
+  envLM_PXS_tbl <- envLM_PXS_tbl %>% add_row(
+    field = pheno,
+    R2 = out[1],
+    R2adj = out[2],
+    F_stat = out[3],
+    p = out[4]
+  )
+  
+  print(paste("Read envLM results for",pheno))
 }
 
 ### REML results for each exposure
-loc_expolist <- paste0(dir_script,"exposures.txt")
+loc_expolist <- paste0(dir_script,"exposures_ALL.txt")
 exposures_list <- readLines(loc_expolist)
 
 for (expo in exposures_list) {
@@ -90,7 +159,48 @@ for (expo in exposures_list) {
   print(paste("Read REML results for",expo))
 }
 
-### Appends fields name to REML tables
+### REML results for genCorr with CRFs
+genCorr_CRF_tbl <- tibble(
+  pheno_field = as.character(),
+  h2g1 = as.numeric(),
+  h2g1_err = as.numeric(),
+  CRF_field = as.character(),
+  h2g2 = as.numeric(),
+  h2g2_err = as.numeric(),
+  gencorr = as.numeric(),
+  gencorr_err = as.numeric(),
+  elapsed_hours = as.numeric()
+)
+for (pheno in pheno_list) {
+  loc_CRFs <- paste0(dir_scratch,pheno,"/",pheno,"_CRFs.txt")
+  if (!file.exists(loc_CRFs)) {next}
+  CRFs_list <- readLines(loc_CRFs)
+  for (CRF in CRFs_list) {
+    #if (CRF == "f.4080.0.0") {next}
+    loc_genCorr <- paste0(dir_scratch,pheno,"/PXS_",pheno,"_",CRF,"_genCorr.out")
+    genCorr <- readLines(loc_genCorr)
+    
+    out <- extract_from_genCorr(genCorr)
+    
+    # adds row to table
+    genCorr_CRF_tbl <- genCorr_CRF_tbl %>% add_row(
+      pheno_field = pheno,
+      h2g1 = out[1],
+      h2g1_err = out[2],
+      CRF_field = CRF,
+      h2g2 = out[5],
+      h2g2_err = out[6],
+      gencorr = out[3],
+      gencorr_err = out[4],
+      elapsed_hours = out[7]
+    )
+    print(paste("Read genCorr results for",pheno,"x",CRF))
+  }
+}
+
+
+
+### Appends fields name to REML and genCorr tables
 ukb_dict <- as_tibble(fread(paste0(dir_data_showcase,"Data_Dictionary_Showcase.tsv"))) %>%
   mutate(field = paste0("f.",FieldID,".0.0")) %>%
   select(field, fieldname=Field) %>%
@@ -101,13 +211,22 @@ ukb_dict <- as_tibble(fread(paste0(dir_data_showcase,"Data_Dictionary_Showcase.t
   )
 REML_PXS_tbl <- REML_PXS_tbl %>% left_join(ukb_dict, by="field")
 REML_expo_tbl <- REML_expo_tbl %>% left_join(ukb_dict, by="field")
+envLM_PXS_tbl <- envLM_PXS_tbl %>% left_join(ukb_dict, by="field")
+genCorr_CRF_tbl <- genCorr_CRF_tbl %>% left_join(ukb_dict, by=c("pheno_field"="field")) %>% rename(pheno_fieldname = fieldname)
+genCorr_CRF_tbl <- genCorr_CRF_tbl %>% left_join(ukb_dict, by=c("CRF_field"="field")) %>% rename(CRF_fieldname = fieldname)
 
+# Saves tables
 loc_out <- paste0(dir_scratch, "REML_PXS_results.txt")
 write.table(REML_PXS_tbl, loc_out, sep="\t", quote=FALSE, row.names=FALSE)
 
 loc_out <- paste0(dir_scratch, "REML_exposures_results.txt")
 write.table(REML_expo_tbl, loc_out, sep="\t", quote=FALSE, row.names=FALSE)
 
+loc_out <- paste0(dir_scratch, "envLM_PXS_results.txt")
+write.table(envLM_PXS_tbl, loc_out, sep="\t", quote=FALSE, row.names=FALSE)
+
+loc_out <- paste0(dir_scratch, "genCorr_CRF_results.txt")
+write.table(genCorr_CRF_tbl, loc_out, sep="\t", quote=FALSE, row.names=FALSE)
 
 #### GWAS ANALYSIS ########
 
@@ -132,7 +251,6 @@ plot_Manhattan <- function(LMM, fieldname, N=-1, lambda=-1) {
     group_by(CHR) %>%
     summarize( center_bp = mean(c(max(BP_cum),min(BP_cum))) )
   
-  if (sig_SNPs)
   sig_SNPs <- manhattan_tbl %>% filter(P < bonferroni) %>%
     group_by(CHR) %>% filter(P == min(P))
   max_logP <- ceiling(max(-log10(manhattan_tbl$P)))
@@ -194,6 +312,7 @@ for (pheno in pheno_list) {
     rename(P = P_BOLT_LMM_INF)
   
   N <- nrow(LMM)
+  bonferroni <- 0.05 / N
   lambda <- get_lambda(LMM$CHISQ_BOLT_LMM_INF)
   LMM_PXS_tbl <- LMM_PXS_tbl %>%
     add_row(
