@@ -6,7 +6,7 @@
 #SBATCH -o aggregate_results.out
 #SBATCH -e aggregate_results.err
 
-dir_script="/home/nur479/jobs/PXS_pipeline"
+dir_script="/home/nur479/jobs/PXS_pipeline/"
 cd ${dir_script}
 
 module load gcc/9.2.0 R/4.1.2

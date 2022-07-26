@@ -9,7 +9,7 @@
 # sets directories and paths
 loc_exposures="exposures.txt" # will be created by make_exposures_list.R by this script
 dir_out="/home/nur479/scratch3/PXS_pipeline/" #include last forward slash /
-dir_script="/home/nur479/jobs/PXS_pipeline"
+dir_script="/home/nur479/jobs/PXS_pipeline/"
 
 # Makes list of exposures to analyze, appends PXSs to pheno file, and makes list of CRFs for each
 module load gcc/9.2.0 R/4.1.2
@@ -44,7 +44,7 @@ echo '#!/bin/sh
 --bim /n/groups/patel/uk_biobank/main_data_9512/ukb_snp_chr{1:22}_v2.bim \
 --fam /n/groups/patel/uk_biobank/main_data_9512/ukb_bolt_lmm.fam \
 --LDscoresFile /n/groups/patel/bin/BOLT-LMM_v2.3.2/tables/LDSCORE.1000G_EUR.tab.gz \
---remove '${dir_out}'bolt.in_plink_but_not_imputed.FID_IID.978.txt \
+--remove '${dir_script}'bolt.in_plink_but_not_imputed.FID_IID.978.txt \
 --phenoFile '${dir_out}'pheno_EC.txt \
 --phenoCol '${exposure}' \
 --covarFile '${dir_out}'pheno_EC.txt \
@@ -83,7 +83,7 @@ echo '#!/bin/sh
 --bim /n/groups/patel/uk_biobank/main_data_9512/ukb_snp_chr{1:22}_v2.bim \
 --fam /n/groups/patel/uk_biobank/main_data_9512/ukb_bolt_lmm.fam \
 --LDscoresFile /n/groups/patel/bin/BOLT-LMM_v2.3.2/tables/LDSCORE.1000G_EUR.tab.gz \
---remove '${dir_out}'bolt.in_plink_but_not_imputed.FID_IID.978.txt \
+--remove '${dir_script}'bolt.in_plink_but_not_imputed.FID_IID.978.txt \
 --phenoFile '${dir_out}'pheno_EC.txt \
 --phenoCol '${exposure}' \
 --covarFile '${dir_out}'pheno_EC.txt \

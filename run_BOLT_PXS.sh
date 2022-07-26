@@ -1,7 +1,7 @@
 # sets directories and paths
 loc_phenos="phenotypes.txt"
 dir_out="/home/nur479/scratch3/PXS_pipeline/" #include last forward slash /
-dir_script="/home/nur479/jobs/PXS_pipeline"
+dir_script="/home/nur479/jobs/PXS_pipeline/"
 
 lines=$(cat $loc_phenos)
 for disease in $lines
@@ -31,7 +31,7 @@ echo '#!/bin/sh
 --fam /n/groups/patel/uk_biobank/main_data_9512/ukb_bolt_lmm.fam \
 --LDscoresFile /n/groups/patel/bin/BOLT-LMM_v2.3.2/tables/LDSCORE.1000G_EUR.tab.gz \
 --remove '${subfolder}'/IIDs_NA_exposures.txt \
---remove '${dir_out}'bolt.in_plink_but_not_imputed.FID_IID.978.txt \
+--remove '${dir_script}'bolt.in_plink_but_not_imputed.FID_IID.978.txt \
 --phenoFile '${subfolder}'/PXS_'${disease}'.txt \
 --phenoCol PXS_'${disease}' \
 --covarFile '${dir_out}'pheno_EC.txt \
@@ -71,7 +71,7 @@ echo '#!/bin/sh
 --fam /n/groups/patel/uk_biobank/main_data_9512/ukb_bolt_lmm.fam \
 --LDscoresFile /n/groups/patel/bin/BOLT-LMM_v2.3.2/tables/LDSCORE.1000G_EUR.tab.gz \
 --remove '${subfolder}'/IIDs_NA_exposures.txt \
---remove '${dir_out}'bolt.in_plink_but_not_imputed.FID_IID.978.txt \
+--remove '${dir_script}'bolt.in_plink_but_not_imputed.FID_IID.978.txt \
 --phenoFile '${subfolder}'/PXS_'${disease}'.txt \
 --phenoCol PXS_'${disease}' \
 --covarFile '${dir_out}'pheno_EC.txt \

@@ -10,7 +10,7 @@
 # sets directories and paths
 loc_phenos="phenotypes_ALL.txt"
 dir_out="/home/nur479/scratch3/PXS_pipeline/" #include last forward slash /
-dir_script="/home/nur479/jobs/PXS_pipeline"
+dir_script="/home/nur479/jobs/PXS_pipeline/"
 
 # Creates ukkb_pheno and fields file that includes all phenotypes
 module load gcc/9.2.0 R/4.1.2
@@ -27,7 +27,7 @@ cd ${dir_script}
 subfolder=$(echo ${dir_out}${disease})
 echo ${subfolder}
 mkdir -p ${subfolder}
-cp ${dir_script}/compute_PXS_LM.R ${subfolder}/${disease}_compute_PXS_LM.R
+cp ${dir_script}compute_PXS_LM.R ${subfolder}/${disease}_compute_PXS_LM.R
 
 cd ${subfolder}
 

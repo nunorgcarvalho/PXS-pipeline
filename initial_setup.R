@@ -5,8 +5,7 @@ library(data.table)
 dir_out <- "~/scratch3/PXS_pipeline/"
 loc_coeffs <- "/n/groups/patel/yixuan/PXS_multi/all/coeffs_V9.csv"
 loc_tally <- "/n/groups/patel/yixuan/PXS_multi/all/tally_X_V9.csv"
-loc_pheno_full <- "/n/groups/patel/uk_biobank/main_data_9512/ukb9512.tab"
-loc_pheno2_full <- "/n/groups/patel/uk_biobank/main_data_32144/ukb32144.csv"
+loc_pheno_full <- "/n/groups/patel/uk_biobank/main_data_34521/ukb34521.tab"
 loc_40PCs <- "~/scratch3/key_data/UKB_40PCs_500k.txt"
 loc_CFRs_tbl <- "~/jobs/PXS_pipeline/CRFs_table.txt"
 
@@ -17,6 +16,7 @@ covars <- c("f.31.0.0", # sex
             "f.54.0.0", # assessment center
             paste0("pc",1:40) # 40 PCs not from UKB field directly
             )
+include_ethnicities <- c(1001,1002) # White British, White Irish
 ## Code
 
 # loads coefficients and tally file from XWAS results
@@ -43,9 +43,9 @@ fields <- tibble(
 # Adds the covariates, exposures, CFRs, and IID fields to the fields tibble
 fields <- fields %>%
   add_row(code=NA,field=covars,use_type="covar") %>%
-  add_row(code=NA,field=CRFs_tbl$field_raw,use_type="CRF") %>%
+  add_row(code=NA,field=CRFs_tbl$field,use_type="CRF") %>%
   left_join(tally, by=c("code"="X")) %>%
-  add_row(code = NA, field=c("f.eid","FID","IID"), use_type="identification",category="", fieldname="") %>%
+  add_row(code = NA, field=c("f.eid","FID","IID","f.21000.0.0"), use_type="identification",category="", fieldname="") %>%
   left_join(categorical_vars, by=c("code"="X")) %>%
   arrange(desc(field=="f.eid")) %>%
   arrange(desc(field=="IID")) %>%
@@ -54,21 +54,11 @@ fields <- fields %>%
 
 PCs40 <- as_tibble(fread(loc_40PCs)) %>% select(-FID)
 pheno <- as_tibble(fread(loc_pheno_full, select=fields$field))
-remaining_fields <- fields$field[!((fields$field) %in% colnames(pheno))]
-pheno2 <- as_tibble(fread(loc_pheno2_full, select=c("eid",remaining_fields)))
-# corrects field names to match others in pheno table, fields table, and CRFs table
-for (i in 2:length(colnames(pheno2))) {
-  field_raw <- colnames(pheno2[i])
-  field <- CRFs_tbl[CRFs_tbl$field_raw==field_raw,"field"][[1]]
-  colnames(pheno2)[i] <- field
-  
-  fields[fields$field==field_raw,"field"] <- field
-}
 pheno <- pheno %>%
   select(FID=f.eid, IID=f.eid,all_of(colnames(pheno[2:length(colnames(pheno))]))) %>%
   arrange(IID) %>%
   left_join(PCs40, by="IID") %>%
-  left_join(pheno2, by=c("IID"="eid"))
+  filter(f.21000.0.0 %in% include_ethnicities)
   
 # calculates the percentage of NA results per field and then removes fields with
 # 100% missingness rate

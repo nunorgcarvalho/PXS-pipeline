@@ -34,7 +34,7 @@ echo '#!/bin/sh
 --bim /n/groups/patel/uk_biobank/main_data_9512/ukb_snp_chr{1:22}_v2.bim \
 --fam /n/groups/patel/uk_biobank/main_data_9512/ukb_bolt_lmm.fam \
 --LDscoresFile /n/groups/patel/bin/BOLT-LMM_v2.3.2/tables/LDSCORE.1000G_EUR.tab.gz \
---remove '${dir_out}'bolt.in_plink_but_not_imputed.FID_IID.978.txt \
+--remove '${dir_script}'bolt.in_plink_but_not_imputed.FID_IID.978.txt \
 --phenoFile '${dir_out}'pheno_EC.txt \
 --phenoCol PXS_'${pheno}' \
 --phenoCol '${CRF}' \
