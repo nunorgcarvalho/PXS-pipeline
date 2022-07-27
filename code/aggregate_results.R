@@ -4,9 +4,9 @@ library(tidyverse)
 library(data.table)
 library(ggrepel)
 
+dir_script <- "~/jobs/PXS_pipeline/code/"
 dir_scratch <- "~/scratch3/PXS_pipeline/"
-dir_script <- "~/jobs/PXS_pipeline/"
-dir_data_showcase <- "~/scratch3/key_data/"
+dir_data_showcase <- "~/scratch3/key_data/" # contains 'Data_Dictionary_Showcase.tsv' from UKBB
 
 ## Functions ##
 extract_from_REML <- function(REML) {
@@ -81,7 +81,7 @@ extract_from_envLM <- function(envLM) {
 ## Code ##
 
 ### REML+envLM results for each phenotypes
-loc_phenolist <- paste0(dir_script,"phenotypes_ALL.txt")
+loc_phenolist <- paste0(dir_script,"../input_data/phenotypes.txt")
 pheno_list <- readLines(loc_phenolist)
 
 REML_PXS_tbl <- tibble(
@@ -136,7 +136,7 @@ for (pheno in pheno_list) {
 }
 
 ### REML results for each exposure
-loc_expolist <- paste0(dir_script,"exposures_ALL.txt")
+loc_expolist <- paste0(dir_script,"../input_data/exposures.txt")
 exposures_list <- readLines(loc_expolist)
 
 for (expo in exposures_list) {

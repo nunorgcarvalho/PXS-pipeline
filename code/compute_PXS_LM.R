@@ -5,24 +5,25 @@ sink(paste0(disease,"_compute_PXS_LM.Rout"))
 library(tidyverse)
 library(data.table)
 
-loc_ukbpheno <- "../pheno_EC.txt"
-loc_coeffs <- "/n/groups/patel/yixuan/PXS_multi/all/coeffs_V9.csv"
-loc_fields <- "../fields_tbl.txt"
-dir_data_showcase <- "~/scratch3/key_data/"
-dir_out <- "./"
+dir_script <- "~/jobs/PXS_pipeline/code/"
+dir_data_showcase <- "~/scratch3/key_data/" # contains 'Data_Dictionary_Showcase.tsv' and 'Codings.tsv' from UKBB
 
 ## Code ###
+dir_out <- "./"
 
 col_coeff <- paste0("estimate_",disease)
 
 # Loads the phenotype file created in initial_setup.R
+loc_ukbpheno <- "../pheno_EC.txt"
 pheno <- as_tibble(fread(loc_ukbpheno))
+loc_fields <- "../fields_tbl.txt"
 fields <- as_tibble(fread(loc_fields)) %>%
   filter((!!as.name(disease) != 0) | (use_type=="covar"))
 covars <- (fields %>% filter(use_type=="covar"))$field
 fields <- fields %>% filter(use_type=="exposure")
 
 # loads the file containing XWAS coefficients and filters to just to the disease
+loc_coeffs <- paste0(dir_script,"../input_data/coeffs_V9.csv)
 coeffs <- as_tibble(fread(loc_coeffs)) %>%
   filter(!is.na(!!as.name(col_coeff))) %>% select(V1,X,term,ends_with(disease))
 

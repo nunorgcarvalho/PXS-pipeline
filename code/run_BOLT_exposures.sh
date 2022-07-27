@@ -6,19 +6,19 @@
 #SBATCH -o run_BOLT_exposures.out
 #SBATCH -e run_BOLT_exposures.err
 
-# sets directories and paths
-loc_exposures="exposures_ALL.txt" # will be created by make_exposures_list.R by this script
-dir_out="/home/nur479/scratch3/PXS_pipeline/" #include last forward slash /
-dir_script="/home/nur479/jobs/PXS_pipeline/"
+# sets directories and paths (include last forward slash / )
+dir_script="/home/nur479/jobs/PXS_pipeline/code/"
+dir_scratch="/home/nur479/scratch3/PXS_pipeline/"
 
 # Makes list of exposures to analyze, appends PXSs to pheno file, and makes list of CRFs for each
 module load gcc/9.2.0 R/4.1.2
 R CMD BATCH prepare_exp_PXS_CRF.R
 echo 'Made list of exposures'
 
-dir_exposures=$(echo ${dir_out}exposures)
+dir_exposures=$(echo ${dir_scratch}exposures)
 mkdir -p ${dir_exposures}
 
+loc_exposures=$(echo ${dir_script}../input_data/exposures.txt)
 lines=$(cat $loc_exposures)
 for exposure in $lines
 do
@@ -44,10 +44,10 @@ echo '#!/bin/sh
 --bim /n/groups/patel/uk_biobank/main_data_9512/ukb_snp_chr{1:22}_v2.bim \
 --fam /n/groups/patel/uk_biobank/main_data_9512/ukb_bolt_lmm.fam \
 --LDscoresFile /n/groups/patel/bin/BOLT-LMM_v2.3.2/tables/LDSCORE.1000G_EUR.tab.gz \
---remove '${dir_script}'bolt.in_plink_but_not_imputed.FID_IID.978.txt \
---phenoFile '${dir_out}'pheno_EC.txt \
+--remove '${dir_script}'../input_data/bolt.in_plink_but_not_imputed.FID_IID.978.txt \
+--phenoFile '${dir_scratch}'pheno_EC.txt \
 --phenoCol '${exposure}' \
---covarFile '${dir_out}'pheno_EC.txt \
+--covarFile '${dir_scratch}'pheno_EC.txt \
 --covarCol f.31.0.0 \
 --covarCol f.54.0.0 \
 --qCovarCol f.34.0.0 \
@@ -83,10 +83,10 @@ echo '#!/bin/sh
 --bim /n/groups/patel/uk_biobank/main_data_9512/ukb_snp_chr{1:22}_v2.bim \
 --fam /n/groups/patel/uk_biobank/main_data_9512/ukb_bolt_lmm.fam \
 --LDscoresFile /n/groups/patel/bin/BOLT-LMM_v2.3.2/tables/LDSCORE.1000G_EUR.tab.gz \
---remove '${dir_script}'bolt.in_plink_but_not_imputed.FID_IID.978.txt \
---phenoFile '${dir_out}'pheno_EC.txt \
+--remove '${dir_script}'../input_data/bolt.in_plink_but_not_imputed.FID_IID.978.txt \
+--phenoFile '${dir_scratch}'pheno_EC.txt \
 --phenoCol '${exposure}' \
---covarFile '${dir_out}'pheno_EC.txt \
+--covarFile '${dir_scratch}'pheno_EC.txt \
 --covarCol f.31.0.0 \
 --covarCol f.54.0.0 \
 --qCovarCol f.34.0.0 \

@@ -1,15 +1,14 @@
-# sets directories and paths
-loc_phenos="phenotypes_ALL.txt"
-dir_out="/home/nur479/scratch3/PXS_pipeline/" #include last forward slash /
-dir_script="/home/nur479/jobs/PXS_pipeline/"
+# sets directories and paths (include last forward slash / )
+dir_script="/home/nur479/jobs/PXS_pipeline/code/"
+dir_scratch="/home/nur479/scratch3/PXS_pipeline/"
 
-lines=$(cat $loc_phenos)
+lines=$(echo ${dir_script}../input_data/phenotypes.txt)
 for disease in $lines
 do
 
 cd ${dir_script}
 
-subfolder=$(echo ${dir_out}${disease})
+subfolder=$(echo ${dir_scratch}${disease})
 
 cd ${subfolder}
 
@@ -31,10 +30,10 @@ echo '#!/bin/sh
 --fam /n/groups/patel/uk_biobank/main_data_9512/ukb_bolt_lmm.fam \
 --LDscoresFile /n/groups/patel/bin/BOLT-LMM_v2.3.2/tables/LDSCORE.1000G_EUR.tab.gz \
 --remove '${subfolder}'/IIDs_NA_exposures.txt \
---remove '${dir_script}'bolt.in_plink_but_not_imputed.FID_IID.978.txt \
+--remove '${dir_script}'../input_data/bolt.in_plink_but_not_imputed.FID_IID.978.txt \
 --phenoFile '${subfolder}'/PXS_'${disease}'.txt \
 --phenoCol PXS_'${disease}' \
---covarFile '${dir_out}'pheno_EC.txt \
+--covarFile '${dir_scratch}'pheno_EC.txt \
 --covarCol f.31.0.0 \
 --covarCol f.54.0.0 \
 --qCovarCol f.34.0.0 \
@@ -71,10 +70,10 @@ echo '#!/bin/sh
 --fam /n/groups/patel/uk_biobank/main_data_9512/ukb_bolt_lmm.fam \
 --LDscoresFile /n/groups/patel/bin/BOLT-LMM_v2.3.2/tables/LDSCORE.1000G_EUR.tab.gz \
 --remove '${subfolder}'/IIDs_NA_exposures.txt \
---remove '${dir_script}'bolt.in_plink_but_not_imputed.FID_IID.978.txt \
+--remove '${dir_script}'../input_data/bolt.in_plink_but_not_imputed.FID_IID.978.txt \
 --phenoFile '${subfolder}'/PXS_'${disease}'.txt \
 --phenoCol PXS_'${disease}' \
---covarFile '${dir_out}'pheno_EC.txt \
+--covarFile '${dir_scratch}'pheno_EC.txt \
 --covarCol f.31.0.0 \
 --covarCol f.54.0.0 \
 --qCovarCol f.34.0.0 \

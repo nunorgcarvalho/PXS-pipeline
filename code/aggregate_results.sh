@@ -12,7 +12,7 @@
 # run_BOLT_exposures.sh
 # run_BOLT_genCorr_CRFs.sh
 
-dir_script="/home/nur479/jobs/PXS_pipeline/"
+dir_script="/home/nur479/jobs/PXS_pipeline/code/"
 cd ${dir_script}
 
 module load gcc/9.2.0 R/4.1.2

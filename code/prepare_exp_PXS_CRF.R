@@ -4,16 +4,15 @@ library(magrittr)
 library(dplyr)
 library(data.table)
 
-loc_phenolist <- "phenotypes_ALL.txt"
-loc_CRFs_tbl <- "CRFs_table.txt"
+dir_script <- "~/scratch3/PXS_pipeline/code/"
 dir_scratch <- "~/scratch3/PXS_pipeline/"
-dir_out <- "./"
 
 ## Code ###
 
 # Part 1 - make_exposures_list
 loc_fields <- paste0(dir_scratch,"fields_tbl.txt")
 
+loc_phenolist <- paste0(dir_script,"../input_data/phenotypes.txt")
 phenolist <- readLines(loc_phenolist)
 fields <- as_tibble(fread(loc_fields))
 exposures <- (fields %>%
@@ -22,12 +21,13 @@ exposures <- (fields %>%
   mutate(sum = rowSums(across(all_of(phenolist)))) %>%
   filter(sum > 0) )$field
 
-loc_out <- paste0(dir_out,"exposures.txt")
+loc_out <- paste0(dir_script,"../input_data/exposures.txt")
 file_out <- file(loc_out)
 writeLines(exposures,file_out)
 close(file_out)
 
 # Part 2 - prepare_PXS_CRF
+loc_CRFs_tbl <- paste0(dir_script,"../input_data/CRFs_table.txt")
 CRFs_tbl <- as_tibble(fread(loc_CRFs_tbl))
 loc_pheno <- paste0(dir_scratch,"pheno_EC.txt")
 pheno_tbl <- as_tibble(fread(loc_pheno))

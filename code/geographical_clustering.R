@@ -3,9 +3,9 @@ library(tidyverse)
 library(data.table)
 library(GGally)
 
+dir_script <- "~/jobs/PXS_pipeline/code/"
 dir_scratch <- "~/scratch3/PXS_pipeline/"
-dir_script <- "~/jobs/PXS_pipeline/"
-dir_data_showcase <- "~/scratch3/key_data/"
+dir_data_showcase <- "~/scratch3/key_data/" # contains 'Data_Dictionary_Showcase.tsv' and 'Codings.tsv' from UKBB
 
 ## Functions ##
 calculate_ANOVA <- function(field, loc_out, ANOVA_tbl, AC_means, remove_negs=FALSE) {
@@ -119,7 +119,7 @@ pheno <- as_tibble(fread(loc_pheno)) %>%
                                     levels = AC_tbl$Value,
                                     labels = AC_tbl$Meaning))
 
-loc_phenolist <- paste0(dir_script,"phenotypes_ALL.txt")
+loc_phenolist <- paste0(dir_script,"../input_data/phenotypes.txt")
 pheno_list <- readLines(loc_phenolist)
 
 # Loops through XWAS diseases

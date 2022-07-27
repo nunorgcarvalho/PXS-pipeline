@@ -2,27 +2,30 @@
 library(tidyverse)
 library(data.table)
 
-dir_out <- "~/scratch3/PXS_pipeline/"
-loc_coeffs <- "/n/groups/patel/yixuan/PXS_multi/all/coeffs_V9.csv"
-loc_tally <- "/n/groups/patel/yixuan/PXS_multi/all/tally_X_V9.csv"
+dir_script <- "~/jobs/PXS_pipeline/code/"
+dir_scratch <- "~/scratch3/PXS_pipeline/"
 loc_pheno_full <- "/n/groups/patel/uk_biobank/main_data_34521/ukb34521.tab"
 loc_40PCs <- "~/scratch3/key_data/UKB_40PCs_500k.txt"
-loc_CFRs_tbl <- "~/jobs/PXS_pipeline/CRFs_table.txt"
 
 # List of exposures to remove from data for any reason, as well as covariates
 remove_exposures <- c("f.20118.0.0")
 covars <- c("f.31.0.0", # sex
             "f.34.0.0", # year of birth
             "f.54.0.0", # assessment center
-            paste0("pc",1:40) # 40 PCs not from UKB field directly
+            paste0("pc",1:40) # 40 PCs not from UKB field directly, but from loc_40PCs
             )
 include_ethnicities <- c(1001,1002) # White British, White Irish
+
 ## Code
 
 # loads coefficients and tally file from XWAS results
+loc_coeffs <- paste0(dir_script,"../input_data/coeffs_V9.csv")
 coeffs <- as_tibble(fread(loc_coeffs))
+loc_tally <- paste0(dir_script,"../input_data/tally_X_V9.csv")
 tally <- as_tibble(fread(loc_tally))
+
 # loads list of CRFs
+loc_CFRs_tbl <- paste0(dir_script,"../input_data/CRFs_table.txt")
 CRFs_tbl <- as_tibble(fread(loc_CFRs_tbl))
 
 categorical_vars <- coeffs %>% select(X) %>%
@@ -72,9 +75,9 @@ for (i in 1:nrow(fields)) {
 fields <- fields %>% filter(pheno_NApct < 1)
 
 # Saves phenotype file containing exposures and covariates
-loc_out <- paste0(dir_out,"pheno_EC.txt")
+loc_out <- paste0(dir_scratch,"pheno_EC.txt")
 write.table(pheno,loc_out,sep=" ",row.names=FALSE,quote=FALSE)
 
 # Saves table with field information
-loc_out <- paste0(dir_out,"fields_tbl.txt")
+loc_out <- paste0(dir_scratch,"fields_tbl.txt")
 write.table(fields,loc_out,sep="\t",row.names=FALSE,quote=FALSE)

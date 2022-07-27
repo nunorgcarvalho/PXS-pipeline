@@ -1,14 +1,14 @@
-# sets directories and paths
-dir_out="/home/nur479/scratch3/PXS_pipeline/" #include last forward slash /
-dir_script="/home/nur479/jobs/PXS_pipeline/"
+# sets directories and paths (include last forward slash / )
+dir_script="/home/nur479/jobs/PXS_pipeline/code/"
+dir_scratch="/home/nur479/scratch3/PXS_pipeline/"
 
-loc_phenolist=$(echo ${dir_script}phenotypes_ALL.txt)
+loc_phenolist=$(echo ${dir_script}../input_data/phenotypes.txt)
 
 phenos=$(cat $loc_phenolist)
 for pheno in $phenos
 do
 
-subfolder=$(echo ${dir_out}${pheno})
+subfolder=$(echo ${dir_scratch}${pheno})
 cd ${subfolder}
 
 loc_CRFs=$(echo ${subfolder}/${pheno}_CRFs.txt)
@@ -34,11 +34,11 @@ echo '#!/bin/sh
 --bim /n/groups/patel/uk_biobank/main_data_9512/ukb_snp_chr{1:22}_v2.bim \
 --fam /n/groups/patel/uk_biobank/main_data_9512/ukb_bolt_lmm.fam \
 --LDscoresFile /n/groups/patel/bin/BOLT-LMM_v2.3.2/tables/LDSCORE.1000G_EUR.tab.gz \
---remove '${dir_script}'bolt.in_plink_but_not_imputed.FID_IID.978.txt \
---phenoFile '${dir_out}'pheno_EC.txt \
+--remove '${dir_script}'../input_data/bolt.in_plink_but_not_imputed.FID_IID.978.txt \
+--phenoFile '${dir_scratch}'pheno_EC.txt \
 --phenoCol PXS_'${pheno}' \
 --phenoCol '${CRF}' \
---covarFile '${dir_out}'pheno_EC.txt \
+--covarFile '${dir_scratch}'pheno_EC.txt \
 --covarCol f.31.0.0 \
 --covarCol f.54.0.0 \
 --qCovarCol f.34.0.0 \

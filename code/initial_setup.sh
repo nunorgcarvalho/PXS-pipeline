@@ -7,24 +7,22 @@
 #SBATCH -e initial_setup.err
 
 
-# sets directories and paths
-loc_phenos="phenotypes_ALL.txt"
-dir_out="/home/nur479/scratch3/PXS_pipeline/" #include last forward slash /
-dir_script="/home/nur479/jobs/PXS_pipeline/"
+# sets directories and paths (include last forward slash / )
+dir_script="/home/nur479/jobs/PXS_pipeline/code/"
+dir_scratch="/home/nur479/scratch3/PXS_pipeline/"
 
 # Creates ukkb_pheno and fields file that includes all phenotypes
 module load gcc/9.2.0 R/4.1.2
 R CMD BATCH initial_setup.R
 
-lines=$(cat $loc_phenos)
+lines=$(echo ${dir_script}../input_data/phenotypes.txt)
 
-#mkdir ${dir_out}results
 for disease in $lines
 do
 
 cd ${dir_script}
 
-subfolder=$(echo ${dir_out}${disease})
+subfolder=$(echo ${dir_scratch}${disease})
 echo ${subfolder}
 mkdir -p ${subfolder}
 cp ${dir_script}compute_PXS_LM.R ${subfolder}/${disease}_compute_PXS_LM.R
