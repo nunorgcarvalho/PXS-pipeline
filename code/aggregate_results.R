@@ -291,8 +291,16 @@ get_lambda <- function(LMM_chisq) {
 }
 
 # Code
-cols_to_keep <- c("SNP","CHR","BP","P_BOLT_LMM_INF","CHISQ_BOLT_LMM_INF")
+cols_to_keep <- c("SNP","CHR","BP","BETA","P_BOLT_LMM_INF","CHISQ_BOLT_LMM_INF")
 
+sig_SNPs_PXS <- tibble(
+  SNP = as.character(),
+  CHR = as.numeric(),
+  BP = as.numeric(),
+  BETA = as.numeric(),
+  P = as.numeric()
+)
+sig_SNPs_expo <-  sig_SNPs_PXS
 
 LMM_PXS_tbl <- tibble(
   field = as.character(),
@@ -310,6 +318,10 @@ for (pheno in pheno_list) {
   loc_LMM <- paste0(dir_scratch,pheno,"/LMM_",pheno,"_bgen.txt")
   LMM <- as_tibble(fread(loc_LMM, select=cols_to_keep)) %>%
     rename(P = P_BOLT_LMM_INF)
+  
+  sig_SNPs_PXS <- sig_SNPs_PXS %>% add_row(
+    LMM %>% select(SNP,CHR,BP,BETA,P) %>% filter(P < 5E-8)
+  )
   
   N <- nrow(LMM)
   bonferroni <- 0.05 / N
@@ -344,6 +356,10 @@ for (expo in exposures_list) {
   LMM <- as_tibble(fread(loc_LMM, select=cols_to_keep)) %>%
     rename(P = P_BOLT_LMM_INF)
   
+  sig_SNPs_expo <- sig_SNPs_expo %>% add_row(
+    LMM %>% select(SNP,CHR,BP,BETA,P) %>% filter(P < 5E-8)
+  )
+  
   N <- nrow(LMM)
   lambda <- get_lambda(LMM$CHISQ_BOLT_LMM_INF)
   LMM_expo_tbl <- LMM_expo_tbl %>%
@@ -371,6 +387,12 @@ for (expo in exposures_list) {
 
 LMM_PXS_tbl <- LMM_PXS_tbl %>% left_join(ukb_dict, by="field")
 LMM_expo_tbl <- LMM_expo_tbl %>% left_join(ukb_dict, by="field")
+
+loc_out <- paste0(dir_scratch, "LMM_PXS_sig_SNPs.txt")
+write.table(sig_SNPs_PXS, loc_out, sep="\t", quote=FALSE, row.names=FALSE)
+
+loc_out <- paste0(dir_scratch, "LMM_expo_sig_SNPs.txt")
+write.table(sig_SNPs_expo, loc_out, sep="\t", quote=FALSE, row.names=FALSE)
 
 loc_out <- paste0(dir_scratch, "LMM_PXS_results.txt")
 write.table(LMM_PXS_tbl, loc_out, sep="\t", quote=FALSE, row.names=FALSE)
