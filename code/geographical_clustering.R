@@ -1,7 +1,9 @@
 ## Libraries and directories ##
+#library(plyr)
 library(tidyverse)
 library(data.table)
 library(GGally)
+#source("custom_ggbiplot.R")
 
 dir_script <- "~/jobs/PXS_pipeline/code/"
 dir_scratch <- "~/scratch3/PXS_pipeline/"
@@ -11,7 +13,7 @@ dir_data_showcase <- "~/scratch3/key_data/" # contains 'Data_Dictionary_Showcase
 calculate_ANOVA <- function(field, loc_out, ANOVA_tbl, AC_means, remove_negs=FALSE) {
   
   ANOVA_tibble <- pheno %>% select(assessment_center,all_of(field)) %>%
-    rename(field_value = all_of(field)) %>%
+    dplyr::rename(field_value = all_of(field)) %>%
     drop_na()
   if (remove_negs) {ANOVA_tibble <- ANOVA_tibble %>% filter(field_value >= 0)}
   # normalizes data since that is one of the ANOVA assumptions
@@ -38,16 +40,16 @@ calculate_ANOVA <- function(field, loc_out, ANOVA_tbl, AC_means, remove_negs=FAL
       p_value = p_value
     )
   
-  # gg<-ggplot(ANOVA_tibble, aes(x=assessment_center,y=field_value)) +
-  #   geom_boxplot() +
-  #   geom_label(data=ANOVA_tibble_summary, aes(y=med_field_value, label=round(med_field_value,2)),
-  #              label.padding = unit(0.1, "lines")) +
-  #   coord_flip() +
-  #   xlab("Assessment Center") +
-  #   ylab(field) +
-  #   labs(title = paste("Boxplots of",field,"per Assessment Center"),
-  #        subtitle = paste0("ANOVA: F = ",round(f_stat,3),", p-value = ",round(p_value,3)))
-  # ggsave(loc_out, gg, width = 3600, height = 2700, units = "px")
+  gg<-ggplot(ANOVA_tibble, aes(x=assessment_center,y=field_value)) +
+    geom_boxplot() +
+    geom_label(data=ANOVA_tibble_summary, aes(y=med_field_value, label=round(med_field_value,2)),
+               label.padding = unit(0.1, "lines")) +
+    coord_flip() +
+    xlab("Assessment Center") +
+    ylab(field) +
+    labs(title = paste("Boxplots of",field,"per Assessment Center"),
+         subtitle = paste0("ANOVA: F = ",round(f_stat,3),", p-value = ",round(p_value,3)))
+  ggsave(loc_out, gg, width = 3600, height = 2700, units = "px")
   
   ANOVA_tibble_summary <- ANOVA_tibble_summary %>%
     select(assessment_center, mean_field_value)
@@ -62,6 +64,7 @@ calculate_correlations <- function(AC_means, AC_corrs) {
     col1 <- colnames(AC_means)[i]
     field1 <- substring(col1,6,nchar(col1))
     for (j in (i+1):length(colnames(AC_means)) ) {
+    #for (j in 1:length(colnames(AC_means)) ) {
       col2 <- colnames(AC_means)[j]
       field2 <- substring(col2,6,nchar(col2))
       
@@ -84,9 +87,9 @@ calculate_correlations <- function(AC_means, AC_corrs) {
   AC_corrs <- AC_corrs %>%
     mutate(p_adj = p.adjust(AC_corrs$p, method="fdr")) %>%
     left_join(ukb_dict, by=c("field1"="field")) %>%
-    rename(fieldname1 = fieldname) %>%
+    dplyr::rename(fieldname1 = fieldname) %>%
     left_join(ukb_dict, by=c("field2"="field")) %>%
-    rename(fieldname2 = fieldname) %>%
+    dplyr::rename(fieldname2 = fieldname) %>%
     arrange(p_adj)
   AC_corrs
 }
@@ -111,7 +114,7 @@ AC_tbl <- as_tibble(fread(paste0(dir_data_showcase,"Codings.tsv"),quote="")) %>%
 
 loc_pheno <- paste0(dir_scratch,"pheno_EC.txt")
 pheno <- as_tibble(fread(loc_pheno)) %>%
-  rename(sex = f.31.0.0,
+  dplyr::rename(sex = f.31.0.0,
          year_of_birth = f.34.0.0,
          assessment_center = f.54.0.0) %>%
   mutate(sex = as.factor(sex),
@@ -142,10 +145,6 @@ for (field in pheno_list) {
   
 }
 
-ggpairs(AC_PXS_means)
-
-
-
 # Loops through exposures
 loc_fields <- paste0(dir_scratch,"fields_tbl.txt")
 fields <- as_tibble(fread(loc_fields))
@@ -170,8 +169,11 @@ for (expo in exposures_list) {
 
 
 ## Calculate correlations (more carefully)
+AC_labels <- (AC_PXS_means %>% drop_na())$assessment_center
 AC_PXS_means <- AC_PXS_means %>% drop_na() %>% select(-assessment_center)
+PXS_labels <- ukb_dict[match(pheno_list,ukb_dict$field),]$fieldname
 AC_expo_means <- AC_expo_means %>% drop_na() %>% select(-assessment_center)
+expos_labels <- ukb_dict[match(exposures_list,ukb_dict$field),]$fieldname
 
 AC_PXS_corrs <- tibble(
   field1 = as.character(),
@@ -185,6 +187,44 @@ AC_PXS_corrs <- calculate_correlations(AC_PXS_means, AC_PXS_corrs)
 AC_expo_corrs <- calculate_correlations(AC_expo_means, AC_expo_corrs)
 
 
+n <- nrow(AC_PXS_corrs %>% filter(p_adj < 0.05))
+N <- nrow(AC_PXS_corrs)
+print(paste("For PXS, there are",n,"out of",N,"significantly correlated unique pairs"))
+
+n <- nrow(AC_expo_corrs %>% filter(p_adj < 0.05))
+N <- nrow(AC_expo_corrs)
+print(paste("For exposures, there are",n,"out of",N,"significantly correlated unique pairs"))
+
+# # PXSs PCA
+# matrix <- AC_PXS_means
+# colnames(matrix) <- PXS_labels
+# matrix.pca <- prcomp(matrix, center=TRUE, scale. = TRUE)
+# 
+# matrix_t <- as_tibble(t(matrix))
+# colnames(matrix_t) <- AC_labels
+# matrix_t.pca <- prcomp(matrix_t, center=TRUE, scale. = TRUE)
+# custom_ggbiplot(matrix.pca, labels = AC_labels, var.axes=FALSE)
+# custom_ggbiplot(matrix_t.pca, labels = PXS_labels, var.axes=FALSE,
+#                 labels.size = 3)
+# 
+# # exposures PXS
+# matrix <- AC_expo_means
+# colnames(matrix) <- expos_labels
+# matrix.pca <- prcomp(matrix, center=TRUE, scale. = TRUE)
+# 
+# matrix_t <- as_tibble(t(matrix))
+# colnames(matrix_t) <- AC_labels
+# matrix_t.pca <- prcomp(matrix_t, center=TRUE, scale. = TRUE)
+# custom_ggbiplot(matrix.pca, labels = AC_labels, var.axes=FALSE)
+# custom_ggbiplot(matrix_t.pca, labels = expos_labels, var.axes=FALSE,
+#                 labels.size = 2)
+
+ggplot(AC_expo_means, aes(x=mean_f.1438.0.0, y=mean_f.1488.0.0)) +
+  geom_text(aes(label=AC_labels))
+ggplot(AC_PXS_means, aes(x=mean_PXS_AF, y=mean_PXS_COPD)) +
+  geom_text(aes(label=AC_labels))
+
 ## Append field descriptions
+ANOVA_PXS_tbl$field <- unname(sapply(ANOVA_PXS_tbl$field, function(x) str_split(x,"PXS_")[[1]][length(str_split(x,"PXS_")[[1]])], simplify = TRUE))
 ANOVA_PXS_tbl <- ANOVA_PXS_tbl %>% left_join(ukb_dict, by="field")
 ANOVA_expo_tbl <- ANOVA_expo_tbl %>% left_join(ukb_dict, by="field")

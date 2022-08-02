@@ -60,21 +60,20 @@ extract_from_genCorr <- function(genCorr) {
   out
 }
 extract_from_envLM <- function(envLM) {
-  N <- length(envLM)
   
-  # extract R2
-  line <- envLM[N-3]
-  line_split <- str_split(substr(line,22,nchar(line)),",\tAdjusted R-squared:  ")
-  R2 <- as.numeric(line_split[[1]][1])
-  R2adj <- as.numeric(line_split[[1]][2])
+  summary <- summary(envLM)
+  R2 <- summary$r.squared
+  R2adj <- summary$adj.r.squared
+  F_stat <- unname(summary$fstatistic[1])
+  p <- unname(pf(summary$fstatistic[1],summary$fstatistic[2],summary$fstatistic[3], lower.tail = FALSE))
   
-  # extract F and p
-  line <- envLM[N-2]
-  line_split <- str_split(substr(line,14,nchar(line))," ")
-  F_stat <- as.numeric(line_split[[1]][length(line_split[[1]]) - 9])
-  p <- as.numeric(line_split[[1]][length(line_split[[1]])])
+  tvals <- summary$coefficients[,"t value"]
   
-  out <- c(R2, R2adj, F_stat, p)
+  out <- tibble(
+    colname = c("R2","R2adj","F_stat","p",paste0("t_",names(tvals))),
+    value = c(R2, R2adj, F_stat, p, unname(tvals))
+  )
+  
   out
 }
 
@@ -94,18 +93,16 @@ REML_PXS_tbl <- tibble(
 )
 REML_expo_tbl <- REML_PXS_tbl
 envLM_PXS_tbl <- tibble(
-  field = as.character(),
-  R2 = as.numeric(),
-  R2adj = as.numeric(),
-  F_stat = as.numeric(),
-  p = as.numeric()
+  field = character(),
+  colname = character(),
+  value = numeric()
 )
 for (pheno in pheno_list) {
-  # REML
+  #REML
   loc_REML <- paste0(dir_scratch,pheno,"/",pheno,"_PXS_BOLTREML.out")
   REML <- readLines(loc_REML)
   out <- extract_from_REML(REML)
-  
+
   # adds row to table
   REML_PXS_tbl <- REML_PXS_tbl %>%
     add_row(
@@ -116,24 +113,30 @@ for (pheno in pheno_list) {
       h2g_err = out[4],
       elapsed_hours = out[5]
     )
-  
+
   print(paste("Read REML results for",pheno))
   
   # enVLM
-  loc_envLM <- paste0(dir_scratch,pheno,"/",pheno,"_compute_PXS_LM.Rout")
-  envLM <- readLines(loc_envLM)
+  loc_envLM <- paste0(dir_scratch,pheno,"/PXS_",pheno,"_envLM.rds")
+  envLM <- readRDS(loc_envLM)
   out <- extract_from_envLM(envLM)
   
-  envLM_PXS_tbl <- envLM_PXS_tbl %>% add_row(
-    field = pheno,
-    R2 = out[1],
-    R2adj = out[2],
-    F_stat = out[3],
-    p = out[4]
-  )
+  envLM_PXS_tbl <- envLM_PXS_tbl %>% add_row(out %>% mutate(field=pheno))
   
   print(paste("Read envLM results for",pheno))
 }
+envLM_PXS_tvals <- envLM_PXS_tbl %>%
+  filter(substr(colname,1,2) == "t_") %>%
+  rename(variable = colname, tvalue = value) %>%
+  mutate(
+    variable = substr(variable, 3, nchar(variable))
+  )
+envLM_PXS_tbl_wider <- envLM_PXS_tbl %>%
+  filter(substr(colname,1,2) != "t_") %>%
+  pivot_wider(
+    values_from = value,
+    names_from = colname
+  )
 
 ### REML results for each exposure
 loc_expolist <- paste0(dir_script,"../input_data/exposures.txt")
@@ -176,7 +179,6 @@ for (pheno in pheno_list) {
   if (!file.exists(loc_CRFs)) {next}
   CRFs_list <- readLines(loc_CRFs)
   for (CRF in CRFs_list) {
-    #if (CRF == "f.4080.0.0") {next}
     loc_genCorr <- paste0(dir_scratch,pheno,"/PXS_",pheno,"_",CRF,"_genCorr.out")
     genCorr <- readLines(loc_genCorr)
     
@@ -211,7 +213,8 @@ ukb_dict <- as_tibble(fread(paste0(dir_data_showcase,"Data_Dictionary_Showcase.t
   )
 REML_PXS_tbl <- REML_PXS_tbl %>% left_join(ukb_dict, by="field")
 REML_expo_tbl <- REML_expo_tbl %>% left_join(ukb_dict, by="field")
-envLM_PXS_tbl <- envLM_PXS_tbl %>% left_join(ukb_dict, by="field")
+envLM_PXS_tbl_wider <- envLM_PXS_tbl_wider %>% left_join(ukb_dict, by="field")
+envLM_PXS_tvals <- envLM_PXS_tvals %>% left_join(ukb_dict, by="field")
 genCorr_CRF_tbl <- genCorr_CRF_tbl %>% left_join(ukb_dict, by=c("pheno_field"="field")) %>% rename(pheno_fieldname = fieldname)
 genCorr_CRF_tbl <- genCorr_CRF_tbl %>% left_join(ukb_dict, by=c("CRF_field"="field")) %>% rename(CRF_fieldname = fieldname)
 
@@ -223,7 +226,10 @@ loc_out <- paste0(dir_scratch, "REML_exposures_results.txt")
 write.table(REML_expo_tbl, loc_out, sep="\t", quote=FALSE, row.names=FALSE)
 
 loc_out <- paste0(dir_scratch, "envLM_PXS_results.txt")
-write.table(envLM_PXS_tbl, loc_out, sep="\t", quote=FALSE, row.names=FALSE)
+write.table(envLM_PXS_tbl_wider, loc_out, sep="\t", quote=FALSE, row.names=FALSE)
+
+loc_out <- paste0(dir_scratch, "envLM_PXS_tvals.txt")
+write.table(envLM_PXS_tvals, loc_out, sep="\t", quote=FALSE, row.names=FALSE)
 
 loc_out <- paste0(dir_scratch, "genCorr_CRF_results.txt")
 write.table(genCorr_CRF_tbl, loc_out, sep="\t", quote=FALSE, row.names=FALSE)
@@ -298,7 +304,8 @@ sig_SNPs_PXS <- tibble(
   CHR = as.numeric(),
   BP = as.numeric(),
   BETA = as.numeric(),
-  P = as.numeric()
+  P = as.numeric(),
+  field = as.character()
 )
 sig_SNPs_expo <-  sig_SNPs_PXS
 
@@ -320,7 +327,7 @@ for (pheno in pheno_list) {
     rename(P = P_BOLT_LMM_INF)
   
   sig_SNPs_PXS <- sig_SNPs_PXS %>% add_row(
-    LMM %>% select(SNP,CHR,BP,BETA,P) %>% filter(P < 5E-8)
+    LMM %>% select(SNP,CHR,BP,BETA,P) %>% filter(P < 5E-8) %>% mutate(field = pheno)
   )
   
   N <- nrow(LMM)
@@ -357,7 +364,7 @@ for (expo in exposures_list) {
     rename(P = P_BOLT_LMM_INF)
   
   sig_SNPs_expo <- sig_SNPs_expo %>% add_row(
-    LMM %>% select(SNP,CHR,BP,BETA,P) %>% filter(P < 5E-8)
+    LMM %>% select(SNP,CHR,BP,BETA,P) %>% filter(P < 5E-8) %>% mutate(field = expo)
   )
   
   N <- nrow(LMM)
@@ -399,3 +406,26 @@ write.table(LMM_PXS_tbl, loc_out, sep="\t", quote=FALSE, row.names=FALSE)
 
 loc_out <- paste0(dir_scratch, "LMM_exposures_results.txt")
 write.table(LMM_expo_tbl, loc_out, sep="\t", quote=FALSE, row.names=FALSE)
+
+## Looking closer at envLM
+AC_tbl <- as_tibble(fread(paste0(dir_data_showcase,"Codings.tsv"),quote="")) %>%
+  filter(Coding == 10)
+envLM_tval_group <- envLM_PXS_tvals %>%
+  mutate(tvalue = abs(tvalue)) %>%
+  arrange(-tvalue)
+envLM_tval_group <- envLM_tval_group %>%
+  group_by(variable) %>%
+  summarize(tvalue = mean(tvalue),
+            n = n()) %>%
+  arrange(-tvalue)
+ACs <- c()
+for (i in 1:nrow(envLM_tval_group)) {
+  if (substr(envLM_tval_group$variable[i],1,17) == "assessment_center") {
+    code <- substr(envLM_tval_group$variable[i],18,22)
+    ACs[i] <- (AC_tbl %>% filter(Value==code))$Meaning[1]
+  } else {ACs[i] <- as.character(NA)}
+}
+envLM_tval_group$assessment_center <- ACs
+
+## looking closer at significant SNPs
+sig_SNPs_PXS <- as_tibble(fread(paste0(dir_scratch, "LMM_PXS_sig_SNPs.txt")))

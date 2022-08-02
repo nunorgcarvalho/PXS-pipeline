@@ -8,7 +8,8 @@ loc_pheno_full <- "/n/groups/patel/uk_biobank/main_data_34521/ukb34521.tab"
 loc_40PCs <- "~/scratch3/key_data/UKB_40PCs_500k.txt"
 
 # List of exposures to remove from data for any reason, as well as covariates
-remove_exposures <- c("f.20118.0.0")
+remove_exposures <- c("f.20118.0.0","f.24003.0.0","f.24006.0.0","f.24008.0.0",
+                      "f.24017.0.0","f.24018.0.0","f.24019.0.0")
 covars <- c("f.31.0.0", # sex
             "f.34.0.0", # year of birth
             "f.54.0.0", # assessment center

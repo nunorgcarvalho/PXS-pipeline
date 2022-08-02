@@ -23,7 +23,7 @@ covars <- (fields %>% filter(use_type=="covar"))$field
 fields <- fields %>% filter(use_type=="exposure")
 
 # loads the file containing XWAS coefficients and filters to just to the disease
-loc_coeffs <- paste0(dir_script,"../input_data/coeffs_V9.csv)
+loc_coeffs <- paste0(dir_script,"../input_data/coeffs_V9.csv")
 coeffs <- as_tibble(fread(loc_coeffs)) %>%
   filter(!is.na(!!as.name(col_coeff))) %>% select(V1,X,term,ends_with(disease))
 
