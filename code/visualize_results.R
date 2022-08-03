@@ -6,9 +6,11 @@
 #### Libraries and directories ####
 library(tidyverse)
 library(data.table)
-library(gt)
+library(ggpubr)
 library(webshot)
-library(ggrepel)
+library(gt)
+# Functions #
+source("~/jobs/PXS_pipeline/code/helper_functions.R")
 
 dir_script <- "~/jobs/PXS_pipeline/code/"
 #dir_scratch <- "~/scratch3/PXS_pipeline/"
@@ -39,8 +41,8 @@ LMM_expo <- as_tibble(fread(paste0(dir_scratch,"LMM_exposures_results.txt"))) %>
 
 table1 <- left_join(REML_expo, LMM_expo, by="field") %>%
   select(fieldname, h2g, h2g_err, lambda, N_above_bonferroni) %>%
-  mutate(h2g_CI = paste0("(",round(h2g - 2*h2g_err,rounding_decimals),", ",
-                         round(h2g + 2*h2g_err,rounding_decimals),")")) %>%
+  mutate(h2g_CI = paste0("(",round(h2g - 1.96*h2g_err,rounding_decimals),", ",
+                         round(h2g + 1.96*h2g_err,rounding_decimals),")")) %>%
   arrange(-h2g) %>%
   drop_na() %>%
   mutate(n = row_number()) %>%
@@ -90,8 +92,8 @@ LMM_PXS <- as_tibble(fread(paste0(dir_scratch,"LMM_PXS_results.txt"))) %>%
 
 table2 <- left_join(REML_PXS, LMM_PXS, by="field") %>%
   select(fieldname, h2g, h2g_err, lambda, N_above_bonferroni) %>%
-  mutate(h2g_CI = paste0("(",round(h2g - 2*h2g_err,rounding_decimals),", ",
-                         round(h2g + 2*h2g_err,rounding_decimals),")")) %>%
+  mutate(h2g_CI = paste0("(",round(h2g - 1.96*h2g_err,rounding_decimals),", ",
+                         round(h2g + 1.96*h2g_err,rounding_decimals),")")) %>%
   arrange(-h2g) %>%
   mutate(n = row_number()) %>%
   select(n,fieldname, h2g, h2g_CI, lambda, N_above_bonferroni) %>%
@@ -125,7 +127,7 @@ table2gt <- gt(table2) %>%
   ) %>%
   tab_header(
     title = "Heritability and Lambda Inflation Factor of Exposures",
-    subtitle = "Displaying 12 cardiometabolic health outcome PXSs"
+    subtitle = paste0("Displaying ", nrow(table2)," cardiometabolic health outcome PXSs")
   ) %>%
   tab_footnote(
     footnote = "P < 0.05 / 19400443 (number of total SNPs)",
@@ -141,10 +143,10 @@ genCorrs <- as_tibble(fread(paste0(dir_scratch,"genCorr_CRF_results.txt")))
 
 table3 <- genCorrs %>%
   select(CRF_fieldname, h2g2, h2g2_err, gencorr, gencorr_err) %>%
-  mutate(h2g2_CI = paste0("(",round(h2g2 - 2*h2g2_err,rounding_decimals),", ",
-                         round(h2g2 + 2*h2g2_err,rounding_decimals),")"),
-         gencorr_CI = paste0("(",round(gencorr - 2*gencorr_err,rounding_decimals),", ",
-                          round(gencorr + 2*gencorr_err,rounding_decimals),")")) %>%
+  mutate(h2g2_CI = paste0("(",round(h2g2 - 1.96*h2g2_err,rounding_decimals),", ",
+                         round(h2g2 + 1.96*h2g2_err,rounding_decimals),")"),
+         gencorr_CI = paste0("(",round(gencorr - 1.96*gencorr_err,rounding_decimals),", ",
+                          round(gencorr + 1.96*gencorr_err,rounding_decimals),")")) %>%
   arrange(-gencorr) %>%
   mutate(n = row_number()) %>%
   select(n,CRF_fieldname, h2g2, h2g2_CI, gencorr, gencorr_CI) %>%
@@ -178,10 +180,72 @@ table3gt <- gt(table3) %>%
   ) %>%
   tab_header(
     title = "Genetic Correlation between PXS for T2D and Clinical Risk Factors",
-    subtitle = "Displaying 6 Clinical Risk Factors of Type 2 Diabetes"
+    subtitle = paste0("Displaying ",nrow(table3)," Clinical Risk Factors of Type 2 Diabetes")
   )
 
 table3gt
 gtsave(table3gt, "table3.png","./figures/")
 
-#### Figure 1 ####
+# Manhattan Plot settings
+cols_to_keep <- c("SNP","CHR","BP","BETA","P_BOLT_LMM_INF","CHISQ_BOLT_LMM_INF")
+
+width = 7200
+height = 3200
+
+#### Figure 2 ####
+expos_to_plot <- c("f.20116.0.0","f.6139.0.0")
+plots2 <- list()
+for (i in 1:length(expos_to_plot)) {
+  expo <- expos_to_plot[i]
+  fieldname <- (REML_expo %>% filter(field==expo))$fieldname[1]
+  loc_LMM <- paste0(dir_scratch,"exposures/",expo,"/LMM_",expo,"_bgen.txt")
+  if (!file.exists(loc_LMM)) {next}
+  LMM <- as_tibble(fread(loc_LMM, select=cols_to_keep)) %>%
+    rename(P = P_BOLT_LMM_INF)
+  
+  N <- nrow(LMM)
+  lambda <- get_lambda(LMM$CHISQ_BOLT_LMM_INF)
+  h2 <- (REML_expo %>% filter(field==expo))$h2g[1]
+  
+  # reduces the number of points to plot significantly while trying to keep
+  # the Manhattan plot visually the same as before
+  LMM2 <- downscale_sf(LMM)
+  
+  gg <- plot_Manhattan(LMM2, fieldname, N, lambda, h2)
+  plots2[[i]] <- gg
+  
+  print(paste("Saved Manhattan plot for",expo))
+}
+
+fig2 <- ggarrange(plots2[[1]],plots2[[2]])
+loc_out <- paste0("./figures/","figure2.png")
+ggsave(loc_out,plot=fig2,width = width, height = height, units="px")
+
+#### Figure 3 ####
+phenos_to_plot <- c("AF","f.30740.0.0")
+plots3 <- list()
+for (i in 1:length(phenos_to_plot)) {
+  pheno <- phenos_to_plot[i]
+  fieldname <- paste0((REML_PXS %>% filter(field==pheno))$fieldname[1], " PXS")
+  loc_LMM <- paste0(dir_scratch,pheno,"/LMM_",pheno,"_bgen.txt")
+  if (!file.exists(loc_LMM)) {next}
+  LMM <- as_tibble(fread(loc_LMM, select=cols_to_keep)) %>%
+    rename(P = P_BOLT_LMM_INF)
+  
+  N <- nrow(LMM)
+  lambda <- get_lambda(LMM$CHISQ_BOLT_LMM_INF)
+  h2 <- (REML_PXS %>% filter(field==pheno))$h2g[1]
+  
+  # reduces the number of points to plot significantly while trying to keep
+  # the Manhattan plot visually the same as before
+  LMM2 <- downscale_sf(LMM)
+  
+  gg <- plot_Manhattan(LMM2, fieldname, N, lambda, h2)
+  plots3[[i]] <- gg
+  
+  print(paste("Saved Manhattan plot for",pheno))
+}
+
+fig3 <- ggarrange(plots3[[1]],plots3[[2]])
+loc_out <- paste0("./figures/","figure3.png")
+ggsave(loc_out,plot=fig3,width = width, height = height, units="px")
