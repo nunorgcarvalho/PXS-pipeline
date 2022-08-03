@@ -15,9 +15,10 @@ dir_scratch="/home/nur479/scratch3/PXS_pipeline/"
 module load gcc/9.2.0 R/4.1.2
 R CMD BATCH initial_setup.R
 
-lines=$(echo ${dir_script}../input_data/phenotypes.txt)
+loc_phenolist=$(echo ${dir_script}../input_data/phenotypes.txt)
+phenos=$(cat $loc_phenolist)
 
-for disease in $lines
+for disease in $phenos
 do
 
 cd ${dir_script}

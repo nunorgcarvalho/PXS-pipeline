@@ -4,7 +4,7 @@ library(magrittr)
 library(dplyr)
 library(data.table)
 
-dir_script <- "~/scratch3/PXS_pipeline/code/"
+dir_script <- "~/jobs/PXS_pipeline/code/"
 dir_scratch <- "~/scratch3/PXS_pipeline/"
 
 ## Code ###

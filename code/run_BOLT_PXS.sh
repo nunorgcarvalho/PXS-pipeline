@@ -2,8 +2,9 @@
 dir_script="/home/nur479/jobs/PXS_pipeline/code/"
 dir_scratch="/home/nur479/scratch3/PXS_pipeline/"
 
-lines=$(echo ${dir_script}../input_data/phenotypes.txt)
-for disease in $lines
+loc_phenolist=$(echo ${dir_script}../input_data/phenotypes.txt)
+phenos=$(cat $loc_phenolist)
+for disease in $phenos
 do
 
 cd ${dir_script}

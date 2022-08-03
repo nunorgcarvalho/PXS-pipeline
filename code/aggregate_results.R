@@ -5,7 +5,8 @@ library(data.table)
 library(ggrepel)
 
 dir_script <- "~/jobs/PXS_pipeline/code/"
-dir_scratch <- "~/scratch3/PXS_pipeline/"
+#dir_scratch <- "~/scratch3/PXS_pipeline/"
+dir_scratch <- "~/scratch3/08-01_PXS_pipeline/"
 dir_data_showcase <- "~/scratch3/key_data/" # contains 'Data_Dictionary_Showcase.tsv' from UKBB
 
 ## Functions ##
@@ -139,7 +140,7 @@ envLM_PXS_tbl_wider <- envLM_PXS_tbl %>%
   )
 
 ### REML results for each exposure
-loc_expolist <- paste0(dir_script,"../input_data/exposures.txt")
+loc_expolist <- paste0(dir_script,"../input_data/exposures_ALL.txt")
 exposures_list <- readLines(loc_expolist)
 
 for (expo in exposures_list) {
@@ -427,5 +428,3 @@ for (i in 1:nrow(envLM_tval_group)) {
 }
 envLM_tval_group$assessment_center <- ACs
 
-## looking closer at significant SNPs
-sig_SNPs_PXS <- as_tibble(fread(paste0(dir_scratch, "LMM_PXS_sig_SNPs.txt")))
