@@ -6,13 +6,13 @@ library(data.table)
 source("~/jobs/PXS_pipeline/code/helper_functions.R")
 
 dir_script <- "~/jobs/PXS_pipeline/code/"
-#dir_scratch <- "~/scratch3/PXS_pipeline/"
-dir_scratch <- "~/scratch3/08-01_PXS_pipeline/"
+dir_scratch <- "~/scratch3/PXS_pipeline/"
+#dir_scratch <- "~/scratch3/08-01_PXS_pipeline/"
 dir_data_showcase <- "~/scratch3/key_data/" # contains 'Data_Dictionary_Showcase.tsv' from UKBB
 
 loc_phenolist <- paste0(dir_script,"../input_data/phenotypes.txt")
 pheno_list <- readLines(loc_phenolist)
-loc_expolist <- paste0(dir_script,"../input_data/exposures_ALL.txt")
+loc_expolist <- paste0(dir_script,"../input_data/exposures.txt")
 exposures_list <- readLines(loc_expolist)
 ukb_dict <- as_tibble(fread(paste0(dir_data_showcase,"Data_Dictionary_Showcase.tsv"))) %>%
   mutate(field = paste0("f.",FieldID,".0.0")) %>%

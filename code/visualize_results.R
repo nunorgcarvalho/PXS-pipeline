@@ -14,9 +14,11 @@ library(gt)
 source("~/jobs/PXS_pipeline/code/helper_functions.R")
 
 dir_script <- "~/jobs/PXS_pipeline/code/"
-dir_scratch2 <- "~/scratch3/PXS_pipeline/"
-dir_scratch <- "~/scratch3/08-01_PXS_pipeline/"
+dir_scratch <- "~/scratch3/PXS_pipeline/"
+#dir_scratch <- "~/scratch3/08-01_PXS_pipeline/"
 dir_data_showcase <- "~/scratch3/key_data/" # contains 'Data_Dictionary_Showcase.tsv' from UKBB
+
+setwd(dir_scratch)
 
 # general constants
 rounding_decimals <- 3
@@ -48,7 +50,7 @@ table1 <- left_join(REML_expo, LMM_expo, by="field") %>%
   drop_na() %>%
   mutate(n = row_number()) %>%
   select(n,fieldname, h2g, h2g_CI, lambda, N_above_bonferroni) %>%
-  filter(row_number() <= 10)
+  filter(row_number() <= 20)
 
 table1gt <- gt(table1) %>%
   gt_theme() %>%
@@ -83,7 +85,7 @@ table1gt <- gt(table1) %>%
   )
   
 table1gt
-gtsave(table1gt, "table1.png","./figures/")
+gtsave(table1gt, "table1_20.png","./figures/")
 
 #### Table 2 ####
 REML_PXS <- as_tibble(fread(paste0(dir_scratch,"REML_PXS_results.txt")))
@@ -207,6 +209,7 @@ for (i in 1:length(expos_to_plot)) {
   N <- nrow(LMM)
   bonferroni <- 0.05 / N
   lambda <- get_lambda(LMM$CHISQ_BOLT_LMM_INF)
+  h2 <- (REML_expo %>% filter(field==expo))$h2g[[1]]
   
   # adjusts for lambda inflation factor
   LMM <- LMM %>% mutate(
@@ -217,7 +220,7 @@ for (i in 1:length(expos_to_plot)) {
   # the Manhattan plot visually the same as before
   LMM2 <- downscale_sf(LMM)
   
-  gg <- plot_Manhattan(LMM2, fieldname, N, lambda)
+  gg <- plot_Manhattan(LMM2, fieldname, N, lambda, h2)
   plots2[[i]] <- gg
   
   print(paste("Saved Manhattan plot for",expo))
@@ -241,6 +244,7 @@ for (i in 1:length(phenos_to_plot)) {
   N <- nrow(LMM)
   bonferroni <- 0.05 / N
   lambda <- get_lambda(LMM$CHISQ_BOLT_LMM_INF)
+  h2 <- (REML_PXS %>% filter(field==pheno))$h2g[[1]]
   
   # adjusts for lambda inflation factor
   LMM <- LMM %>% mutate(
@@ -251,7 +255,7 @@ for (i in 1:length(phenos_to_plot)) {
   # the Manhattan plot visually the same as before
   LMM2 <- downscale_sf(LMM)
   
-  gg <- plot_Manhattan(LMM2, fieldname, N, lambda)
+  gg <- plot_Manhattan(LMM2, fieldname, N, lambda, h2)
   plots3[[i]] <- gg
   
   print(paste("Saved Manhattan plot for",pheno))
@@ -278,8 +282,7 @@ ukb_dict <- as_tibble(fread(paste0(dir_data_showcase,"Data_Dictionary_Showcase.t
 AC_tbl <- as_tibble(fread(paste0(dir_data_showcase,"Codings.tsv"),quote="")) %>%
   filter(Coding == 10)
 
-#loc_pheno <- paste0(dir_scratch,"pheno_EC.txt")
-loc_pheno <- paste0(dir_scratch2,"pheno_EC.txt")
+loc_pheno <- paste0(dir_scratch,"pheno_EC.txt")
 pheno <- as_tibble(fread(loc_pheno)) %>%
   dplyr::rename(sex = f.31.0.0,
                 year_of_birth = f.34.0.0,
@@ -289,8 +292,6 @@ pheno <- as_tibble(fread(loc_pheno)) %>%
                                     levels = AC_tbl$Value,
                                     labels = AC_tbl$Meaning))
 
-remove_exposures <- c("f.20118.0.0","f.24003.0.0","f.24006.0.0","f.24008.0.0",
-                      "f.24017.0.0","f.24018.0.0","f.24019.0.0")
 ANOVA_expo_tbl <- tibble(
   field = as.character(),
   f_stat = as.numeric(),
@@ -307,7 +308,7 @@ fields <- as_tibble(fread(loc_fields))
 # only performs analysis on quantitative exposures found in the data
 exposures_list_quant <- (fields %>% filter(use_type == "exposure",
                                      data_type == "quantitative",
-                                     !(field %in% remove_exposures)))$field
+                                     ))$field
 exposures_list_quant <- exposures_list_quant[exposures_list_quant %in% colnames(pheno)]
 
 expo_to_plot <- "f.1070.0.0"
