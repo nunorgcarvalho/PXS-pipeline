@@ -3,96 +3,13 @@
 library(tidyverse)
 library(data.table)
 library(GGally)
-#source("custom_ggbiplot.R")
+# Functions #
+source("~/jobs/PXS_pipeline/code/helper_functions.R")
 
 dir_script <- "~/jobs/PXS_pipeline/code/"
-dir_scratch <- "~/scratch3/PXS_pipeline/"
+#dir_scratch <- "~/scratch3/PXS_pipeline/"
+dir_scratch <- "~/scratch3/08-01_PXS_pipeline/"
 dir_data_showcase <- "~/scratch3/key_data/" # contains 'Data_Dictionary_Showcase.tsv' and 'Codings.tsv' from UKBB
-
-## Functions ##
-calculate_ANOVA <- function(field, loc_out, ANOVA_tbl, AC_means, remove_negs=FALSE) {
-  
-  ANOVA_tibble <- pheno %>% select(assessment_center,all_of(field)) %>%
-    dplyr::rename(field_value = all_of(field)) %>%
-    drop_na()
-  if (remove_negs) {ANOVA_tibble <- ANOVA_tibble %>% filter(field_value >= 0)}
-  # normalizes data since that is one of the ANOVA assumptions
-  ANOVA_tibble$field_value <- qnorm(rank(ANOVA_tibble$field_value) / length(ANOVA_tibble$field_value))
-  ANOVA_tibble <- ANOVA_tibble %>% filter(!is.infinite(field_value))
-  
-  aov1 <- summary(aov(data=ANOVA_tibble, field_value ~ ANOVA_tibble[["assessment_center"]]))
-  f_stat <- aov1[[1]]$`F value`[1]
-  p_value <- aov1[[1]]$`Pr(>F)`[1]
-  
-  
-  ANOVA_tibble_summary <- ANOVA_tibble %>%
-    drop_na() %>%
-    group_by(assessment_center) %>%
-    summarise(mean_field_value = mean(field_value, na.rm=TRUE),
-              med_field_value = median(field_value, na.rm=TRUE),
-              n = n()) %>%
-    arrange(-mean_field_value)
-  
-  ANOVA_tbl <- ANOVA_tbl %>%
-    add_row(
-      field = field,
-      f_stat = f_stat,
-      p_value = p_value
-    )
-  
-  gg<-ggplot(ANOVA_tibble, aes(x=assessment_center,y=field_value)) +
-    geom_boxplot() +
-    geom_label(data=ANOVA_tibble_summary, aes(y=med_field_value, label=round(med_field_value,2)),
-               label.padding = unit(0.1, "lines")) +
-    coord_flip() +
-    xlab("Assessment Center") +
-    ylab(field) +
-    labs(title = paste("Boxplots of",field,"per Assessment Center"),
-         subtitle = paste0("ANOVA: F = ",round(f_stat,3),", p-value = ",round(p_value,3)))
-  ggsave(loc_out, gg, width = 3600, height = 2700, units = "px")
-  
-  ANOVA_tibble_summary <- ANOVA_tibble_summary %>%
-    select(assessment_center, mean_field_value)
-  colnames(ANOVA_tibble_summary)[2] <- paste0("mean_",field)
-  AC_means <- AC_means %>% left_join(ANOVA_tibble_summary, by="assessment_center")
-  
-  out_list <- list(ANOVA_tbl, AC_means)
-  out_list
-}
-calculate_correlations <- function(AC_means, AC_corrs) {
-  for (i in 1:(length(colnames(AC_means))-1)) {
-    col1 <- colnames(AC_means)[i]
-    field1 <- substring(col1,6,nchar(col1))
-    for (j in (i+1):length(colnames(AC_means)) ) {
-    #for (j in 1:length(colnames(AC_means)) ) {
-      col2 <- colnames(AC_means)[j]
-      field2 <- substring(col2,6,nchar(col2))
-      
-      cor1 <- cor.test(AC_means[[col1]], AC_means[[col2]])
-      r = cor1$estimate[[1]]
-      p = cor1$p.value
-      
-      AC_corrs <- AC_corrs %>%
-        add_row(
-          field1 = field1,
-          field2 = field2,
-          r = r,
-          p = p
-        )
-      print(paste("Calculated correlation for", field1, "and", field2))
-    }
-  }
-  AC_corrs$field1 <- unname(sapply(AC_corrs$field1, function(x) str_split(x,"PXS_")[[1]][length(str_split(x,"PXS_")[[1]])], simplify = TRUE))
-  AC_corrs$field2 <- unname(sapply(AC_corrs$field2, function(x) str_split(x,"PXS_")[[1]][length(str_split(x,"PXS_")[[1]])], simplify = TRUE))
-  AC_corrs <- AC_corrs %>%
-    mutate(p_adj = p.adjust(AC_corrs$p, method="fdr")) %>%
-    left_join(ukb_dict, by=c("field1"="field")) %>%
-    dplyr::rename(fieldname1 = fieldname) %>%
-    left_join(ukb_dict, by=c("field2"="field")) %>%
-    dplyr::rename(fieldname2 = fieldname) %>%
-    arrange(p_adj)
-  AC_corrs
-}
 
 
 

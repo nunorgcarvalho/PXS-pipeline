@@ -3,87 +3,99 @@
 library(tidyverse)
 library(data.table)
 # Functions #
-source("helper_functions.R")
+source("~/jobs/PXS_pipeline/code/helper_functions.R")
 
 dir_script <- "~/jobs/PXS_pipeline/code/"
 #dir_scratch <- "~/scratch3/PXS_pipeline/"
 dir_scratch <- "~/scratch3/08-01_PXS_pipeline/"
 dir_data_showcase <- "~/scratch3/key_data/" # contains 'Data_Dictionary_Showcase.tsv' from UKBB
 
+loc_phenolist <- paste0(dir_script,"../input_data/phenotypes.txt")
+pheno_list <- readLines(loc_phenolist)
+loc_expolist <- paste0(dir_script,"../input_data/exposures_ALL.txt")
+exposures_list <- readLines(loc_expolist)
+ukb_dict <- as_tibble(fread(paste0(dir_data_showcase,"Data_Dictionary_Showcase.tsv"))) %>%
+  mutate(field = paste0("f.",FieldID,".0.0")) %>%
+  select(field, fieldname=Field) %>%
+  add_row(
+    field = c("AF", "CAD", "COPD", "T2D","fev1_inst1"),
+    fieldname = c("Atrial fibrillation", "Coronary artery disease", "Chronic obstructive pulmonary disease",
+                  "Type 2 diabetes", "Forced expiratory volume in 1-second (FEV1)")
+  )
+
+
 ## Functions ##
 extract_from_REML <- function(REML) {
   N <- length(REML)
-  
+
   # extract time for analysis
   line <- REML[N]
   elapsed_hours <- as.numeric(str_split(line," ")[[1]][7]) / (60 * 60)
-  
+
   # extract h2e
   line <- REML[N-4]
   line_split <- str_split(line, ": ")[[1]][2]
   h2e <- as.numeric(str_split(line_split, " ")[[1]][1])
   h2e_err <- parse_number(str_split(line_split, " ")[[1]][2])
-  
+
   # extract h2g
   line <- REML[N-2]
   line_split <- str_split(line, ": ")[[1]][2]
   h2g <- as.numeric(str_split(line_split, " ")[[1]][1])
   h2g_err <- parse_number(str_split(line_split, " ")[[1]][2])
-  
+
   out <- c(h2e, h2e_err, h2g, h2g_err, elapsed_hours)
   out
 }
 extract_from_genCorr <- function(genCorr) {
   N <- length(genCorr)
-  
+
   # extract time for analysis
   line <- genCorr[N]
   elapsed_hours <- as.numeric(str_split(line," ")[[1]][7]) / (60 * 60)
-  
+
   # extract h2g1
   line <- genCorr[N-4]
   line_split <- str_split(line, ": ")[[1]][2]
   h2g1 <- as.numeric(str_split(line_split, " ")[[1]][1])
   h2g1_err <- parse_number(str_split(line_split, " ")[[1]][2])
-  
+
   # extract gencorr
   line <- genCorr[N-3]
   line_split <- str_split(line, ": ")[[1]][2]
   gencorr <- as.numeric(str_split(line_split, " ")[[1]][1])
   gencorr_err <- parse_number(str_split(line_split, " ")[[1]][2])
-  
+
   # extract h2g2
   line <- genCorr[N-2]
   line_split <- str_split(line, ": ")[[1]][2]
   h2g2 <- as.numeric(str_split(line_split, " ")[[1]][1])
   h2g2_err <- parse_number(str_split(line_split, " ")[[1]][2])
-  
+
   out <- c(h2g1, h2g1_err, gencorr, gencorr_err, h2g2, h2g2_err, elapsed_hours)
   out
 }
 extract_from_envLM <- function(envLM) {
-  
+
   summary <- summary(envLM)
   R2 <- summary$r.squared
   R2adj <- summary$adj.r.squared
   F_stat <- unname(summary$fstatistic[1])
   p <- unname(pf(summary$fstatistic[1],summary$fstatistic[2],summary$fstatistic[3], lower.tail = FALSE))
-  
+
   tvals <- summary$coefficients[,"t value"]
-  
+
   out <- tibble(
     colname = c("R2","R2adj","F_stat","p",paste0("t_",names(tvals))),
     value = c(R2, R2adj, F_stat, p, unname(tvals))
   )
-  
+
   out
 }
 
 ## Code ##
 
 ### REML+envLM results for each phenotypes
-loc_phenolist <- paste0(dir_script,"../input_data/phenotypes.txt")
-pheno_list <- readLines(loc_phenolist)
 
 REML_PXS_tbl <- tibble(
   field = as.character(),
@@ -117,14 +129,14 @@ for (pheno in pheno_list) {
     )
 
   print(paste("Read REML results for",pheno))
-  
+
   # enVLM
   loc_envLM <- paste0(dir_scratch,pheno,"/PXS_",pheno,"_envLM.rds")
   envLM <- readRDS(loc_envLM)
   out <- extract_from_envLM(envLM)
-  
+
   envLM_PXS_tbl <- envLM_PXS_tbl %>% add_row(out %>% mutate(field=pheno))
-  
+
   print(paste("Read envLM results for",pheno))
 }
 envLM_PXS_tvals <- envLM_PXS_tbl %>%
@@ -141,15 +153,12 @@ envLM_PXS_tbl_wider <- envLM_PXS_tbl %>%
   )
 
 ### REML results for each exposure
-loc_expolist <- paste0(dir_script,"../input_data/exposures_ALL.txt")
-exposures_list <- readLines(loc_expolist)
-
 for (expo in exposures_list) {
   loc_REML <- paste0(dir_scratch,"exposures/",expo,"/",expo,"_BOLTREML.out")
   if (!file.exists(loc_REML)) {next}
   REML <- readLines(loc_REML)
   out <- extract_from_REML(REML)
-  
+
   # adds row to table
   REML_expo_tbl <- REML_expo_tbl %>%
     add_row(
@@ -160,7 +169,7 @@ for (expo in exposures_list) {
       h2g_err = out[4],
       elapsed_hours = out[5]
     )
-  
+
   print(paste("Read REML results for",expo))
 }
 
@@ -183,9 +192,9 @@ for (pheno in pheno_list) {
   for (CRF in CRFs_list) {
     loc_genCorr <- paste0(dir_scratch,pheno,"/PXS_",pheno,"_",CRF,"_genCorr.out")
     genCorr <- readLines(loc_genCorr)
-    
+
     out <- extract_from_genCorr(genCorr)
-    
+
     # adds row to table
     genCorr_CRF_tbl <- genCorr_CRF_tbl %>% add_row(
       pheno_field = pheno,
@@ -205,14 +214,6 @@ for (pheno in pheno_list) {
 
 
 ### Appends fields name to REML and genCorr tables
-ukb_dict <- as_tibble(fread(paste0(dir_data_showcase,"Data_Dictionary_Showcase.tsv"))) %>%
-  mutate(field = paste0("f.",FieldID,".0.0")) %>%
-  select(field, fieldname=Field) %>%
-  add_row(
-    field = c("AF", "CAD", "COPD", "T2D","fev1_inst1"),
-    fieldname = c("Atrial fibrillation", "Coronary artery disease", "Chronic obstructive pulmonary disease",
-                  "Type 2 diabetes", "Forced expiratory volume in 1-second (FEV1)")
-  )
 REML_PXS_tbl <- REML_PXS_tbl %>% left_join(ukb_dict, by="field")
 REML_expo_tbl <- REML_expo_tbl %>% left_join(ukb_dict, by="field")
 envLM_PXS_tbl_wider <- envLM_PXS_tbl_wider %>% left_join(ukb_dict, by="field")
@@ -246,6 +247,7 @@ sig_SNPs_PXS <- tibble(
   CHR = as.numeric(),
   BP = as.numeric(),
   BETA = as.numeric(),
+  P_unadj = as.numeric(),
   P = as.numeric(),
   field = as.character()
 )
@@ -266,15 +268,19 @@ for (pheno in pheno_list) {
   fieldname <- paste0(pheno, " PXS")
   loc_LMM <- paste0(dir_scratch,pheno,"/LMM_",pheno,"_bgen.txt")
   LMM <- as_tibble(fread(loc_LMM, select=cols_to_keep)) %>%
-    rename(P = P_BOLT_LMM_INF)
-  
-  sig_SNPs_PXS <- sig_SNPs_PXS %>% add_row(
-    LMM %>% select(SNP,CHR,BP,BETA,P) %>% filter(P < 5E-8) %>% mutate(field = pheno)
-  )
+    rename(P_unadj = P_BOLT_LMM_INF)
   
   N <- nrow(LMM)
   bonferroni <- 0.05 / N
   lambda <- get_lambda(LMM$CHISQ_BOLT_LMM_INF)
+  
+  # adjusts for lambda inflation factor
+  LMM <- LMM %>% mutate(
+    P = exp(pchisq(CHISQ_BOLT_LMM_INF/lambda,1, lower.tail=FALSE, log.p=TRUE))
+  )
+  sig_SNPs_PXS <- sig_SNPs_PXS %>% add_row(
+    LMM %>% select(SNP,CHR,BP,BETA,P_unadj,P) %>% filter(P_unadj < 5E-8) %>% mutate(field = pheno)
+  )
   LMM_PXS_tbl <- LMM_PXS_tbl %>%
     add_row(
       field = pheno,
@@ -303,14 +309,20 @@ for (expo in exposures_list) {
   loc_LMM <- paste0(dir_scratch,"exposures/",expo,"/LMM_",expo,"_bgen.txt")
   if (!file.exists(loc_LMM)) {next}
   LMM <- as_tibble(fread(loc_LMM, select=cols_to_keep)) %>%
-    rename(P = P_BOLT_LMM_INF)
-  
-  sig_SNPs_expo <- sig_SNPs_expo %>% add_row(
-    LMM %>% select(SNP,CHR,BP,BETA,P) %>% filter(P < 5E-8) %>% mutate(field = expo)
-  )
+    rename(P_unadj = P_BOLT_LMM_INF)
   
   N <- nrow(LMM)
+  bonferroni <- 0.05 / N
   lambda <- get_lambda(LMM$CHISQ_BOLT_LMM_INF)
+  
+  # adjusts for lambda inflation factor
+  LMM <- LMM %>% mutate(
+    P = exp(pchisq(CHISQ_BOLT_LMM_INF/lambda,1, lower.tail=FALSE, log.p=TRUE))
+  )
+  sig_SNPs_expo <- sig_SNPs_expo %>% add_row(
+    LMM %>% select(SNP,CHR,BP,BETA,P_unadj,P) %>% filter(P_unadj < 5E-8) %>% mutate(field = expo)
+  )
+  
   LMM_expo_tbl <- LMM_expo_tbl %>%
     add_row(
       field = expo,
@@ -350,22 +362,22 @@ loc_out <- paste0(dir_scratch, "LMM_exposures_results.txt")
 write.table(LMM_expo_tbl, loc_out, sep="\t", quote=FALSE, row.names=FALSE)
 
 ## Looking closer at envLM
-AC_tbl <- as_tibble(fread(paste0(dir_data_showcase,"Codings.tsv"),quote="")) %>%
-  filter(Coding == 10)
-envLM_tval_group <- envLM_PXS_tvals %>%
-  mutate(tvalue = abs(tvalue)) %>%
-  arrange(-tvalue)
-envLM_tval_group <- envLM_tval_group %>%
-  group_by(variable) %>%
-  summarize(tvalue = mean(tvalue),
-            n = n()) %>%
-  arrange(-tvalue)
-ACs <- c()
-for (i in 1:nrow(envLM_tval_group)) {
-  if (substr(envLM_tval_group$variable[i],1,17) == "assessment_center") {
-    code <- substr(envLM_tval_group$variable[i],18,22)
-    ACs[i] <- (AC_tbl %>% filter(Value==code))$Meaning[1]
-  } else {ACs[i] <- as.character(NA)}
-}
-envLM_tval_group$assessment_center <- ACs
+# AC_tbl <- as_tibble(fread(paste0(dir_data_showcase,"Codings.tsv"),quote="")) %>%
+#   filter(Coding == 10)
+# envLM_tval_group <- envLM_PXS_tvals %>%
+#   mutate(tvalue = abs(tvalue)) %>%
+#   arrange(-tvalue)
+# envLM_tval_group <- envLM_tval_group %>%
+#   group_by(variable) %>%
+#   summarize(tvalue = mean(tvalue),
+#             n = n()) %>%
+#   arrange(-tvalue)
+# ACs <- c()
+# for (i in 1:nrow(envLM_tval_group)) {
+#   if (substr(envLM_tval_group$variable[i],1,17) == "assessment_center") {
+#     code <- substr(envLM_tval_group$variable[i],18,22)
+#     ACs[i] <- (AC_tbl %>% filter(Value==code))$Meaning[1]
+#   } else {ACs[i] <- as.character(NA)}
+# }
+# envLM_tval_group$assessment_center <- ACs
 
