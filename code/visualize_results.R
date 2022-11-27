@@ -41,6 +41,8 @@ REML_expo <- as_tibble(fread(paste0(dir_scratch,"REML_exposures_results.txt")))
 LMM_expo <- as_tibble(fread(paste0(dir_scratch,"LMM_exposures_results.txt"))) %>%
   select(-fieldname)
 
+mean(REML_expo$h2g) + 1.96*sqrt(sum(REML_expo$h2g_err**2))
+
 
 table1 <- left_join(REML_expo, LMM_expo, by="field") %>%
   select(fieldname, h2g, h2g_err, lambda, N_above_bonferroni) %>%
@@ -581,7 +583,7 @@ fig5 <- ggplot(fig5tbl, aes(x, y)) +
   theme_light()
 
 loc_out <- paste0("./figures/","figure5.png")
-ggsave(loc_out,plot=fig5,width = width/2, height = height, units="px")
+ggsave(loc_out,plot=fig5,width = (width/2), height = height, units="px")
 
 #### Figure 7 ####
 
@@ -601,7 +603,7 @@ fig7 <- ggplot(fig7tbl, aes(x, y)) +
   theme_light()
 
 loc_out <- paste0("./figures/","figure7.png")
-ggsave(loc_out,plot=fig7,width = width/2, height = height, units="px")
+ggsave(loc_out,plot=fig7,width = (width/2), height = height, units="px")
 
 #### Table 8 ####
 envLM <- as_tibble(fread(paste0(dir_scratch,"envLM_PXS_results.txt")))

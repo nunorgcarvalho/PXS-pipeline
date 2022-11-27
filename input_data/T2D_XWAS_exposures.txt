@@ -1,0 +1,112 @@
+FieldID	Field	Exposure_Class
+120	Birth weight known	no_agency
+670	Type of accommodation lived in	agency
+680	Own or rent accommodation lived in	agency
+699	Length of time at current address	agency
+709	Number in household	household
+728	Number of vehicles in household	household
+738	Average total household income before tax	household
+864	Number of days/week walked 10+ minutes	agency
+874	Duration of walks	agency
+884	Number of days/week of moderate physical activity 10+ minutes	agency
+904	Number of days/week of vigorous physical activity 10+ minutes	agency
+924	Usual walking pace	agency
+943	Frequency of stair climbing in last 4 weeks	agency
+1050	Time spend outdoors in summer	agency
+1060	Time spent outdoors in winter	agency
+1070	Time spent watching television (TV)	agency
+1080	Time spent using computer	agency
+1090	Time spent driving	agency
+1100	Drive faster than motorway speed limit	agency
+1110	Length of mobile phone use	agency
+1160	Sleep duration	agency
+1170	Getting up in morning	agency
+1180	Morning/evening person (chronotype)	agency
+1190	Nap during day	agency
+1200	Sleeplessness / insomnia	no_agency
+1210	Snoring	no_agency
+1220	Daytime dozing / sleeping (narcolepsy)	no_agency
+1239	Current tobacco smoking	agency
+1249	Past tobacco smoking	agency
+1259	Smoking/smokers in household	household
+1269	Exposure to tobacco smoke at home	household
+1279	Exposure to tobacco smoke outside home	geography
+1289	Cooked vegetable intake	agency
+1299	Salad / raw vegetable intake	agency
+1309	Fresh fruit intake	agency
+1319	Dried fruit intake	agency
+1329	Oily fish intake	agency
+1339	Non-oily fish intake	agency
+1349	Processed meat intake	agency
+1359	Poultry intake	agency
+1369	Beef intake	agency
+1379	Lamb/mutton intake	agency
+1389	Pork intake	agency
+1408	Cheese intake	agency
+1418	Milk type used	agency
+1428	Spread type	agency
+1438	Bread intake	agency
+1448	Bread type	agency
+1458	Cereal intake	agency
+1478	Salt added to food	agency
+1488	Tea intake	agency
+1498	Coffee intake	agency
+1518	Hot drink temperature	agency
+1528	Water intake	agency
+1538	Major dietary changes in the last 5 years	agency
+1548	Variation in diet	agency
+1558	Alcohol intake frequency.	agency
+1628	Alcohol intake versus 10 years previously	agency
+1647	Country of birth (UK/elsewhere)	geography
+1677	Breastfed as a baby	no_agency
+1687	Comparative body size at age 10	no_agency
+1697	Comparative height size at age 10	no_agency
+1707	Handedness (chirality/laterality)	no_agency
+1717	Skin colour	no_agency
+1727	Ease of skin tanning	no_agency
+1737	Childhood sunburn occasions	no_agency
+1747	"Hair colour (natural, before greying)"	no_agency
+1757	Facial ageing	no_agency
+1767	Adopted as a child	no_agency
+1777	Part of a multiple birth	no_agency
+1787	Maternal smoking around birth	no_agency
+2129	Answered sexual history questions	agency
+2139	Age first had sexual intercourse	agency
+2149	Lifetime number of sexual partners	agency
+2159	Ever had same-sex intercourse	agency
+2237	Plays computer games	agency
+2267	Use of sun/uv protection	agency
+2277	Frequency of solarium/sunlamp use	agency
+6138	Qualifications	agency
+6139	Gas or solid-fuel cooking/heating	agency
+6142	Current employment status	agency
+6144	"Never eat eggs, dairy"	agency
+6146	Attendance/disability/mobility allowance	agency
+6162	Types of transport used (excluding work)	agency
+6164	Types of physical activity in last 4 weeks	agency
+20116	Smoking status	agency
+20117	Alcohol drinker status	agency
+20118	Home area population density - urban or rural	geography
+20160	Ever smoked	geography
+24003	Nitrogen dioxide air pollution; 2010	geography
+24004	Nitrogen oxides air pollution; 2010	geography
+24005	Particulate matter air pollution (pm10); 2010	geography
+24006	Particulate matter air pollution (pm2.5); 2010	geography
+24007	Particulate matter air pollution (pm2.5) absorbance; 2010	geography
+24008	Particulate matter air pollution 2.5-10um; 2010	geography
+24009	Traffic intensity on the nearest road	geography
+24010	Inverse distance to the nearest road	geography
+24011	Traffic intensity on the nearest major road	geography
+24012	Inverse distance to the nearest major road	geography
+24013	Total traffic load on major roads	geography
+24014	Close to major road	geography
+24015	Sum of road length of major roads within 100m	geography
+24016	Nitrogen dioxide air pollution; 2005	geography
+24017	Nitrogen dioxide air pollution; 2006	geography
+24018	Nitrogen dioxide air pollution; 2007	geography
+24019	Particulate matter air pollution (pm10); 2007	geography
+24020	Average daytime sound level of noise pollution	geography
+24021	Average evening sound level of noise pollution	geography
+24022	Average night-time sound level of noise pollution	geography
+24023	Average 16-hour sound level of noise pollution	geography
+24024	Average 24-hour sound level of noise pollution	geography

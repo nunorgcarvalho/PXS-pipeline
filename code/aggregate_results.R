@@ -316,9 +316,11 @@ for (expo in exposures_list) {
   lambda <- get_lambda(LMM$CHISQ_BOLT_LMM_INF)
   
   # adjusts for lambda inflation factor
-  LMM <- LMM %>% mutate(
-    P = exp(pchisq(CHISQ_BOLT_LMM_INF/lambda,1, lower.tail=FALSE, log.p=TRUE))
-  )
+  if (lambda > 1) {
+    LMM <- LMM %>% mutate(
+      P = exp(pchisq(CHISQ_BOLT_LMM_INF/lambda,1, lower.tail=FALSE, log.p=TRUE))
+    )
+  } else { LMM <- LMM %>% mutate(P = P_unadj) }
   sig_SNPs_expo <- sig_SNPs_expo %>% add_row(
     LMM %>% select(SNP,CHR,BP,BETA,P_unadj,P) %>% filter(P_unadj < 5E-8) %>% mutate(field = expo)
   )
