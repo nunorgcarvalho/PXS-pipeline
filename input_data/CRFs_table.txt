@@ -2,6 +2,6 @@ phenotype	field	field_raw	fieldname
 T2D	f.4080.0.0	f.4080.0.0	Systolic blood pressure, automated reading
 T2D	f.21001.0.0	f.21001.0.0	BMI
 T2D	f.30740.0.0	30740-0.0	Glucose - Blood Biochemistry
-T2D	f.30750.0.0	30750-0.0	Glycated haemoglobin (HbA1c)
+T2D	f.30750.0.0	f.30750.0.0	Glycated haemoglobin (HbA1c)
 T2D	f.30760.0.0	30760-0.0	HDL cholesterol - Blood Biochemistry
 T2D	f.30870.0.0	30870-0.0	Triglycerides - Blood Biochemistry
