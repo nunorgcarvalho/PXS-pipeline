@@ -74,7 +74,6 @@ dir.create(paste0(dir_scratch,'PHESANT_results/'))
 loc_out <- paste0(dir_scratch,"PHESANT_results/T2D_exposures_tbl_raw.txt")
 write.table(tbl_out, loc_out, sep="\t", quote=FALSE, row.names=FALSE)
 
-# RUN PHESANT THROUGH 'run_PHESANT.sh'
 # this R code runs 'Rscript' from within R rather than the CMD
 # takes a few minutes to run
 dir_PHESANT_WAS <- "~/PHESANT/WAS/"
@@ -186,7 +185,7 @@ xwas2_c <- as_tibble(xwas2) %>%
 # calculates the PXS
 sig_expos1 <- (xwas1_c %>% filter(fdr < 0.05))$Field
 sig_expos2 <- (xwas2_c %>% filter(fdr < 0.05))$Field
-library(glmnet)
+#library(glmnet)
 source(paste0(dir_script,"../../PXStools/R/PXS.R"))
 PXS1 <- PXS(df = T2D_tbl2, X = sig_expos1, cov = col_covs[-3], mod = "cox",
             IDA = c(IDA,IDC), IDB = IDB, IDC = c(), seed = 2016, alph=1)
