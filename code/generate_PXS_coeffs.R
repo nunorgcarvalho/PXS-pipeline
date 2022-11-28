@@ -20,11 +20,12 @@ expos2 <- (expos_tbl %>% filter(Exposure_Class %in% c("agency","no_agency","hous
 
 # loads list of CRFs
 loc_CFRs_tbl <- paste0(dir_script,"../input_data/CRFs_table.txt")
-CRFs_tbl <- as_tibble(fread(loc_CFRs_tbl)) %>%
+CRFs_tbl <- as_tibble(fread(loc_CFRs_tbl))
+CRFs_tbl <- CRFs_tbl %>%
   mutate(fieldID = sapply(str_split(CRFs_tbl$field,"\\."), `[`,2))
 
 # gets date of first assessment
-cols_to_keep1 <- c("f.eid",paste0("f.",c(53,31,34,54,21000,22021,30750,2976, expos2),".0.0"), CRFs_tbl$field_raw)
+cols_to_keep1 <- c("f.eid",paste0("f.",c(53,31,34,54,21000,22021,30750,2976, expos2),".0.0"), CRFs_tbl$field_raw) %>% unique()
 pheno1 <- as_tibble(fread(loc_pheno_full1, select = cols_to_keep1))
 
 # gets date of T2D diagnosis
@@ -124,21 +125,22 @@ T2D_tbl2 <- T2D_tbl %>%
   left_join(data_PHESANT) %>%
   rename(ID = userId)
 
-fields <- tibble(field = colnames(T2D_tbl2)[-c(1:3)]) %>%
-  mutate(field2 = c(col_covs,PHESANT_fIDs2)) %>%
-  mutate(use_type = ifelse(field2 %in% col_covs, "covar",
-                           ifelse(field2 %in% CRFs_tbl$fieldID, "CRF","exposure")),
-         data_type = ifelse(str_replace(field2,"\\.","#") %in% colnames(data_binary2), "binary",
-                     ifelse(str_replace(field2,"\\.","#") %in% colnames(data_catord), "catord",
-                     ifelse(str_replace(field2,"\\.","#") %in% colnames(data_catunord2), "catunord",
-                     ifelse(str_replace(field2,"\\.","#") %in% colnames(data_cont), "continuous",as.character(NA))))),
-         fieldID = sapply(str_split(field2,"\\."), `[`, 1),
-         value = sapply(str_split(field2,"\\."), `[`, 2)) %>%
+col_covs <- c("sex", "age", "assessment_center", paste0("pc",1:40))
+fields <- tibble(term = colnames(T2D_tbl2)[-c(1:3)]) %>%
+  mutate(field = c(col_covs,PHESANT_fIDs2)) %>%
+  mutate(use_type = ifelse(field %in% col_covs, "covar",
+                           ifelse(field %in% CRFs_tbl$fieldID, "CRF","exposure")),
+         data_type = ifelse(str_replace(field,"\\.","#") %in% colnames(data_binary2), "binary",
+                     ifelse(str_replace(field,"\\.","#") %in% colnames(data_catord), "catord",
+                     ifelse(str_replace(field,"\\.","#") %in% colnames(data_catunord2), "catunord",
+                     ifelse(str_replace(field,"\\.","#") %in% colnames(data_cont), "continuous",as.character(NA))))),
+         fieldID = sapply(str_split(field,"\\."), `[`, 1),
+         value = sapply(str_split(field,"\\."), `[`, 2)) %>%
   mutate(fieldID = as.numeric(ifelse(use_type=="covar",NA,fieldID)),
          value = ifelse(value==100,-7,value)) %>%
   left_join(ukb_dict %>% select(fieldID=FieldID,fieldname=Field, coding=Coding)) %>%
-  left_join(ukb_codings, by=c("coding"="Coding","value"="Value")) %>%
-  mutate(field = ifelse(is.na(field),term,field))
+  left_join(ukb_codings, by=c("coding"="Coding","value"="Value")) #%>%
+  #mutate(term = ifelse(is.na(field),term,field))
 
 loc_out <- paste0(dir_scratch,"fields_tbl.txt")
 write.table(fields, loc_out, sep="\t", row.names=FALSE, quote=FALSE)
@@ -160,9 +162,8 @@ IDC <- (T2D_tbl2 %>% filter(sample_group=="C"))$ID
 #subset <- T2D_tbl2 %>% filter(row_number() %in% sample(1:nrow(T2D_tbl), 20000))
 
 # runs XWAS for both sets of exposures
-col_covs <- c("sex", "age", "assessment_center", paste0("pc",1:40))
-xwas1 <- xwas(T2D_tbl2, X = col_expos1, cov = col_covs, mod="cox", IDA = c(IDA,IDC), adjust="fdr")
-xwas2 <- xwas(T2D_tbl2, X = col_expos2, cov = col_covs, mod="cox", IDA = c(IDA,IDC), adjust="fdr")
+xwas1 <- xwas(T2D_tbl2, X = col_expos1, cov = col_covs[-3], mod="cox", IDA = c(IDA,IDC), adjust="fdr")
+xwas2 <- xwas(T2D_tbl2, X = col_expos2, cov = col_covs[-3], mod="cox", IDA = c(IDA,IDC), adjust="fdr")
 
 xwas1_c <- as_tibble(xwas1) %>%
   mutate(Field = col_expos1,
@@ -187,7 +188,7 @@ sig_expos1 <- (xwas1_c %>% filter(fdr < 0.05))$Field
 sig_expos2 <- (xwas2_c %>% filter(fdr < 0.05))$Field
 library(glmnet)
 source(paste0(dir_script,"../../PXStools/R/PXS.R"))
-PXS1 <- PXS(df = T2D_tbl2, X = sig_expos1, cov = col_covs, mod = "cox",
+PXS1 <- PXS(df = T2D_tbl2, X = sig_expos1, cov = col_covs[-3], mod = "cox",
             IDA = c(IDA,IDC), IDB = IDB, IDC = c(), seed = 2016, alph=1)
 
 PXS1_coeffs <- as_tibble(PXS1) %>%
@@ -202,7 +203,7 @@ PXS1_coeffs <- as_tibble(PXS1) %>%
   select(-std.error,-statistic) %>%
   arrange(p.value)
 
-PXS2 <- PXS(df = T2D_tbl2, X = sig_expos2, cov = col_covs, mod = "cox",
+PXS2 <- PXS(df = T2D_tbl2, X = sig_expos2, cov = col_covs[-3], mod = "cox",
             IDA = c(IDA, IDC), IDB = IDB, IDC = c(), seed = 2016, alph=1)
 
 PXS2_coeffs <- as_tibble(PXS2) %>%
@@ -220,6 +221,8 @@ loc_out <- paste0(dir_script,"../input_data/PXS_coefficients.txt")
 write.table(PXS1_coeffs, loc_out, sep="\t", row.names=FALSE, quote=FALSE)
 
 
+# save("11-28_workspace.RData")
+# load("11-28_workspace.RData")
 ### trying group-lasso
 # source(paste0(dir_script,"../../PXStools/R/PXSgl.R"))
 # PXS1gl <- PXSgl(df = T2D_tbl2, X = sig_expos1, cov = col_covs, mod = "cox",

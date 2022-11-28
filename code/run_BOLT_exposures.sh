@@ -11,9 +11,9 @@ dir_script="/home/nur479/jobs/PXS_pipeline/code/"
 dir_scratch="/home/nur479/scratch3/PXS_pipeline/"
 
 # Makes list of exposures to analyze, appends PXSs to pheno file, and makes list of CRFs for each
-module load gcc/9.2.0 R/4.1.2
-R CMD BATCH prepare_exp_PXS_CRF.R
-echo 'Made list of exposures'
+# module load gcc/9.2.0 R/4.1.2
+# R CMD BATCH prepare_exp_PXS_CRF.R
+# echo 'Made list of exposures'
 
 dir_exposures=$(echo ${dir_scratch}exposures)
 mkdir -p ${dir_exposures}
@@ -48,9 +48,9 @@ echo '#!/bin/sh
 --phenoFile '${dir_scratch}'pheno_EC.txt \
 --phenoCol '${exposure}' \
 --covarFile '${dir_scratch}'pheno_EC.txt \
---covarCol f.31.0.0 \
---covarCol f.54.0.0 \
---qCovarCol f.34.0.0 \
+--covarCol sex \
+--covarCol assessment_center \
+--qCovarCol age \
 --qCovarCol pc{1:40} \
 --covarMaxLevels 25 \
 --lmm \
@@ -87,9 +87,9 @@ echo '#!/bin/sh
 --phenoFile '${dir_scratch}'pheno_EC.txt \
 --phenoCol '${exposure}' \
 --covarFile '${dir_scratch}'pheno_EC.txt \
---covarCol f.31.0.0 \
---covarCol f.54.0.0 \
---qCovarCol f.34.0.0 \
+--covarCol sex \
+--covarCol assessment_center \
+--qCovarCol age \
 --qCovarCol pc{1:40} \
 --covarMaxLevels 25 \
 --reml \

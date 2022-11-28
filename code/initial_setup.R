@@ -8,22 +8,23 @@ loc_pheno_full <- "/n/groups/patel/uk_biobank/main_data_34521/ukb34521.tab"
 loc_40PCs <- "~/scratch3/key_data/UKB_40PCs_500k.txt"
 
 # List of exposures to remove from data for any reason, as well as covariates
-remove_exposures <- c("f.20118.0.0","f.24003.0.0","f.24006.0.0","f.24008.0.0",
-                      "f.24017.0.0","f.24018.0.0","f.24019.0.0")
-covars <- c("f.31.0.0", # sex
-            "f.34.0.0", # year of birth
-            "f.54.0.0", # assessment center
+# remove_exposures <- c("f.20118.0.0","f.24003.0.0","f.24006.0.0","f.24008.0.0",
+#                       "f.24017.0.0","f.24018.0.0","f.24019.0.0")
+covars <- c("sex",#"f.31.0.0", # sex
+            "age",#"f.34.0.0", # year of birth
+            "assessment_center",#"f.54.0.0", # assessment center
             paste0("pc",1:40) # 40 PCs not from UKB field directly, but from loc_40PCs
             )
-include_ethnicities <- c(1001,1002) # White British, White Irish
+#include_ethnicities <- c(1001,1002) # White British, White Irish
 
 ## Code
 
 # loads coefficients and tally file from XWAS results
-loc_coeffs <- paste0(dir_script,"../input_data/coeffs_V9.csv")
+#loc_coeffs <- paste0(dir_script,"../input_data/coeffs_V9.csv")
+loc_coeffs <- paste0(dir_script,"../input_data/T2D_PXS_coefficients.txt")
 coeffs <- as_tibble(fread(loc_coeffs))
-loc_tally <- paste0(dir_script,"../input_data/tally_X_V9.csv")
-tally <- as_tibble(fread(loc_tally))
+#loc_tally <- paste0(dir_script,"../input_data/tally_X_V9.csv")
+#tally <- as_tibble(fread(loc_tally))
 
 # loads list of CRFs
 loc_CFRs_tbl <- paste0(dir_script,"../input_data/CRFs_table.txt")

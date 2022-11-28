@@ -35,9 +35,9 @@ echo '#!/bin/sh
 --phenoFile '${subfolder}'/PXS_'${disease}'.txt \
 --phenoCol PXS_'${disease}' \
 --covarFile '${dir_scratch}'pheno_EC.txt \
---covarCol f.31.0.0 \
---covarCol f.54.0.0 \
---qCovarCol f.34.0.0 \
+--covarCol sex \
+--covarCol assessment_center \
+--qCovarCol age \
 --qCovarCol pc{1:40} \
 --covarMaxLevels 25 \
 --lmm \
@@ -75,9 +75,9 @@ echo '#!/bin/sh
 --phenoFile '${subfolder}'/PXS_'${disease}'.txt \
 --phenoCol PXS_'${disease}' \
 --covarFile '${dir_scratch}'pheno_EC.txt \
---covarCol f.31.0.0 \
---covarCol f.54.0.0 \
---qCovarCol f.34.0.0 \
+--covarCol sex \
+--covarCol assessment_center \
+--qCovarCol age \
 --qCovarCol pc{1:40} \
 --covarMaxLevels 25 \
 --reml \

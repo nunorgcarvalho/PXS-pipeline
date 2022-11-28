@@ -12,11 +12,11 @@ dir_script="/home/nur479/jobs/PXS_pipeline/code/"
 dir_scratch="/home/nur479/scratch3/PXS_pipeline/"
 
 # Creates ukkb_pheno and fields file that includes all phenotypes
-module load gcc/9.2.0 R/4.1.2
-R CMD BATCH initial_setup.R
-
-loc_phenolist=$(echo ${dir_script}../input_data/phenotypes.txt)
-phenos=$(cat $loc_phenolist)
+# module load gcc/9.2.0 R/4.1.2
+# R CMD BATCH initial_setup.R
+# 
+# loc_phenolist=$(echo ${dir_script}../input_data/phenotypes.txt)
+# phenos=$(cat $loc_phenolist)
 
 for disease in $phenos
 do

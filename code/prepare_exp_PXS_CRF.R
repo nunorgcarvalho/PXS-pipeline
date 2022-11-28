@@ -11,15 +11,21 @@ dir_scratch <- "~/scratch3/PXS_pipeline/"
 
 # Part 1 - make_exposures_list
 loc_fields <- paste0(dir_scratch,"fields_tbl.txt")
+loc_coeffs <- paste0(dir_script,"../input_data/PXS_coefficients.txt")
 
 loc_phenolist <- paste0(dir_script,"../input_data/phenotypes.txt")
 phenolist <- readLines(loc_phenolist)
 fields <- as_tibble(fread(loc_fields))
-exposures <- (fields %>%
-  filter(use_type=="exposure") %>%
-  select(field, all_of(phenolist)) %>%
-  mutate(sum = rowSums(across(all_of(phenolist)))) %>%
-  filter(sum > 0) )$field
+coeffs <- as_tibble(fread(loc_coeffs))
+# exposures <- (fields %>%
+#   filter(use_type=="exposure") %>%
+#   select(field, all_of(phenolist)) %>%
+#   mutate(sum = rowSums(across(all_of(phenolist)))) %>%
+#   filter(sum > 0) )$field
+exposures <- (coeffs %>%
+  select(term, disease) %>%
+  left_join(fields %>% select(term,use_type), by="term") %>%
+  filter(use_type=="exposure", disease %in% phenolist))$term
 
 loc_out <- paste0(dir_script,"../input_data/exposures.txt")
 file_out <- file(loc_out)
@@ -41,15 +47,22 @@ for (pheno in phenolist) {
   
   dir_pheno <- paste0(dir_scratch,pheno,"/")
   # writes list of exposures
-  exposures <- (fields %>%
-                  filter(use_type=="exposure") %>%
-                  select(field, all_of(pheno)) %>%
-                  mutate(sum = rowSums(across(all_of(pheno)))) %>%
-                  filter(sum > 0) )$field
+  exposures <- (coeffs %>%
+                  select(term, disease) %>%
+                  left_join(fields %>% select(term,use_type), by="term") %>%
+                  filter(use_type=="exposure", disease == pheno))$term
   
   loc_out <- paste0(dir_pheno,pheno,"_exposures.txt")
   file_out <- file(loc_out)
   writeLines(exposures,file_out)
+  close(file_out)
+  
+  # makes list of IIDs with missing PXS
+  IIDs_NAs <- as.character((pheno_tbl %>% select(IID, PXS = all_of(paste0("PXS_",pheno))) %>%
+                 filter(is.na(PXS)))$IID)
+  loc_out <- paste0(dir_pheno,"IIDs_NA_exposures.txt")
+  file_out <- file(loc_out)
+  writeLines(IIDs_NAs,file_out)
   close(file_out)
   
   # writes list of CRFs
