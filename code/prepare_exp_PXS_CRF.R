@@ -58,17 +58,18 @@ for (pheno in phenolist) {
   close(file_out)
   
   # makes list of IIDs with missing PXS
-  IIDs_NAs <- as.character((pheno_tbl %>% select(IID, PXS = all_of(paste0("PXS_",pheno))) %>%
-                 filter(is.na(PXS)))$IID)
+  IIDs_NAs <- pheno_tbl %>% select(FID, IID, PXS = all_of(paste0("PXS_",pheno))) %>%
+                 filter(is.na(PXS)) %>% select(FID,IID)
   loc_out <- paste0(dir_pheno,"IIDs_NA_exposures.txt")
-  file_out <- file(loc_out)
-  writeLines(IIDs_NAs,file_out)
-  close(file_out)
+  write.table(IIDs_NAs, loc_out, row.names = FALSE, col.names = FALSE, quote = FALSE)
+  #file_out <- file(loc_out)
+  #writeLines(IIDs_NAs,file_out)
+  #close(file_out)
   
   # writes list of CRFs
   CRFs_pheno <- CRFs_tbl %>% filter(phenotype==pheno)
   if (nrow(CRFs_pheno)==0) {next}
-  CRFs <- CRFs_pheno$field
+  CRFs <- paste0("f",sapply(str_split(CRFs_pheno$field,"\\."), '[', 2))
   loc_out <- paste0(dir_pheno,pheno,"_CRFs.txt")
   file_out <- file(loc_out)
   writeLines(CRFs,file_out)

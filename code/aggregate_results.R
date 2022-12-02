@@ -215,7 +215,8 @@ for (pheno in pheno_list) {
 
 ### Appends fields name to REML and genCorr tables
 REML_PXS_tbl <- REML_PXS_tbl %>% left_join(ukb_dict, by="field")
-REML_expo_tbl <- REML_expo_tbl %>% left_join(ukb_dict, by="field")
+#REML_expo_tbl <- REML_expo_tbl %>% left_join(ukb_dict, by="field")
+REML_expo_tbl <- REML_expo_tbl %>% left_join(fields %>% select(term,fieldname, Meaning), by=c("field"="term"))
 envLM_PXS_tbl_wider <- envLM_PXS_tbl_wider %>% left_join(ukb_dict, by="field")
 envLM_PXS_tvals <- envLM_PXS_tvals %>% left_join(ukb_dict, by="field")
 genCorr_CRF_tbl <- genCorr_CRF_tbl %>% left_join(ukb_dict, by=c("pheno_field"="field")) %>% rename(pheno_fieldname = fieldname)
