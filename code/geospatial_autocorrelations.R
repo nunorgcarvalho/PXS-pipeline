@@ -131,3 +131,41 @@ ggplot(s) +
   geom_sf(aes(fill=f728), size=0.2) +
   labs(title="Spatial distribution of 'Number of vehicles in household'",
        substitle=paste0("Values are inverse-ranked transformed. I = ",fields_tbl$home_I[fields_tbl$term == "f728"]))
+
+
+### f728 - number of vehicles in the household ###
+s_f728 <- tibble(region_index = 1:nrow(s), f728 = s_home$f728)
+                 #f728_home = s_home$f728,
+                 #f728_birth = s_birth$f728)
+movers <- pheno %>% filter(region_birth_index != region_home_index) %>%
+  select(FID, IID, region_home_index, region_birth_index) %>%
+  left_join(s_f728 %>% rename("home_f728"="f728"), by=c("region_home_index"="region_index")) %>%
+  left_join(s_f728 %>% rename("birth_f728"="f728"), by=c("region_birth_index"="region_index")) %>%
+  mutate(delta_f728 = home_f728 - birth_f728)
+
+t1 <- t.test(movers$delta_f728)
+ggplot(movers, aes(x=delta_f728)) +
+  geom_histogram(binwidth = 0.05) +
+  xlim(-1,1) +
+  geom_vline(xintercept = 0) +
+  #geom_rect(ymin=-Inf,ymax=Inf, xmin=t1$conf.int[1], xmax=t1$conf.int[2], fill="red", alpha=0.5) +
+  geom_vline(xintercept = t1$estimate, color="red")
+
+
+### f1160 - sleep duration ###
+s_f1160 <- tibble(region_index = 1:nrow(s), f1160 = s_home$f1160)
+#f1160_home = s_home$f1160,
+#f1160_birth = s_birth$f1160)
+movers <- pheno %>% filter(region_birth_index != region_home_index) %>%
+  select(FID, IID, region_home_index, region_birth_index) %>%
+  left_join(s_f1160 %>% rename("home_f1160"="f1160"), by=c("region_home_index"="region_index")) %>%
+  left_join(s_f1160 %>% rename("birth_f1160"="f1160"), by=c("region_birth_index"="region_index")) %>%
+  mutate(delta_f1160 = home_f1160 - birth_f1160)
+
+t1 <- t.test(movers$delta_f1160)
+ggplot(movers, aes(x=delta_f1160)) +
+  geom_histogram(binwidth = 0.05) +
+  xlim(-1,1) +
+  geom_vline(xintercept = 0) +
+  #geom_rect(ymin=-Inf,ymax=Inf, xmin=t1$conf.int[1], xmax=t1$conf.int[2], fill="red", alpha=0.5) +
+  geom_vline(xintercept = t1$estimate, color="red")
