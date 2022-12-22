@@ -15,16 +15,17 @@ dir_out <- "./"
 col_coeff <- "estimate"
 
 # Loads the phenotype file created in initial_setup.R
-loc_ukbpheno <- "../pheno_EC.txt"
+loc_ukbpheno <- "../pheno_EC2.txt"
 pheno <- as_tibble(fread(loc_ukbpheno))
 loc_fields <- "../fields_tbl.txt"
+# fields <- as_tibble(fread("~/scratch3/PXS_pipeline/fields_tbl.txt"))
 fields <- as_tibble(fread(loc_fields)) #%>%
 #  filter((!!as.name(disease) != 0) | (use_type=="covar"))
 col_covs <- (fields %>% filter(use_type=="covar"))$term
 #fields <- fields %>% filter(use_type=="exposure")
 
 # loads the file containing XWAS coefficients and filters to just to the disease
-loc_coeffs <- paste0(dir_script,"../input_data/PXS_coefficients.txt")
+loc_coeffs <- paste0(dir_script,"../input_data/PXS_coefficients2.txt")
 coeffs <- as_tibble(fread(loc_coeffs)) %>%
   select(term, estimate, disease) #%>%
 #  filter(!is.na(!!as.name(col_coeff))) %>% select(V1,X,term,ends_with(disease))
@@ -122,6 +123,7 @@ pheno_wide <- pheno[c("FID","IID",var_tbl$term)] %>%
 # created vector of just the XWAS exposure weights (coefficients)
 #coeffs_vec <- exposures_tbl[[col_coeff]]
 coeffs_vec <- var_tbl$estimate
+coeffs_vec[is.na(coeffs_vec)] <- 0
 num_cols_skip <- ncol(pheno_wide) - nrow(var_tbl)
 PXSs <- c()
 # computes dot product of expanded phenotype coding and XWAS coefficients for

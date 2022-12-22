@@ -14,8 +14,9 @@ loc_phenolist <- paste0(dir_script,"../input_data/phenotypes.txt")
 pheno_list <- readLines(loc_phenolist)
 loc_expolist <- paste0(dir_script,"../input_data/exposures.txt")
 exposures_list <- readLines(loc_expolist)
+fields <- as_tibble(fread(paste0(dir_scratch,"fields_tbl.txt")))
 ukb_dict <- as_tibble(fread(paste0(dir_data_showcase,"Data_Dictionary_Showcase.tsv"))) %>%
-  mutate(field = paste0("f.",FieldID,".0.0")) %>%
+  mutate(field = paste0("f",FieldID)) %>%
   select(field, fieldname=Field) %>%
   add_row(
     field = c("AF", "CAD", "COPD", "T2D","fev1_inst1"),
@@ -350,7 +351,7 @@ for (expo in exposures_list) {
 
 
 LMM_PXS_tbl <- LMM_PXS_tbl %>% left_join(ukb_dict, by="field")
-LMM_expo_tbl <- LMM_expo_tbl %>% left_join(ukb_dict, by="field")
+LMM_expo_tbl <- LMM_expo_tbl %>% left_join(fields %>% select(term,fieldname, Meaning), by=c("field"="term"))
 
 loc_out <- paste0(dir_scratch, "LMM_PXS_sig_SNPs.txt")
 write.table(sig_SNPs_PXS, loc_out, sep="\t", quote=FALSE, row.names=FALSE)

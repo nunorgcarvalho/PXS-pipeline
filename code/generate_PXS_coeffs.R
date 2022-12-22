@@ -124,8 +124,17 @@ T2D_tbl2 <- T2D_tbl %>%
   left_join(data_PHESANT) %>%
   rename(ID = userId)
 
-col_covs <- c("sex", "age", "assessment_center", paste0("pc",1:40))
-fields <- tibble(term = colnames(T2D_tbl2)[-c(1:3)]) %>%
+####
+ACs <- T2D_tbl2$assessment_center %>% unique()
+for (AC in ACs) {
+  col_AC <- paste0("assessment_center.",AC)
+  T2D_tbl2[,col_AC] <- as.numeric(T2D_tbl2$assessment_center == AC)
+}
+####
+
+#col_covs <- c("sex", "age", "assessment_center", paste0("pc",1:40))
+col_covs <- c("sex", "age", paste0("assessment_center.",ACs), paste0("pc",1:40))
+fields <- tibble(term = colnames(T2D_tbl2)[-c(1:3,6)]) %>%
   mutate(field = c(col_covs,PHESANT_fIDs2)) %>%
   mutate(use_type = ifelse(field %in% col_covs, "covar",
                            ifelse(field %in% CRFs_tbl$fieldID, "CRF","exposure")),
@@ -161,8 +170,9 @@ IDC <- (T2D_tbl2 %>% filter(sample_group=="C"))$ID
 #subset <- T2D_tbl2 %>% filter(row_number() %in% sample(1:nrow(T2D_tbl), 20000))
 
 # runs XWAS for both sets of exposures
-xwas1 <- xwas(T2D_tbl2, X = col_expos1, cov = col_covs[-3], mod="cox", IDA = c(IDA,IDC), adjust="fdr")
-xwas2 <- xwas(T2D_tbl2, X = col_expos2, cov = col_covs[-3], mod="cox", IDA = c(IDA,IDC), adjust="fdr")
+#xwas1 <- xwas(T2D_tbl2, X = col_expos1, cov = col_covs[-3], mod="cox", IDA = c(IDA,IDC), adjust="fdr")
+xwas1 <- xwas(T2D_tbl2, X = col_expos1, cov = col_covs, mod="cox", IDA = c(IDA,IDC), adjust="fdr")
+#xwas2 <- xwas(T2D_tbl2, X = col_expos2, cov = col_covs[-3], mod="cox", IDA = c(IDA,IDC), adjust="fdr")
 
 xwas1_c <- as_tibble(xwas1) %>%
   mutate(Field = col_expos1,
@@ -187,7 +197,8 @@ sig_expos1 <- (xwas1_c %>% filter(fdr < 0.05))$Field
 sig_expos2 <- (xwas2_c %>% filter(fdr < 0.05))$Field
 #library(glmnet)
 source(paste0(dir_script,"../../PXStools/R/PXS.R"))
-PXS1 <- PXS(df = T2D_tbl2, X = sig_expos1, cov = col_covs[-3], mod = "cox",
+#PXS1 <- PXS(df = T2D_tbl2, X = sig_expos1, cov = col_covs[-3], mod = "cox",
+PXS1 <- PXS(df = T2D_tbl2, X = sig_expos1, cov = col_covs, mod = "cox",
             IDA = c(IDA,IDC), IDB = IDB, IDC = c(), seed = 2016, alph=1)
 
 PXS1_coeffs <- as_tibble(PXS1) %>%
@@ -202,22 +213,39 @@ PXS1_coeffs <- as_tibble(PXS1) %>%
   select(-std.error,-statistic) %>%
   arrange(p.value)
 
-PXS2 <- PXS(df = T2D_tbl2, X = sig_expos2, cov = col_covs[-3], mod = "cox",
-            IDA = c(IDA, IDC), IDB = IDB, IDC = c(), seed = 2016, alph=1)
-
-PXS2_coeffs <- as_tibble(PXS2) %>%
-  mutate(Field = sapply(str_split(term,"f"), `[`, 2)) %>%
-  mutate(FieldID = as.numeric(sapply(str_split(Field,"\\."), `[`, 1)),
-         Value = sapply(str_split(Field,"\\."), `[`, 2)) %>%
-  mutate(Value = ifelse(Value==100,-7,Value)) %>%
-  left_join(ukb_dict %>% select(FieldID,FieldName=Field, Coding)) %>%
-  left_join(ukb_codings, by=c("Coding","Value")) %>%
-  mutate(Field = ifelse(is.na(Field),term,Field)) %>%
-  select(-term, -std.error,-statistic) %>%
-  arrange(p.value)
-
 loc_out <- paste0(dir_script,"../input_data/PXS_coefficients.txt")
 write.table(PXS1_coeffs, loc_out, sep="\t", row.names=FALSE, quote=FALSE)
+### 
+original_coeffs <- as_tibble(fread(paste0(dir_script,"../input_data/PXS_coefficients.txt"))) %>%
+  select(term, estimate0 = estimate, p.value0=p.value)
+
+joined <- PXS1_coeffs %>% full_join(original_coeffs, by="term")
+
+ggplot(joined, aes(x=log10(p.value0), y=log10(p.value))) +
+  geom_abline(slope=1) +
+  geom_hline(yintercept=log10(0.05)) +
+  geom_vline(xintercept=log10(0.05)) +
+  geom_point() +
+  geom_text_repel(aes(label=fieldname))
+
+loc_out <- paste0(dir_script,"../input_data/PXS_coefficients2.txt")
+write.table(PXS1_coeffs, loc_out, sep="\t", row.names=FALSE, quote=FALSE)
+
+###
+
+# PXS2 <- PXS(df = T2D_tbl2, X = sig_expos2, cov = col_covs[-3], mod = "cox",
+#             IDA = c(IDA, IDC), IDB = IDB, IDC = c(), seed = 2016, alph=1)
+# 
+# PXS2_coeffs <- as_tibble(PXS2) %>%
+#   mutate(Field = sapply(str_split(term,"f"), `[`, 2)) %>%
+#   mutate(FieldID = as.numeric(sapply(str_split(Field,"\\."), `[`, 1)),
+#          Value = sapply(str_split(Field,"\\."), `[`, 2)) %>%
+#   mutate(Value = ifelse(Value==100,-7,Value)) %>%
+#   left_join(ukb_dict %>% select(FieldID,FieldName=Field, Coding)) %>%
+#   left_join(ukb_codings, by=c("Coding","Value")) %>%
+#   mutate(Field = ifelse(is.na(Field),term,Field)) %>%
+#   select(-term, -std.error,-statistic) %>%
+#   arrange(p.value)
 
 
 # save("11-28_workspace.RData")
