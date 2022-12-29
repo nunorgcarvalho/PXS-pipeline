@@ -59,21 +59,29 @@ for (i in s$region_index) {
   colmeans_home <- colMeans(pheno[pheno$region_home_index == i,expos], na.rm=TRUE)
   colmeans_birth <- colMeans(pheno[pheno$region_birth_index == i,expos], na.rm=TRUE)
   colmeans_stayers <- colMeans(pheno[(pheno$region_birth_index == i) & (pheno$region_home_index == i),expos], na.rm=TRUE)
+  colmeans_birth_movers <- colMeans(pheno[(pheno$region_birth_index == i) & (pheno$region_home_index != i),expos], na.rm=TRUE)
+  colmeans_home_movers <- colMeans(pheno[(pheno$region_birth_index != i) & (pheno$region_home_index == i),expos], na.rm=TRUE)
   
   if (i == s$region_index[1]) {
     region_home_means <- data.frame(t(colmeans_home))
     region_birth_means <- data.frame(t(colmeans_birth))
     region_stayers_means <- data.frame(t(colmeans_stayers))
+    region_home_movers_means <- data.frame(t(colmeans_home_movers))
+    region_birth_movers_means <- data.frame(t(colmeans_birth_movers))
   } else {
     region_home_means <- rbind(region_home_means,t(colmeans_home))
     region_birth_means <- rbind(region_birth_means,t(colmeans_birth))
     region_stayers_means <- rbind(region_stayers_means,t(colmeans_stayers))
+    region_home_movers_means <- rbind(region_home_movers_means,t(colmeans_home_movers))
+    region_birth_movers_means <- rbind(region_birth_movers_means,t(colmeans_birth_movers))
   }
   if (i %% 50 == 0) {print(i)}
 }
 s_home <- cbind(s,region_home_means)
 s_birth <- cbind(s,region_birth_means)
 s_stayers <- cbind(s,region_stayers_means)
+s_home_movers <- cbind(s,region_home_movers_means)
+s_birth_movers <- cbind(s,region_birth_movers_means)
 
 # figures out neighboring regions (TAKES A WHILE, LIKE 16 minutes)
 #nb <- poly2nb(s, queen=TRUE)
@@ -89,6 +97,12 @@ home_Is <- c()
 home_ps <- c()
 birth_Is <- c()
 birth_ps <- c()
+stayers_Is <- c()
+stayers_ps <- c()
+home_movers_Is <- c()
+home_movers_ps <- c()
+birth_movers_Is <- c()
+birth_movers_ps <- c()
 for (expo in expos) {
   moran_home <- moran.test(as.data.frame(s_home)[,expo], lw, na.action=na.exclude)
   home_I <- moran_home$estimate[1] %>% unname()
@@ -102,14 +116,36 @@ for (expo in expos) {
   birth_Is <- c(birth_Is, birth_I)
   birth_ps <- c(birth_ps, birth_p)
   
+  moran_stayers <- moran.test(as.data.frame(s_stayers)[,expo], lw, na.action=na.exclude)
+  stayers_I <- moran_stayers$estimate[1] %>% unname()
+  stayers_p <- moran_stayers$p.value
+  stayers_Is <- c(stayers_Is, stayers_I)
+  stayers_ps <- c(stayers_ps, stayers_p)
+  
+  moran_home_movers <- moran.test(as.data.frame(s_home_movers)[,expo], lw, na.action=na.exclude)
+  home_movers_I <- moran_home_movers$estimate[1] %>% unname()
+  home_movers_p <- moran_home_movers$p.value
+  home_movers_Is <- c(home_movers_Is, home_movers_I)
+  home_movers_ps <- c(home_movers_ps, home_movers_p)
+  
+  moran_birth_movers <- moran.test(as.data.frame(s_birth_movers)[,expo], lw, na.action=na.exclude)
+  birth_movers_I <- moran_birth_movers$estimate[1] %>% unname()
+  birth_movers_p <- moran_birth_movers$p.value
+  birth_movers_Is <- c(birth_movers_Is, birth_movers_I)
+  birth_movers_ps <- c(birth_movers_ps, birth_movers_p)
+  
   print(expo)
 }
 morans_table <- tibble(term = expos) %>%
   left_join(fields_tbl %>% select(term, fieldname, Meaning), by="term") %>%
   mutate(
+    trait_name = ifelse(is.na(Meaning), fieldname, paste0(fieldname,": ", Meaning)),
     home_I = home_Is, home_p = p.adjust(home_ps,method="fdr"),
-    birth_I = birth_Is, birth_p = p.adjust(birth_ps,method="fdr"))
-morans_table[morans_table$term=="PXS_T2D","fieldname"] <- "PXS for Type II Diabetes"
+    birth_I = birth_Is, birth_p = p.adjust(birth_ps,method="fdr"),
+    stayers_I = stayers_Is, stayers_p = p.adjust(stayers_ps,method="fdr"),
+    home_movers_I = home_movers_Is, home_movers_p = p.adjust(home_movers_ps,method="fdr"),
+    birth_movers_I = birth_movers_Is, birth_movers_p = p.adjust(birth_movers_ps,method="fdr"))
+morans_table[morans_table$term=="PXS_T2D","traitname"] <- "PXS for Type II Diabetes"
 # function for plotting a trait
 plot_geospatial <- function(shapefile, trait_col, trait_name, I, p, coords) {
   title <- paste0("Geospatial clustering of '",trait_name,"'\nbased on ", coords, " coordinates")
@@ -119,7 +155,7 @@ plot_geospatial <- function(shapefile, trait_col, trait_name, I, p, coords) {
   ggplot(shapefile) +
     geom_sf(aes(fill=!!sym(trait_col)), size=0.2) +
     scale_fill_gradient2(low="green",mid="white", high="red",
-                         midpoint = median(shapefile[[trait_col]])) +
+                         midpoint = median(shapefile[[trait_col]], na.rm=TRUE)) +
     labs(title = title, subtitle = subtitle, fill = "Trait Value")
 }
 dir.create(paste0(dir_scratch,"figures/birth_I"), recursive=TRUE)
@@ -140,12 +176,7 @@ for (coords in c("birth", "home")) {
     }
     
     trait_col <- morans_table$term[i]
-    
-    if (is.na(morans_table$Meaning[i])) {
-      trait_name <- morans_table$fieldname[i]
-    } else {
-      trait_name <- paste0(morans_table$fieldname[i],": ", morans_table$Meaning[i])
-    }
+    trait_name <- morans_table$trait_name[i]
     
     gg <- plot_geospatial(shapefile = shapefile,
                     trait_col = trait_col, trait_name = trait_name,
@@ -172,8 +203,39 @@ ggplot(morans_table, aes(x=birth_I,y=home_I)) +
        subtitle = paste0("r = ", round(cor1,3))) +
   theme(legend.position = "none")
 loc_out <- paste0(dir_scratch,"figures/home_vs_birth_I.png")
-ggsave(loc_out, width = 4000, height = 3000, units = "px")
+ggsave(loc_out, width = 5000, height = 5000, units = "px")
 
+# compare birth_movers_I vs stayers_I
+cor2 <- cor(morans_table$birth_movers_I, morans_table$stayers_I)
+ggplot(morans_table, aes(x = stayers_I, y = birth_movers_I)) +
+  geom_abline(slope=1) +
+  geom_smooth(method="lm") +
+  geom_point(aes(color = birth_movers_I>stayers_I)) +
+  geom_label_repel(data=morans_table %>% filter(birth_movers_I<stayers_I), aes(label=trait_name)) +
+  xlab("Moran's I among stayers") +
+  ylab("Moran's I using birthplace coordinates among movers") +
+  labs(title = "Comparison of geospatial clustering of exposures among stayers vs movers (based on birthplace)",
+       subtitle = paste0("r = ", round(cor2,3))) +
+  theme(legend.position = "none")
+
+loc_out <- paste0(dir_scratch,"figures/birth-movers_vs_stayers_I.png")
+ggsave(loc_out, width = 5000, height = 4000, units = "px")
+
+# compare home_movers_I vs stayers_I
+cor3 <- cor(morans_table$home_movers_I, morans_table$stayers_I)
+ggplot(morans_table, aes(x = stayers_I, y = home_movers_I)) +
+  geom_abline(slope=1) +
+  geom_smooth(method="lm") +
+  geom_point(aes(color = home_movers_I>stayers_I)) +
+  geom_label_repel(data=morans_table %>% filter(home_movers_I<stayers_I), aes(label=trait_name)) +
+  xlab("Moran's I among stayers") +
+  ylab("Moran's I using current home coordinates among movers") +
+  labs(title = "Comparison of geospatial clustering of exposures among stayers vs movers (based on current home)",
+       subtitle = paste0("r = ", round(cor3,3))) +
+  theme(legend.position = "none")
+
+loc_out <- paste0(dir_scratch,"figures/birth-movers_vs_stayers_I.png")
+ggsave(loc_out, width = 5000, height = 4000, units = "px")
 
 # Working with movers and stayers
 movers <- pheno %>% filter(region_birth_index != region_home_index)
@@ -182,9 +244,7 @@ stayers <- pheno %>% filter(region_birth_index == region_home_index)
 dir.create(paste0(dir_scratch,"figures/migration_shifts"), recursive=TRUE)
 for (i in 1:nrow(morans_table)) {
   trait_col <- morans_table$term[i]
-  
-  if (is.na(morans_table$Meaning[i])) {trait_name <- morans_table$fieldname[i]
-  } else {trait_name <- paste0(morans_table$fieldname[i],": ", morans_table$Meaning[i])}
+  trait_name <- morans_table$trait_name[i]
   
   s_trait <- tibble(region_index = 1:nrow(s), trait = s_stayers[[trait_col]])
   
@@ -232,5 +292,11 @@ for (i in 1:nrow(morans_table)) {
   loc_out <- paste0(dir_scratch,"figures/migration_shifts/",trait_col,"_migration_shift2.png")
   ggsave(loc_out, width = 3000, height = 2000, units = "px")
   
+  morans_table$delta_movers[i] <- t1$estimate
+  morans_table$delta_movers_p[i] <- t1$p.value
+  
   print(trait_col)
 }
+# saves table
+loc_out <- paste0(dir_scratch, "morans_table.txt")
+write.table(morans_table, loc_out, sep="\t", row.names=FALSE, quote=FALSE)
