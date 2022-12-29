@@ -105,7 +105,7 @@ morans_table <- tibble(term = expos) %>%
   mutate(
     home_I = home_Is, home_p = p.adjust(home_ps,method="fdr"),
     birth_I = birth_Is, birth_p = p.adjust(birth_ps,method="fdr"))
-
+morans_table[morans_table$term=="PXS_T2D","fieldname"] <- "PXS for Type II Diabetes"
 # function for plotting a trait
 plot_geospatial <- function(shapefile, trait_col, trait_name, I, p, coords) {
   title <- paste0("Geospatial clustering of '",trait_name,"'\nbased on ", coords, " coordinates")
@@ -138,9 +138,7 @@ for (coords in c("birth", "home")) {
     trait_col <- morans_table$term[i]
     
     if (is.na(morans_table$Meaning[i])) {
-      if (is.na(morans_table$fieldname[i])) {
-        trait_name <- "PXS for Type II Diabetes"
-      } else {trait_name <- morans_table$fieldname[i]}
+      trait_name <- morans_table$fieldname[i]
     } else {
       trait_name <- paste0(morans_table$fieldname[i],": ", morans_table$Meaning[i])
     }
@@ -156,4 +154,18 @@ for (coords in c("birth", "home")) {
 }
 
 
-
+# plots home_I vs birth_I
+cor1 <- cor(morans_table$birth_I, morans_table$home_I)
+ggplot(morans_table, aes(x=birth_I,y=home_I)) +
+  geom_abline(slope=1) +
+  geom_smooth(method="lm") +
+  geom_point(aes(color = home_I>birth_I)) +
+  geom_label_repel(data=morans_table %>% filter(home_I>birth_I), aes(label=fieldname)) +
+  xlim(-0.05,0.7) + ylim(-0.05,0.7) +
+  xlab("Moran's I using birthplace coordinates") +
+  ylab("Moran's I using current home coordinates") +
+  labs(title = "Comparison of geospatial clustering of exposures based on birthplace vs current home",
+       subtitle = paste0("r = ", round(cor1,3))) +
+  theme(legend.position = "none")
+loc_out <- paste0(dir_scratch,"figures/home_vs_birth_I.png")
+ggsave(loc_out, width = 3000, height = 2000, units = "px")
