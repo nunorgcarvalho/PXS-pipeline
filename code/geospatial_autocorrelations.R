@@ -58,18 +58,22 @@ expos <- c(fields_tbl$term[fields_tbl$use_type=="exposure"],"PXS_T2D")
 for (i in s$region_index) {
   colmeans_home <- colMeans(pheno[pheno$region_home_index == i,expos], na.rm=TRUE)
   colmeans_birth <- colMeans(pheno[pheno$region_birth_index == i,expos], na.rm=TRUE)
+  colmeans_stayers <- colMeans(pheno[(pheno$region_birth_index == i) & (pheno$region_home_index == i),expos], na.rm=TRUE)
   
   if (i == s$region_index[1]) {
     region_home_means <- data.frame(t(colmeans_home))
     region_birth_means <- data.frame(t(colmeans_birth))
+    region_stayers_means <- data.frame(t(colmeans_stayers))
   } else {
     region_home_means <- rbind(region_home_means,t(colmeans_home))
     region_birth_means <- rbind(region_birth_means,t(colmeans_birth))
+    region_stayers_means <- rbind(region_stayers_means,t(colmeans_stayers))
   }
   if (i %% 50 == 0) {print(i)}
 }
 s_home <- cbind(s,region_home_means)
 s_birth <- cbind(s,region_birth_means)
+s_stayers <- cbind(s,region_stayers_means)
 
 # figures out neighboring regions (TAKES A WHILE, LIKE 16 minutes)
 #nb <- poly2nb(s, queen=TRUE)
@@ -168,4 +172,48 @@ ggplot(morans_table, aes(x=birth_I,y=home_I)) +
        subtitle = paste0("r = ", round(cor1,3))) +
   theme(legend.position = "none")
 loc_out <- paste0(dir_scratch,"figures/home_vs_birth_I.png")
-ggsave(loc_out, width = 3000, height = 2000, units = "px")
+ggsave(loc_out, width = 4000, height = 3000, units = "px")
+
+
+# Working with movers and stayers
+movers <- pheno %>% filter(region_birth_index != region_home_index)
+stayers <- pheno %>% filter(region_birth_index == region_home_index)
+
+dir.create(paste0(dir_scratch,"figures/migration_shifts"), recursive=TRUE)
+for (i in 1:nrow(morans_table)) {
+  trait_col <- morans_table$term[i]
+  
+  if (is.na(morans_table$Meaning[i])) {trait_name <- morans_table$fieldname[i]
+  } else {trait_name <- paste0(morans_table$fieldname[i],": ", morans_table$Meaning[i])}
+  
+  s_trait <- tibble(region_index = 1:nrow(s), trait = s_stayers[[trait_col]])
+  
+  movers_trait <- pheno %>% filter(region_birth_index != region_home_index) %>%
+    select(FID, IID, region_home_index, region_birth_index) %>%
+    left_join(s_trait %>% rename(trait_home = trait), by=c("region_home_index"="region_index")) %>%
+    left_join(s_trait %>% rename(trait_birth = trait), by=c("region_birth_index"="region_index")) %>%
+    mutate(trait_delta = trait_home - trait_birth)
+  
+  t1 <- t.test(movers_trait$trait_delta)
+  movers_trait2 <- movers_trait %>% select(-trait_delta) %>% pivot_longer(
+    cols = starts_with("trait_"),
+    names_to = "coords",
+    names_prefix = "trait_",
+    values_to = "mean_value"
+  )
+  ggplot(movers_trait2) +
+    geom_histogram(aes(x=mean_value, fill = coords), alpha = 0.5) +
+    geom_vline(xintercept = mean(movers_trait$trait_birth, na.rm=TRUE), color="#F8766D") +
+    geom_vline(xintercept = mean(movers_trait$trait_home, na.rm=TRUE), color="#00BFC4") +
+    xlab("Mean trait value in individuals' region (may be inverse rank normalized)") +
+    ylab("Number of indviduals (movers)") +
+    labs(title = paste0("Distribution of mean '",trait_name,"' value at individuals' birthplace/current home region among movers"),
+         subtitle = paste0("Mean difference = ", formatC(t1$estimate,digits=3, format = "fg"),
+                           " :: p-value (t-test) = ", formatC(t1$p.value,digits=2, format = "E"),
+                           " :: Mean region value determined by current inhabitants who were also born in same region (stayers)"),
+         fill = "Region")
+  
+  loc_out <- paste0(dir_scratch,"figures/migration_shifts/",trait_col,"_migration_shift.png")
+  ggsave(loc_out, width = 3000, height = 2000, units = "px")
+  print(trait_col)
+}
