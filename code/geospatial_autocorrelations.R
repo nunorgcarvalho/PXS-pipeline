@@ -201,6 +201,7 @@ for (i in 1:nrow(morans_table)) {
     names_prefix = "trait_",
     values_to = "mean_value"
   )
+  # plots birth and home distributions
   ggplot(movers_trait2) +
     geom_histogram(aes(x=mean_value, fill = coords), alpha = 0.5) +
     geom_vline(xintercept = mean(movers_trait$trait_birth, na.rm=TRUE), color="#F8766D") +
@@ -215,5 +216,21 @@ for (i in 1:nrow(morans_table)) {
   
   loc_out <- paste0(dir_scratch,"figures/migration_shifts/",trait_col,"_migration_shift.png")
   ggsave(loc_out, width = 3000, height = 2000, units = "px")
+  
+  # plots delta
+  ggplot(movers_trait) +
+    geom_histogram(aes(x=trait_delta), alpha = 0.5, fill="#00BA38") +
+    geom_vline(xintercept = 0, color="black") +
+    geom_vline(xintercept = mean(movers_trait$trait_delta, na.rm=TRUE), color="darkgreen") +
+    xlab("Mean region shift (home - birth) (may be inverse rank normalized)") +
+    ylab("Number of indviduals (movers)") +
+    labs(title = paste0("Distribution of birth-->home mean region shift for '",trait_name,"' among movers"),
+         subtitle = paste0("Mean difference = ", formatC(t1$estimate,digits=3, format = "fg"),
+                           " :: p-value (t-test) = ", formatC(t1$p.value,digits=2, format = "E"),
+                           " :: Mean region value determined by current inhabitants who were also born in same region (stayers)"))
+  
+  loc_out <- paste0(dir_scratch,"figures/migration_shifts/",trait_col,"_migration_shift2.png")
+  ggsave(loc_out, width = 3000, height = 2000, units = "px")
+  
   print(trait_col)
 }
