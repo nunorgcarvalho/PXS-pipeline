@@ -51,6 +51,24 @@ NI_indices <- s[!(substring(s$geo_code,1,1) %in% c("E","W","S")),]$region_index
 pheno <- pheno %>% filter(!(region_home_index %in% NI_indices),
                           !(region_birth_index %in% NI_indices))
 
+# plots population size of LAs
+s_temp <- as_tibble(s) %>% select(starts_with("n_")) %>% pivot_longer(
+  cols = starts_with("n_"),
+  names_to = "coords",
+  names_pattern = "n_(.*)_pop",
+  values_to = "pop"
+)
+ggplot(s_temp) +
+  geom_histogram(aes(x=pop, fill = coords), alpha = 0.5, position="identity") +
+  scale_x_log10() +
+  xlab("Population Size (log10 scale)") +
+  ylab("Number of Local Authorities") +
+  labs(title = "Distribution of population size of 404 local authorities",
+       subtitle = paste0("Not shown: LAs with 0 people (",sum(s$n_birth_pop == 0)," for birth/home each)"),
+       fill = "Region")
+loc_out <- paste0(dir_scratch,"figures/LAs_pop_distributions.png")
+ggsave(loc_out, width = 3000, height = 2000, units = "px")
+
 # gets mean exposure value for each region
 fields_tbl <- as_tibble(fread(loc_fields))
 expos <- c(fields_tbl$term[fields_tbl$use_type=="exposure"],"PXS_T2D")
@@ -145,7 +163,7 @@ morans_table <- tibble(term = expos) %>%
     stayers_I = stayers_Is, stayers_p = p.adjust(stayers_ps,method="fdr"),
     home_movers_I = home_movers_Is, home_movers_p = p.adjust(home_movers_ps,method="fdr"),
     birth_movers_I = birth_movers_Is, birth_movers_p = p.adjust(birth_movers_ps,method="fdr"))
-morans_table[morans_table$term=="PXS_T2D","traitname"] <- "PXS for Type II Diabetes"
+morans_table[morans_table$term=="PXS_T2D","trait_name"] <- "PXS for Type II Diabetes"
 # function for plotting a trait
 plot_geospatial <- function(shapefile, trait_col, trait_name, I, p, coords) {
   title <- paste0("Geospatial clustering of '",trait_name,"'\nbased on ", coords, " coordinates")
@@ -234,7 +252,7 @@ ggplot(morans_table, aes(x = stayers_I, y = home_movers_I)) +
        subtitle = paste0("r = ", round(cor3,3))) +
   theme(legend.position = "none")
 
-loc_out <- paste0(dir_scratch,"figures/birth-movers_vs_stayers_I.png")
+loc_out <- paste0(dir_scratch,"figures/home-movers_vs_stayers_I.png")
 ggsave(loc_out, width = 5000, height = 4000, units = "px")
 
 # Working with movers and stayers
@@ -263,7 +281,7 @@ for (i in 1:nrow(morans_table)) {
   )
   # plots birth and home distributions
   ggplot(movers_trait2) +
-    geom_histogram(aes(x=mean_value, fill = coords), alpha = 0.5) +
+    geom_histogram(aes(x=mean_value, fill = coords), alpha = 0.5, position="identity") +
     geom_vline(xintercept = mean(movers_trait$trait_birth, na.rm=TRUE), color="#F8766D") +
     geom_vline(xintercept = mean(movers_trait$trait_home, na.rm=TRUE), color="#00BFC4") +
     xlab("Mean trait value in individuals' region (may be inverse rank normalized)") +
@@ -271,7 +289,7 @@ for (i in 1:nrow(morans_table)) {
     labs(title = paste0("Distribution of mean '",trait_name,"' value at individuals' birthplace/current home region among movers"),
          subtitle = paste0("Mean difference = ", formatC(t1$estimate,digits=3, format = "fg"),
                            " :: p-value (t-test) = ", formatC(t1$p.value,digits=2, format = "E"),
-                           " :: Mean region value determined by current inhabitants who were also born in same region (stayers)"),
+                           "\nMean region value determined by current inhabitants who were also born in same region (stayers)"),
          fill = "Region")
   
   loc_out <- paste0(dir_scratch,"figures/migration_shifts/",trait_col,"_migration_shift.png")
@@ -287,7 +305,7 @@ for (i in 1:nrow(morans_table)) {
     labs(title = paste0("Distribution of birth-->home mean region shift for '",trait_name,"' among movers"),
          subtitle = paste0("Mean difference = ", formatC(t1$estimate,digits=3, format = "fg"),
                            " :: p-value (t-test) = ", formatC(t1$p.value,digits=2, format = "E"),
-                           " :: Mean region value determined by current inhabitants who were also born in same region (stayers)"))
+                           "\nMean region value determined by current inhabitants who were also born in same region (stayers)"))
   
   loc_out <- paste0(dir_scratch,"figures/migration_shifts/",trait_col,"_migration_shift2.png")
   ggsave(loc_out, width = 3000, height = 2000, units = "px")
@@ -300,3 +318,18 @@ for (i in 1:nrow(morans_table)) {
 # saves table
 loc_out <- paste0(dir_scratch, "morans_table.txt")
 write.table(morans_table, loc_out, sep="\t", row.names=FALSE, quote=FALSE)
+
+
+### Plotting migration lines for the fun of it
+subset1 <- movers %>% filter(birth_x != -1) %>%
+  filter(row_number() %in% sample(1:sum(movers$birth_x!=-1),10000, replace = FALSE))
+ggplot(s) +
+  geom_sf(size = 0.2) +
+  geom_segment(data=subset1, aes(x=birth_x, xend = home_x, y = birth_y, yend = home_y),
+               arrow = arrow(), alpha = 0.01)
+
+subset2 <- stayers %>% filter(birth_x != -1) %>%
+  filter(row_number() %in% sample(1:sum(stayers$birth_x!=-1),10000, replace = FALSE))
+ggplot(s) +
+  geom_sf(size = 0.2) +
+  geom_point(data=subset2, aes(x=birth_x, y=birth_y),alpha = 0.01)
