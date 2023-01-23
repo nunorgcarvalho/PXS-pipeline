@@ -15,7 +15,7 @@ dir_out <- "./"
 col_coeff <- "estimate"
 
 # Loads the phenotype file created in initial_setup.R
-loc_ukbpheno <- "../pheno_EC2.txt"
+loc_ukbpheno <- "../pheno_EC.txt"
 pheno <- as_tibble(fread(loc_ukbpheno))
 loc_fields <- "../fields_tbl.txt"
 # fields <- as_tibble(fread("~/scratch3/PXS_pipeline/fields_tbl.txt"))

@@ -170,8 +170,8 @@ IDC <- (T2D_tbl2 %>% filter(sample_group=="C"))$ID
 #subset <- T2D_tbl2 %>% filter(row_number() %in% sample(1:nrow(T2D_tbl), 20000))
 
 # runs XWAS for both sets of exposures
-#xwas1 <- xwas(T2D_tbl2, X = col_expos1, cov = col_covs[-3], mod="cox", IDA = c(IDA,IDC), adjust="fdr")
-xwas1 <- xwas(T2D_tbl2, X = col_expos1, cov = col_covs, mod="cox", IDA = c(IDA,IDC), adjust="fdr")
+xwas1 <- xwas(T2D_tbl2, X = col_expos1, cov = col_covs[-3], mod="cox", IDA = c(IDA,IDC), adjust="fdr")
+#xwas1 <- xwas(T2D_tbl2, X = col_expos1, cov = col_covs, mod="cox", IDA = c(IDA,IDC), adjust="fdr")
 #xwas2 <- xwas(T2D_tbl2, X = col_expos2, cov = col_covs[-3], mod="cox", IDA = c(IDA,IDC), adjust="fdr")
 
 xwas1_c <- as_tibble(xwas1) %>%
@@ -183,22 +183,22 @@ xwas1_c <- as_tibble(xwas1) %>%
   left_join(ukb_codings, by=c("Coding","Value")) %>%
   arrange(-fdr)
 col_expos2_IDs <- sapply(str_split(col_expos2,"f"), `[`, 2)
-xwas2_c <- as_tibble(xwas2) %>%
-  mutate(Field = col_expos2,
-         FieldID = as.numeric(sapply(str_split(col_expos2_IDs,"\\."), `[`, 1)),
-         Value = sapply(str_split(col_expos2_IDs,"\\."), `[`, 2)) %>%
-  mutate(Value = ifelse(Value==100,-7,Value)) %>%
-  left_join(ukb_dict %>% select(FieldID,FieldName=Field, Coding)) %>%
-  left_join(ukb_codings, by=c("Coding","Value")) %>%
-  arrange(-fdr)
+#xwas2_c <- as_tibble(xwas2) %>%
+#  mutate(Field = col_expos2,
+#         FieldID = as.numeric(sapply(str_split(col_expos2_IDs,"\\."), `[`, 1)),
+#         Value = sapply(str_split(col_expos2_IDs,"\\."), `[`, 2)) %>%
+#  mutate(Value = ifelse(Value==100,-7,Value)) %>%
+#  left_join(ukb_dict %>% select(FieldID,FieldName=Field, Coding)) %>%
+#  left_join(ukb_codings, by=c("Coding","Value")) %>%
+#  arrange(-fdr)
 
 # calculates the PXS
 sig_expos1 <- (xwas1_c %>% filter(fdr < 0.05))$Field
-sig_expos2 <- (xwas2_c %>% filter(fdr < 0.05))$Field
+#sig_expos2 <- (xwas2_c %>% filter(fdr < 0.05))$Field
 #library(glmnet)
 source(paste0(dir_script,"../../PXStools/R/PXS.R"))
-#PXS1 <- PXS(df = T2D_tbl2, X = sig_expos1, cov = col_covs[-3], mod = "cox",
-PXS1 <- PXS(df = T2D_tbl2, X = sig_expos1, cov = col_covs, mod = "cox",
+PXS1 <- PXS(df = T2D_tbl2, X = sig_expos1, cov = col_covs[-3], mod = "cox",
+#PXS1 <- PXS(df = T2D_tbl2, X = sig_expos1, cov = col_covs, mod = "cox",
             IDA = c(IDA,IDC), IDB = IDB, IDC = c(), seed = 2016, alph=1)
 
 PXS1_coeffs <- as_tibble(PXS1) %>%
@@ -216,20 +216,20 @@ PXS1_coeffs <- as_tibble(PXS1) %>%
 loc_out <- paste0(dir_script,"../input_data/PXS_coefficients.txt")
 write.table(PXS1_coeffs, loc_out, sep="\t", row.names=FALSE, quote=FALSE)
 ### 
-original_coeffs <- as_tibble(fread(paste0(dir_script,"../input_data/PXS_coefficients.txt"))) %>%
-  select(term, estimate0 = estimate, p.value0=p.value)
+#original_coeffs <- as_tibble(fread(paste0(dir_script,"../input_data/PXS_coefficients.txt"))) %>%
+#  select(term, estimate0 = estimate, p.value0=p.value)
 
-joined <- PXS1_coeffs %>% full_join(original_coeffs, by="term")
+#joined <- PXS1_coeffs %>% full_join(original_coeffs, by="term")
 
-ggplot(joined, aes(x=log10(p.value0), y=log10(p.value))) +
-  geom_abline(slope=1) +
-  geom_hline(yintercept=log10(0.05)) +
-  geom_vline(xintercept=log10(0.05)) +
-  geom_point() +
-  geom_text_repel(aes(label=fieldname))
+#ggplot(joined, aes(x=log10(p.value0), y=log10(p.value))) +
+#  geom_abline(slope=1) +
+#  geom_hline(yintercept=log10(0.05)) +
+#  geom_vline(xintercept=log10(0.05)) +
+#  geom_point() +
+#  geom_text_repel(aes(label=fieldname))
 
-loc_out <- paste0(dir_script,"../input_data/PXS_coefficients2.txt")
-write.table(PXS1_coeffs, loc_out, sep="\t", row.names=FALSE, quote=FALSE)
+#loc_out <- paste0(dir_script,"../input_data/PXS_coefficients2.txt")
+#write.table(PXS1_coeffs, loc_out, sep="\t", row.names=FALSE, quote=FALSE)
 
 ###
 

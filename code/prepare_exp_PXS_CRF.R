@@ -1,4 +1,5 @@
 ## Libraries and directories ##
+library(tidyverse)
 library(tibble)
 library(magrittr)
 library(dplyr)

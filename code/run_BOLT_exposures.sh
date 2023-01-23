@@ -11,9 +11,9 @@ dir_script="/home/nur479/jobs/PXS_pipeline/code/"
 dir_scratch="/home/nur479/scratch3/PXS_pipeline/"
 
 # Makes list of exposures to analyze, appends PXSs to pheno file, and makes list of CRFs for each
-# module load gcc/9.2.0 R/4.1.2
-# R CMD BATCH prepare_exp_PXS_CRF.R
-# echo 'Made list of exposures'
+module load gcc/9.2.0 R/4.1.2
+R CMD BATCH prepare_exp_PXS_CRF.R
+echo 'Made list of exposures'
 
 dir_exposures=$(echo ${dir_scratch}exposures)
 mkdir -p ${dir_exposures}

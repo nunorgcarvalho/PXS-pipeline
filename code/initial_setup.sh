@@ -2,7 +2,7 @@
 #SBATCH -c 1
 #SBATCH -t 0-01:00
 #SBATCH -p short
-#SBATCH --mem=8G
+#SBATCH --mem=16G
 #SBATCH -o initial_setup.out
 #SBATCH -e initial_setup.err
 
