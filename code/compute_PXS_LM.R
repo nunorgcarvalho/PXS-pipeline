@@ -25,7 +25,7 @@ col_covs <- (fields %>% filter(use_type=="covar"))$term
 #fields <- fields %>% filter(use_type=="exposure")
 
 # loads the file containing XWAS coefficients and filters to just to the disease
-loc_coeffs <- paste0(dir_script,"../input_data/PXS_coefficients2.txt")
+loc_coeffs <- paste0(dir_script,"../input_data/PXS_coefficients.txt")
 coeffs <- as_tibble(fread(loc_coeffs)) %>%
   select(term, estimate, disease) #%>%
 #  filter(!is.na(!!as.name(col_coeff))) %>% select(V1,X,term,ends_with(disease))
@@ -142,8 +142,16 @@ for (i in 1:nrow(pheno_wide)) {
 # saves shortened version of pheno table with just IIDs and PXS
 col_PXS <- paste0("PXS_",disease)
 out_PXS <- pheno_wide %>% select(FID,IID)
-
 out_PXS[col_PXS] <- PXSs
+
+# checks normality
+ggplot(out_PXS, aes(x=PXS_T2D)) +
+  geom_density( color="red") +
+  stat_function(fun = dnorm, n = 101, args = list(mean = mean(out_PXS$PXS_T2D), sd = sd(out_PXS$PXS_T2D)))
+# forces standardized PXS value:
+out_PXS[col_PXS] <- (PXSs - mean(PXSs)) / sd(PXSs)
+
+
 loc_out <- paste0(dir_out,"PXS_",disease,".txt")
 write.table(out_PXS,loc_out,sep=" ", row.names=FALSE, quote=FALSE)
 

@@ -14,7 +14,8 @@ loc_phenolist <- paste0(dir_script,"../input_data/phenotypes.txt")
 pheno_list <- readLines(loc_phenolist)
 loc_expolist <- paste0(dir_script,"../input_data/exposures.txt")
 exposures_list <- readLines(loc_expolist)
-fields <- as_tibble(fread(paste0(dir_scratch,"fields_tbl.txt")))
+fields <- as_tibble(fread(paste0(dir_scratch,"fields_tbl.txt"))) %>%
+  mutate(trait_name = ifelse(is.na(Meaning), fieldname, paste0(fieldname,": ", Meaning)))
 ukb_dict <- as_tibble(fread(paste0(dir_data_showcase,"Data_Dictionary_Showcase.tsv"))) %>%
   mutate(field = paste0("f",FieldID)) %>%
   select(field, fieldname=Field) %>%
@@ -176,7 +177,7 @@ for (expo in exposures_list) {
 
 ### REML results for genCorr with CRFs
 genCorr_CRF_tbl <- tibble(
-  pheno_field = as.character(),
+  expo_field = as.character(),
   h2g1 = as.numeric(),
   h2g1_err = as.numeric(),
   CRF_field = as.character(),
@@ -191,24 +192,47 @@ for (pheno in pheno_list) {
   if (!file.exists(loc_CRFs)) {next}
   CRFs_list <- readLines(loc_CRFs)
   for (CRF in CRFs_list) {
-    loc_genCorr <- paste0(dir_scratch,pheno,"/PXS_",pheno,"_",CRF,"_genCorr.out")
-    genCorr <- readLines(loc_genCorr)
+    for (expo in exposures_list) {
+      loc_genCorr <- paste0(dir_scratch,"exposures/",expo,"/",CRF,"_",expo,"_genCorr.out")
+      if (!file.exists(loc_genCorr)) {
+        print(paste("Did not find genCorr for",expo,"x",CRF))
+        next
+      }
+      genCorr <- readLines(loc_genCorr)
 
-    out <- extract_from_genCorr(genCorr)
+      out <- extract_from_genCorr(genCorr)
+      
+      genCorr_CRF_tbl <- genCorr_CRF_tbl %>% add_row(
+        expo_field = expo,
+        h2g1 = out[1],
+        h2g1_err = out[2],
+        CRF_field = CRF,
+        h2g2 = out[5],
+        h2g2_err = out[6],
+        gencorr = out[3],
+        gencorr_err = out[4],
+        elapsed_hours = out[7]
+      )
+      print(paste("Read genCorr results for",expo,"x",CRF))
+    }
+    # loc_genCorr <- paste0(dir_scratch,pheno,"/PXS_",pheno,"_",CRF,"_genCorr.out")
+    # genCorr <- readLines(loc_genCorr)
+    # 
+    # out <- extract_from_genCorr(genCorr)
 
     # adds row to table
-    genCorr_CRF_tbl <- genCorr_CRF_tbl %>% add_row(
-      pheno_field = pheno,
-      h2g1 = out[1],
-      h2g1_err = out[2],
-      CRF_field = CRF,
-      h2g2 = out[5],
-      h2g2_err = out[6],
-      gencorr = out[3],
-      gencorr_err = out[4],
-      elapsed_hours = out[7]
-    )
-    print(paste("Read genCorr results for",pheno,"x",CRF))
+    # genCorr_CRF_tbl <- genCorr_CRF_tbl %>% add_row(
+    #   pheno_field = pheno,
+    #   h2g1 = out[1],
+    #   h2g1_err = out[2],
+    #   CRF_field = CRF,
+    #   h2g2 = out[5],
+    #   h2g2_err = out[6],
+    #   gencorr = out[3],
+    #   gencorr_err = out[4],
+    #   elapsed_hours = out[7]
+    # )
+    # print(paste("Read genCorr results for",pheno,"x",CRF))
   }
 }
 
@@ -220,8 +244,11 @@ REML_PXS_tbl <- REML_PXS_tbl %>% left_join(ukb_dict, by="field")
 REML_expo_tbl <- REML_expo_tbl %>% left_join(fields %>% select(term,fieldname, Meaning), by=c("field"="term"))
 envLM_PXS_tbl_wider <- envLM_PXS_tbl_wider %>% left_join(ukb_dict, by="field")
 envLM_PXS_tvals <- envLM_PXS_tvals %>% left_join(ukb_dict, by="field")
-genCorr_CRF_tbl <- genCorr_CRF_tbl %>% left_join(ukb_dict, by=c("pheno_field"="field")) %>% rename(pheno_fieldname = fieldname)
-genCorr_CRF_tbl <- genCorr_CRF_tbl %>% left_join(ukb_dict, by=c("CRF_field"="field")) %>% rename(CRF_fieldname = fieldname)
+#genCorr_CRF_tbl <- genCorr_CRF_tbl %>% left_join(ukb_dict, by=c("pheno_field"="field")) %>% rename(pheno_fieldname = fieldname)
+#genCorr_CRF_tbl <- genCorr_CRF_tbl %>% left_join(ukb_dict, by=c("CRF_field"="field")) %>% rename(CRF_fieldname = fieldname)
+genCorr_CRF_tbl <- genCorr_CRF_tbl %>%
+  left_join(fields %>% select(term, trait_name), by=c("CRF_field"="term")) %>% rename(CRF_fieldname = trait_name) %>%
+  left_join(fields %>% select(term, trait_name), by=c("expo_field"="term")) %>% rename(expo_fieldname = trait_name)
 
 # Saves tables
 loc_out <- paste0(dir_scratch, "REML_PXS_results.txt")

@@ -27,6 +27,12 @@ subfolder=$(echo ${dir_exposures}/${exposure})
 mkdir -p ${subfolder}
 cd ${subfolder}
 
+# skips if already calculated
+out_file=${subfolder}/${exposure}_BOLTLMM.out
+if [[ -f "$out_file" ]]; then
+    continue
+fi
+
 ########################################
 ## Creates BOLT-LMM script and submits##
 ########################################

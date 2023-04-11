@@ -72,7 +72,7 @@ tbl_out <- T2D_tbl[,c("userId",paste0("f.",c(expos2,CRFs_tbl$fieldID),".0.0"))]
 colnames(tbl_out) <- c("userId",paste0("x",c(expos2,CRFs_tbl$fieldID),"_0_0"))
 dir.create(paste0(dir_scratch,'PHESANT_results/'))
 loc_out <- paste0(dir_scratch,"PHESANT_results/T2D_exposures_tbl_raw.txt")
-write.table(tbl_out, loc_out, sep="\t", quote=FALSE, row.names=FALSE)
+fwrite(tbl_out, loc_out, sep="\t")
 
 # this R code runs 'Rscript' from within R rather than the CMD
 # takes a few minutes to run
@@ -125,16 +125,20 @@ T2D_tbl2 <- T2D_tbl %>%
   rename(ID = userId)
 
 ####
-ACs <- T2D_tbl2$assessment_center %>% unique()
-for (AC in ACs) {
-  col_AC <- paste0("assessment_center.",AC)
-  T2D_tbl2[,col_AC] <- as.numeric(T2D_tbl2$assessment_center == AC)
-}
+# Makes a column for each assessment_center
+# Currently skipping, does not significantly impact results
+
+# ACs <- T2D_tbl2$assessment_center %>% unique()
+# for (AC in ACs) {
+#   col_AC <- paste0("assessment_center.",AC)
+#   T2D_tbl2[,col_AC] <- as.numeric(T2D_tbl2$assessment_center == AC)
+# }
 ####
 
-#col_covs <- c("sex", "age", "assessment_center", paste0("pc",1:40))
-col_covs <- c("sex", "age", paste0("assessment_center.",ACs), paste0("pc",1:40))
-fields <- tibble(term = colnames(T2D_tbl2)[-c(1:3,6)]) %>%
+col_covs <- c("sex", "age", "assessment_center", paste0("pc",1:40))
+#col_covs <- c("sex", "age", paste0("assessment_center.",ACs), paste0("pc",1:40)) # <-- use if including AC columns
+#fields <- tibble(term = colnames(T2D_tbl2)[-c(1:3,6)]) %>% # <-- use if including AC columns
+fields <- tibble(term = colnames(T2D_tbl2)[-c(1:3)]) %>%
   mutate(field = c(col_covs,PHESANT_fIDs2)) %>%
   mutate(use_type = ifelse(field %in% col_covs, "covar",
                            ifelse(field %in% CRFs_tbl$fieldID, "CRF","exposure")),
@@ -147,16 +151,18 @@ fields <- tibble(term = colnames(T2D_tbl2)[-c(1:3,6)]) %>%
   mutate(fieldID = as.numeric(ifelse(use_type=="covar",NA,fieldID)),
          value = ifelse(value==100,-7,value)) %>%
   left_join(ukb_dict %>% select(fieldID=FieldID,fieldname=Field, coding=Coding)) %>%
-  left_join(ukb_codings, by=c("coding"="Coding","value"="Value")) #%>%
-  #mutate(term = ifelse(is.na(field),term,field))
+  left_join(ukb_codings, by=c("coding"="Coding","value"="Value"))
 
 loc_out <- paste0(dir_scratch,"fields_tbl.txt")
-write.table(fields, loc_out, sep="\t", row.names=FALSE, quote=FALSE)
+fwrite(fields, loc_out, sep="\t")
 
 tbl_out <- as_tibble(cbind(FID = T2D_tbl2$ID,IID = T2D_tbl2$ID,
                            T2D_tbl2[4:ncol(T2D_tbl2)]))
 loc_out <- paste0(dir_scratch,"pheno_EC.txt")
-write.table(tbl_out, loc_out, sep="\t", row.names=FALSE, quote=FALSE)
+fwrite(tbl_out, loc_out, sep="\t")
+
+# some of the following code is commented out because we are opting to use the
+# exposures in group 1, not group 2
 
 # randomly sorts individuals into A, B, and C groups
 set.seed(2016)
@@ -167,10 +173,9 @@ IDA <- (T2D_tbl2 %>% filter(sample_group=="A"))$ID
 IDB <- (T2D_tbl2 %>% filter(sample_group=="B"))$ID
 IDC <- (T2D_tbl2 %>% filter(sample_group=="C"))$ID
 
-#subset <- T2D_tbl2 %>% filter(row_number() %in% sample(1:nrow(T2D_tbl), 20000))
 
 # runs XWAS for both sets of exposures
-xwas1 <- xwas(T2D_tbl2, X = col_expos1, cov = col_covs[-3], mod="cox", IDA = c(IDA,IDC), adjust="fdr")
+xwas1 <- xwas(T2D_tbl2, X = col_expos1, cov = col_covs[-3], mod="cox", IDA = c(IDA,IDC), adjust="fdr") # <-- use if including AC columns
 #xwas1 <- xwas(T2D_tbl2, X = col_expos1, cov = col_covs, mod="cox", IDA = c(IDA,IDC), adjust="fdr")
 #xwas2 <- xwas(T2D_tbl2, X = col_expos2, cov = col_covs[-3], mod="cox", IDA = c(IDA,IDC), adjust="fdr")
 
@@ -182,7 +187,7 @@ xwas1_c <- as_tibble(xwas1) %>%
   left_join(ukb_dict %>% select(FieldID,FieldName=Field, Coding)) %>%
   left_join(ukb_codings, by=c("Coding","Value")) %>%
   arrange(-fdr)
-col_expos2_IDs <- sapply(str_split(col_expos2,"f"), `[`, 2)
+#col_expos2_IDs <- sapply(str_split(col_expos2,"f"), `[`, 2)
 #xwas2_c <- as_tibble(xwas2) %>%
 #  mutate(Field = col_expos2,
 #         FieldID = as.numeric(sapply(str_split(col_expos2_IDs,"\\."), `[`, 1)),
@@ -193,9 +198,15 @@ col_expos2_IDs <- sapply(str_split(col_expos2,"f"), `[`, 2)
 #  arrange(-fdr)
 
 # calculates the PXS
-sig_expos1 <- (xwas1_c %>% filter(fdr < 0.05))$Field
+#sig_expos1 <- (xwas1_c %>% filter(fdr < 0.05))$Field
+sig_expos1_tbl <- (xwas1_c %>%
+                    filter(FieldID %in% (xwas1_c %>% 
+                                           group_by(FieldID) %>% 
+                                           summarize(fdr = min(fdr)) %>%
+                                           filter(fdr < 0.05))$FieldID ) )
+sig_expos1 <- sig_expos1_tbl$Field
+sig_expos1_groups <- sig_expos1_tbl$FieldID
 #sig_expos2 <- (xwas2_c %>% filter(fdr < 0.05))$Field
-#library(glmnet)
 source(paste0(dir_script,"../../PXStools/R/PXS.R"))
 PXS1 <- PXS(df = T2D_tbl2, X = sig_expos1, cov = col_covs[-3], mod = "cox",
 #PXS1 <- PXS(df = T2D_tbl2, X = sig_expos1, cov = col_covs, mod = "cox",
@@ -214,8 +225,9 @@ PXS1_coeffs <- as_tibble(PXS1) %>%
   arrange(p.value)
 
 loc_out <- paste0(dir_script,"../input_data/PXS_coefficients.txt")
-write.table(PXS1_coeffs, loc_out, sep="\t", row.names=FALSE, quote=FALSE)
-### 
+fwrite(PXS1_coeffs, loc_out, sep="\t")
+
+### Used for comparing different PXS calculations
 #original_coeffs <- as_tibble(fread(paste0(dir_script,"../input_data/PXS_coefficients.txt"))) %>%
 #  select(term, estimate0 = estimate, p.value0=p.value)
 
