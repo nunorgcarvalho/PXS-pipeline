@@ -4,13 +4,12 @@ library(tidyverse)
 library(data.table)
 library(PXStools)
 library(callr)
+source('paths.R')
 
-dir_script <- "~/jobs/PXS_pipeline/code/"
-dir_scratch <- "~/scratch3/PXS_pipeline/"
 loc_pheno_full1 <- "/n/groups/patel/uk_biobank/main_data_34521/ukb34521.tab"
 loc_pheno_full2 <- "/n/groups/patel/uk_biobank/project_22881_669542/ukb669542.csv"
 loc_40PCs <- "~/scratch3/key_data/UKB_40PCs_500k.txt"
-dir_data_showcase <- "~/scratch3/key_data/" # contains 'Data_Dictionary_Showcase.tsv' from UKBB
+loc_PXS_function <- "~/jobs/PXStools/R/PXS.R"
 
 # gets list of exposures
 loc_expos <- paste0(dir_script,"../input_data/T2D_XWAS_exposures.txt")
@@ -158,8 +157,8 @@ fwrite(fields, loc_out, sep="\t")
 
 tbl_out <- as_tibble(cbind(FID = T2D_tbl2$ID,IID = T2D_tbl2$ID,
                            T2D_tbl2[4:ncol(T2D_tbl2)]))
-loc_out <- paste0(dir_scratch,"pheno_EC.txt")
-fwrite(tbl_out, loc_out, sep="\t")
+#loc_out <- paste0(dir_scratch,"pheno_EC.txt")
+fwrite(tbl_out, loc_phenoEC, sep="\t")
 
 # some of the following code is commented out because we are opting to use the
 # exposures in group 1, not group 2
@@ -208,6 +207,7 @@ sig_expos1 <- sig_expos1_tbl$Field
 sig_expos1_groups <- sig_expos1_tbl$FieldID
 #sig_expos2 <- (xwas2_c %>% filter(fdr < 0.05))$Field
 source(paste0(dir_script,"../../PXStools/R/PXS.R"))
+source(loc_PXS_function)
 PXS1 <- PXS(df = T2D_tbl2, X = sig_expos1, cov = col_covs[-3], mod = "cox",
 #PXS1 <- PXS(df = T2D_tbl2, X = sig_expos1, cov = col_covs, mod = "cox",
             IDA = c(IDA,IDC), IDB = IDB, IDC = c(), seed = 2016, alph=1)

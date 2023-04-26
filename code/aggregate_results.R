@@ -3,12 +3,12 @@
 library(tidyverse)
 library(data.table)
 # Functions #
-source("~/jobs/PXS_pipeline/code/helper_functions.R")
+source("~/group_nuno/PXS-pipeline/code/helper_functions.R")
 
-dir_script <- "~/jobs/PXS_pipeline/code/"
-dir_scratch <- "~/scratch3/PXS_pipeline/"
+dir_script <- "~/group_nuno/PXS-pipeline/code/"
+dir_scratch <- "~/group_nuno/PXS-pipeline/scratch/"
 #dir_scratch <- "~/scratch3/08-01_PXS_pipeline/"
-dir_data_showcase <- "~/scratch3/key_data/" # contains 'Data_Dictionary_Showcase.tsv' from UKBB
+dir_data_showcase <- "~/group_nuno/key_data/" # contains 'Data_Dictionary_Showcase.tsv' from UKBB
 
 loc_phenolist <- paste0(dir_script,"../input_data/phenotypes.txt")
 pheno_list <- readLines(loc_phenolist)
@@ -116,30 +116,34 @@ envLM_PXS_tbl <- tibble(
 for (pheno in pheno_list) {
   #REML
   loc_REML <- paste0(dir_scratch,pheno,"/",pheno,"_PXS_BOLTREML.out")
-  REML <- readLines(loc_REML)
-  out <- extract_from_REML(REML)
-
-  # adds row to table
-  REML_PXS_tbl <- REML_PXS_tbl %>%
-    add_row(
-      field = pheno,
-      h2e = out[1],
-      h2e_err = out[2],
-      h2g = out[3],
-      h2g_err = out[4],
-      elapsed_hours = out[5]
-    )
-
-  print(paste("Read REML results for",pheno))
+  if (file.exists(loc_REML)) {
+    REML <- readLines(loc_REML)
+    out <- extract_from_REML(REML)
+    
+    # adds row to table
+    REML_PXS_tbl <- REML_PXS_tbl %>%
+      add_row(
+        field = pheno,
+        h2e = out[1],
+        h2e_err = out[2],
+        h2g = out[3],
+        h2g_err = out[4],
+        elapsed_hours = out[5]
+      )
+    
+    print(paste("Read REML results for",pheno)) 
+  }
 
   # enVLM
   loc_envLM <- paste0(dir_scratch,pheno,"/PXS_",pheno,"_envLM.rds")
-  envLM <- readRDS(loc_envLM)
-  out <- extract_from_envLM(envLM)
-
-  envLM_PXS_tbl <- envLM_PXS_tbl %>% add_row(out %>% mutate(field=pheno))
-
-  print(paste("Read envLM results for",pheno))
+  if (file.exists(loc_envLM)) {
+    envLM <- readRDS(loc_envLM)
+    out <- extract_from_envLM(envLM)
+    
+    envLM_PXS_tbl <- envLM_PXS_tbl %>% add_row(out %>% mutate(field=pheno))
+    
+    print(paste("Read envLM results for",pheno))
+  }
 }
 envLM_PXS_tvals <- envLM_PXS_tbl %>%
   filter(substr(colname,1,2) == "t_") %>%

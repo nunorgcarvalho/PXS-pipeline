@@ -1,6 +1,6 @@
 # sets directories and paths (include last forward slash / )
-dir_script="/home/nur479/jobs/PXS_pipeline/code/"
-dir_scratch="/home/nur479/scratch3/PXS_pipeline/"
+dir_script="/home/nur479/group_nuno/PXS-pipeline/code/"
+dir_scratch="/home/nur479/group_nuno/PXS-pipeline/scratch/"
 
 loc_phenolist=$(echo ${dir_script}../input_data/phenotypes.txt)
 phenos=$(cat $loc_phenolist)

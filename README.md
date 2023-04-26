@@ -24,6 +24,8 @@ External (path must be manually edited inside respective .R scripts):
     - `BOLT-LMM`: GWAS
     - `BOLT-REML`: SNP-based heritability estimation
 4. `run_genCorr_CRFs.sh`: run BOLT-REML (genetic correlation) for each PXS and its disease's clinical risk factors
+5. `run_genCorr_expos.sh`: run BOLT-REML (genetic correlation) for each PXS's exposures and its disease's clinical risk factors
+6. `run_genCorr_MAGIC.sh`: run LDsc genetic correlation for PXS_T2D and 4 MAGIC cohorts phenotypes
 
 ## Visualizing/Summarizing data (inside `code/`)
 - `aggregate_results.R`: extracts important results from and makes plots of BOLT-REML AND BOLT-LMM data for XWAS diseases and exposures

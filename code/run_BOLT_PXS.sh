@@ -1,6 +1,6 @@
 # sets directories and paths (include last forward slash / )
-dir_script="/home/nur479/jobs/PXS_pipeline/code/"
-dir_scratch="/home/nur479/scratch3/PXS_pipeline/"
+dir_script="/home/nur479/group_nuno/PXS-pipeline/code/"
+dir_scratch="/home/nur479/group_nuno/PXS-pipeline/scratch/"
 
 loc_phenolist=$(echo ${dir_script}../input_data/phenotypes.txt)
 phenos=$(cat $loc_phenolist)
@@ -56,6 +56,9 @@ echo 'Submitted BOLT-LMM for '${disease}
 #########################################
 ## Creates BOLT-REML script and submits##
 #########################################
+
+# no longer running because genCorr already computed h2 estimate
+
 echo '#!/bin/sh
 #SBATCH -c 20
 #SBATCH -t 4-23:59
@@ -89,7 +92,7 @@ echo '#!/bin/sh
 --statsFileBgenSnps '${subfolder}'/LMM_'${disease}'_bgen.txt
 
 ' > ${subfolder}/${disease}_PXS_BOLTREML.sh
-sbatch ${subfolder}/${disease}_PXS_BOLTREML.sh
-echo 'Submitted BOLT-REML for '${disease}
+#sbatch ${subfolder}/${disease}_PXS_BOLTREML.sh
+#echo 'Submitted BOLT-REML for '${disease}
 
 done

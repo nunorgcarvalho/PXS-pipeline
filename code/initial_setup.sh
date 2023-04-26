@@ -8,8 +8,10 @@
 
 
 # sets directories and paths (include last forward slash / )
-dir_script="/home/nur479/jobs/PXS_pipeline/code/"
-dir_scratch="/home/nur479/scratch3/PXS_pipeline/"
+dir_script="/home/nur479/group_nuno/PXS-pipeline/code/"
+dir_scratch="/home/nur479/group_nuno/PXS-pipeline/scratch/"
+
+cd ${dir_script}
 
 # Creates ukkb_pheno and fields file that includes all phenotypes
 module load gcc/9.2.0 R/4.1.2
@@ -28,7 +30,7 @@ echo ${subfolder}
 mkdir -p ${subfolder}
 cp ${dir_script}compute_PXS_LM.R ${subfolder}/${disease}_compute_PXS_LM.R
 
-cd ${subfolder}
+#cd ${subfolder}
 
 echo '#!/bin/sh
 #SBATCH -c 1

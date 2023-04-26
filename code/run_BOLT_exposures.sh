@@ -1,19 +1,11 @@
-#!/bin/bash
-#SBATCH -c 1
-#SBATCH -t 0-01:00
-#SBATCH -p short
-#SBATCH --mem=8G
-#SBATCH -o run_BOLT_exposures.out
-#SBATCH -e run_BOLT_exposures.err
-
 # sets directories and paths (include last forward slash / )
-dir_script="/home/nur479/jobs/PXS_pipeline/code/"
-dir_scratch="/home/nur479/scratch3/PXS_pipeline/"
+dir_script="/home/nur479/group_nuno/PXS-pipeline/code/"
+dir_scratch="/home/nur479/group_nuno/PXS-pipeline/scratch/"
 
 # Makes list of exposures to analyze, appends PXSs to pheno file, and makes list of CRFs for each
-module load gcc/9.2.0 R/4.1.2
-R CMD BATCH prepare_exp_PXS_CRF.R
-echo 'Made list of exposures'
+#module load gcc/9.2.0 R/4.1.2
+#R CMD BATCH prepare_exp_PXS_CRF.R
+#echo 'Made list of exposures'
 
 dir_exposures=$(echo ${dir_scratch}exposures)
 mkdir -p ${dir_exposures}
@@ -75,6 +67,9 @@ echo 'Submitted BOLT-LMM for '${exposure}
 #########################################
 ## Creates BOLT-REML script and submits##
 #########################################
+
+# no longer running because genCorr already computed h2 estimate
+
 echo '#!/bin/sh
 #SBATCH -c 20
 #SBATCH -t 4-23:59
@@ -107,7 +102,7 @@ echo '#!/bin/sh
 --statsFileBgenSnps '${subfolder}'/LMM_'${exposure}'_bgen.txt
 
 ' > ${subfolder}/${exposure}_BOLTREML.sh
-sbatch ${subfolder}/${exposure}_BOLTREML.sh
-echo 'Submitted BOLT-REML for '${exposure}
+#sbatch ${subfolder}/${exposure}_BOLTREML.sh
+#echo 'Submitted BOLT-REML for '${exposure}
 
 done
