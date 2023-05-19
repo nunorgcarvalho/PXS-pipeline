@@ -158,7 +158,8 @@ fwrite(fields, loc_out, sep="\t")
 tbl_out <- as_tibble(cbind(FID = T2D_tbl2$ID,IID = T2D_tbl2$ID,
                            T2D_tbl2[4:ncol(T2D_tbl2)]))
 #loc_out <- paste0(dir_scratch,"pheno_EC.txt")
-fwrite(tbl_out, loc_phenoEC, sep="\t")
+# loc_phenoEC comes from paths.R
+fwrite(tbl_out, loc_phenoEC, sep="\t", na="NA", quote=FALSE)
 
 # some of the following code is commented out because we are opting to use the
 # exposures in group 1, not group 2

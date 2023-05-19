@@ -87,7 +87,7 @@ FieldID	Field	Exposure_Class
 20116	Smoking status	agency
 20117	Alcohol drinker status	agency
 20118	Home area population density - urban or rural	geography
-20160	Ever smoked	geography
+20160	Ever smoked	agency
 24003	Nitrogen dioxide air pollution; 2010	geography
 24004	Nitrogen oxides air pollution; 2010	geography
 24005	Particulate matter air pollution (pm10); 2010	geography
