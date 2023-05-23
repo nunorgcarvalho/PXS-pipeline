@@ -156,7 +156,8 @@ loc_out <- paste0(dir_scratch,"fields_tbl.txt")
 fwrite(fields, loc_out, sep="\t")
 
 tbl_out <- as_tibble(cbind(FID = T2D_tbl2$ID,IID = T2D_tbl2$ID,
-                           T2D_tbl2[4:ncol(T2D_tbl2)]))
+                           T2D_tbl2[c(4:ncol(T2D_tbl2),2,3)])) %>%
+  rename(T2D_onset = PHENO, T2D_onset_days = TIME)
 #loc_out <- paste0(dir_scratch,"pheno_EC.txt")
 # loc_phenoEC comes from paths.R
 fwrite(tbl_out, loc_phenoEC, sep="\t", na="NA", quote=FALSE)
@@ -227,43 +228,3 @@ PXS1_coeffs <- as_tibble(PXS1) %>%
 
 loc_out <- paste0(dir_script,"../input_data/PXS_coefficients.txt")
 fwrite(PXS1_coeffs, loc_out, sep="\t")
-
-### Used for comparing different PXS calculations
-#original_coeffs <- as_tibble(fread(paste0(dir_script,"../input_data/PXS_coefficients.txt"))) %>%
-#  select(term, estimate0 = estimate, p.value0=p.value)
-
-#joined <- PXS1_coeffs %>% full_join(original_coeffs, by="term")
-
-#ggplot(joined, aes(x=log10(p.value0), y=log10(p.value))) +
-#  geom_abline(slope=1) +
-#  geom_hline(yintercept=log10(0.05)) +
-#  geom_vline(xintercept=log10(0.05)) +
-#  geom_point() +
-#  geom_text_repel(aes(label=fieldname))
-
-#loc_out <- paste0(dir_script,"../input_data/PXS_coefficients2.txt")
-#write.table(PXS1_coeffs, loc_out, sep="\t", row.names=FALSE, quote=FALSE)
-
-###
-
-# PXS2 <- PXS(df = T2D_tbl2, X = sig_expos2, cov = col_covs[-3], mod = "cox",
-#             IDA = c(IDA, IDC), IDB = IDB, IDC = c(), seed = 2016, alph=1)
-# 
-# PXS2_coeffs <- as_tibble(PXS2) %>%
-#   mutate(Field = sapply(str_split(term,"f"), `[`, 2)) %>%
-#   mutate(FieldID = as.numeric(sapply(str_split(Field,"\\."), `[`, 1)),
-#          Value = sapply(str_split(Field,"\\."), `[`, 2)) %>%
-#   mutate(Value = ifelse(Value==100,-7,Value)) %>%
-#   left_join(ukb_dict %>% select(FieldID,FieldName=Field, Coding)) %>%
-#   left_join(ukb_codings, by=c("Coding","Value")) %>%
-#   mutate(Field = ifelse(is.na(Field),term,Field)) %>%
-#   select(-term, -std.error,-statistic) %>%
-#   arrange(p.value)
-
-
-# save("11-28_workspace.RData")
-# load("11-28_workspace.RData")
-### trying group-lasso
-# source(paste0(dir_script,"../../PXStools/R/PXSgl.R"))
-# PXS1gl <- PXSgl(df = T2D_tbl2, X = sig_expos1, cov = col_covs, mod = "cox",
-#             IDA = c(IDA,IDC), IDB = IDB, IDC = c(), seed = 2016)
