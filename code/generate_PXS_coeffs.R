@@ -157,7 +157,8 @@ fwrite(fields, loc_out, sep="\t")
 
 tbl_out <- as_tibble(cbind(FID = T2D_tbl2$ID,IID = T2D_tbl2$ID,
                            T2D_tbl2[c(4:ncol(T2D_tbl2),2,3)])) %>%
-  rename(T2D_onset = PHENO, T2D_onset_days = TIME)
+  rename(T2D_onset = PHENO, T2D_onset_days = TIME) %>%
+  mutate(T2D_onset = as.numeric(T2D_onset))
 #loc_out <- paste0(dir_scratch,"pheno_EC.txt")
 # loc_phenoEC comes from paths.R
 fwrite(tbl_out, loc_phenoEC, sep="\t", na="NA", quote=FALSE)

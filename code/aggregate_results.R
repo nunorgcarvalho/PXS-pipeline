@@ -3,10 +3,10 @@
 library(tidyverse)
 library(data.table)
 # Functions #
-source("~/group_nuno/PXS-pipeline/code/helper_functions.R")
+source("helper_functions.R")
 
-dir_script <- "~/group_nuno/PXS-pipeline/code/"
-dir_scratch <- "~/group_nuno/PXS-pipeline/scratch/"
+dir_script <- "../code/"
+dir_scratch <- "../scratch/"
 #dir_scratch <- "~/scratch3/08-01_PXS_pipeline/"
 dir_data_showcase <- "~/group_nuno/key_data/" # contains 'Data_Dictionary_Showcase.tsv' from UKBB
 
@@ -97,91 +97,9 @@ extract_from_envLM <- function(envLM) {
 
 ## Code ##
 
-### REML+envLM results for each phenotypes
-
-REML_PXS_tbl <- tibble(
-  field = as.character(),
-  h2e = as.numeric(),
-  h2e_err = as.numeric(),
-  h2g = as.numeric(),
-  h2g_err = as.numeric(),
-  elapsed_hours = as.numeric()
-)
-REML_expo_tbl <- REML_PXS_tbl
-envLM_PXS_tbl <- tibble(
-  field = character(),
-  colname = character(),
-  value = numeric()
-)
-for (pheno in pheno_list) {
-  #REML
-  loc_REML <- paste0(dir_scratch,pheno,"/",pheno,"_PXS_BOLTREML.out")
-  if (file.exists(loc_REML)) {
-    REML <- readLines(loc_REML)
-    out <- extract_from_REML(REML)
-    
-    # adds row to table
-    REML_PXS_tbl <- REML_PXS_tbl %>%
-      add_row(
-        field = pheno,
-        h2e = out[1],
-        h2e_err = out[2],
-        h2g = out[3],
-        h2g_err = out[4],
-        elapsed_hours = out[5]
-      )
-    
-    print(paste("Read REML results for",pheno)) 
-  }
-
-  # enVLM
-  loc_envLM <- paste0(dir_scratch,pheno,"/PXS_",pheno,"_envLM.rds")
-  if (file.exists(loc_envLM)) {
-    envLM <- readRDS(loc_envLM)
-    out <- extract_from_envLM(envLM)
-    
-    envLM_PXS_tbl <- envLM_PXS_tbl %>% add_row(out %>% mutate(field=pheno))
-    
-    print(paste("Read envLM results for",pheno))
-  }
-}
-envLM_PXS_tvals <- envLM_PXS_tbl %>%
-  filter(substr(colname,1,2) == "t_") %>%
-  rename(variable = colname, tvalue = value) %>%
-  mutate(
-    variable = substr(variable, 3, nchar(variable))
-  )
-envLM_PXS_tbl_wider <- envLM_PXS_tbl %>%
-  filter(substr(colname,1,2) != "t_") %>%
-  pivot_wider(
-    values_from = value,
-    names_from = colname
-  )
-
-### REML results for each exposure
-for (expo in exposures_list) {
-  loc_REML <- paste0(dir_scratch,"exposures/",expo,"/",expo,"_BOLTREML.out")
-  if (!file.exists(loc_REML)) {next}
-  REML <- readLines(loc_REML)
-  out <- extract_from_REML(REML)
-
-  # adds row to table
-  REML_expo_tbl <- REML_expo_tbl %>%
-    add_row(
-      field = expo,
-      h2e = out[1],
-      h2e_err = out[2],
-      h2g = out[3],
-      h2g_err = out[4],
-      elapsed_hours = out[5]
-    )
-
-  print(paste("Read REML results for",expo))
-}
-
-### REML results for genCorr with CRFs
+### REML results for genCorr PXS with CRFs
 genCorr_CRF_tbl <- tibble(
-  expo_field = as.character(),
+  pheno_field = as.character(),
   h2g1 = as.numeric(),
   h2g1_err = as.numeric(),
   CRF_field = as.character(),
@@ -196,6 +114,7 @@ for (pheno in pheno_list) {
   if (!file.exists(loc_CRFs)) {next}
   CRFs_list <- readLines(loc_CRFs)
   for (CRF in CRFs_list) {
+    # reads exposures x CRFs gencorrs
     for (expo in exposures_list) {
       loc_genCorr <- paste0(dir_scratch,"exposures/",expo,"/",CRF,"_",expo,"_genCorr.out")
       if (!file.exists(loc_genCorr)) {
@@ -207,7 +126,7 @@ for (pheno in pheno_list) {
       out <- extract_from_genCorr(genCorr)
       
       genCorr_CRF_tbl <- genCorr_CRF_tbl %>% add_row(
-        expo_field = expo,
+        pheno_field = expo,
         h2g1 = out[1],
         h2g1_err = out[2],
         CRF_field = CRF,
@@ -219,24 +138,46 @@ for (pheno in pheno_list) {
       )
       print(paste("Read genCorr results for",expo,"x",CRF))
     }
-    # loc_genCorr <- paste0(dir_scratch,pheno,"/PXS_",pheno,"_",CRF,"_genCorr.out")
-    # genCorr <- readLines(loc_genCorr)
-    # 
-    # out <- extract_from_genCorr(genCorr)
+    
+    # reads PXS x CRFs gencorrs
+    loc_genCorr <- paste0(dir_scratch,pheno,"/PXS_",pheno,"_",CRF,"_genCorr.out")
+    genCorr <- readLines(loc_genCorr)
+    
+    out <- extract_from_genCorr(genCorr)
 
     # adds row to table
-    # genCorr_CRF_tbl <- genCorr_CRF_tbl %>% add_row(
-    #   pheno_field = pheno,
-    #   h2g1 = out[1],
-    #   h2g1_err = out[2],
-    #   CRF_field = CRF,
-    #   h2g2 = out[5],
-    #   h2g2_err = out[6],
-    #   gencorr = out[3],
-    #   gencorr_err = out[4],
-    #   elapsed_hours = out[7]
-    # )
-    # print(paste("Read genCorr results for",pheno,"x",CRF))
+    genCorr_CRF_tbl <- genCorr_CRF_tbl %>% add_row(
+      pheno_field = paste0("PXS_",pheno),
+      h2g1 = out[1],
+      h2g1_err = out[2],
+      CRF_field = CRF,
+      h2g2 = out[5],
+      h2g2_err = out[6],
+      gencorr = out[3],
+      gencorr_err = out[4],
+      elapsed_hours = out[7]
+    )
+    print(paste("Read genCorr results for PXS",pheno,"x",CRF))
+    
+    # reads PXS x CRFs gencorrs
+    loc_genCorr <- paste0(dir_scratch,pheno,"/",pheno,"_",CRF,"_genCorr.out")
+    genCorr <- readLines(loc_genCorr)
+    
+    out <- extract_from_genCorr(genCorr)
+    
+    # adds row to table
+    genCorr_CRF_tbl <- genCorr_CRF_tbl %>% add_row(
+      pheno_field = pheno,
+      h2g1 = out[1],
+      h2g1_err = out[2],
+      CRF_field = CRF,
+      h2g2 = out[5],
+      h2g2_err = out[6],
+      gencorr = out[3],
+      gencorr_err = out[4],
+      elapsed_hours = out[7]
+    )
+    print(paste("Read genCorr results for",pheno,"x",CRF))
   }
 }
 

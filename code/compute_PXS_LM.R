@@ -79,6 +79,10 @@ out_PXS[col_PXS] <- (PXSs - mean(PXSs)) / sd(PXSs)
 
 loc_out <- paste0(dir_out,"PXS_",disease,".txt")
 fwrite(out_PXS,loc_out,sep=" ")
+# appends PXS to phenoEC
+pheno <- pheno %>% left_join(out_PXS, by=c("FID","IID"))
+fwrite(pheno, loc_phenoEC, sep="\t", na="NA", quote=FALSE)
+
 
 print("Done computing PXS")
 
