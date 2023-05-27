@@ -79,10 +79,14 @@ out_PXS[col_PXS] <- (PXSs - mean(PXSs)) / sd(PXSs)
 
 loc_out <- paste0(dir_out,"PXS_",disease,".txt")
 fwrite(out_PXS,loc_out,sep=" ")
-# appends PXS to phenoEC
+# appends PXS to phenoEC & fullT2D tables
 pheno <- pheno %>% left_join(out_PXS, by=c("FID","IID"))
 fwrite(pheno, loc_phenoEC, sep="\t", na="NA", quote=FALSE)
 
+loc_fullT2D <- paste0(dir_scratch, "phenoEC_fullT2D.txt")
+T2D_definitions_out <- as_tibble(fread(loc_fullT2D))
+T2D_definitions_out <- T2D_definitions_out %>% left_join(out_PXS, by=c("FID","IID"))
+fwrite(T2D_definitions_out, loc_fullT2D, sep="\t", na="NA", quote=FALSE)
 
 print("Done computing PXS")
 

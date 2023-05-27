@@ -47,21 +47,44 @@ pheno <- pheno1 %>%
 colnames(pheno)[colnames(pheno) %in% CRFs_tbl$field_raw] <- sapply(colnames(pheno)[colnames(pheno) %in% CRFs_tbl$field_raw],
                                                                    function(x) (CRFs_tbl%>%filter(field_raw==x))$field)
 
-# defines whether an individual got T2D after their first assessment
+# defines whether an individual got T2D and when
 T2D_tbl <- pheno %>%
-  rename(IID = f.eid, assessment1_date = `f.53.0.0`, T2D_date = `130708-0.0`, ethnicity = `f.21000.0.0`,
-         sex = `f.31.0.0`, age = `f.34.0.0`, assessment_center = `f.54.0.0`, T2D_report_age = `f.2976.0.0`) %>%
-  filter(ethnicity == 1001, #`f.22021.0.0` == 0,
-         `f.30750.0.0` < 48) %>%
+  # renames variables
+  rename(IID=f.eid,assessment1_date=`f.53.0.0`,T2D_date=`130708-0.0`,
+         ethnicity=`f.21000.0.0`,sex=`f.31.0.0`,age=`f.34.0.0`,
+         assessment_center=`f.54.0.0`,TxD_report_age = `f.2976.0.0`) %>%
+  # filters out non-British ethnicity
+  filter(ethnicity == 1001) %>%
+  # removes individuals with any missing covariate data
   filter_at(vars(starts_with("pc"), sex, age, assessment_center), all_vars(!is.na(.))) %>%
+  # defines T2D_date as valid date of E11 ICD10 reporting
   mutate(T2D_date = ifelse(T2D_date < "2037-07-07" & T2D_date > "1903-03-03",T2D_date, NA)) %>%
   mutate(T2D_date = as.Date.numeric(T2D_date, "1970-01-01")) %>%
+  # defines whether an individual had E11 reported after first assessment
   mutate(T2D_after_assessment = ifelse(!is.na(T2D_date),T2D_date > assessment1_date, FALSE),
          T2D_before_assessment = ifelse(!is.na(T2D_date),T2D_date <= assessment1_date, FALSE),
-         T2D_reported = (T2D_report_age > 0) & !(is.na(T2D_report_age))) %>%
-  mutate(T2D_onset = ifelse(T2D_after_assessment,as.numeric(T2D_date - assessment1_date),max(as.numeric(T2D_date - assessment1_date), na.rm=TRUE))) %>%
-  filter(!T2D_before_assessment, !T2D_reported) %>%
-  rename(userId = IID, PHENO = T2D_after_assessment, TIME = T2D_onset)
+         TxD_reported = (TxD_report_age > 0) & !(is.na(TxD_report_age))) %>%
+  # defines days between E11 report and first assessment
+  mutate(T2D_onset_days = ifelse(T2D_after_assessment,
+                                 as.numeric(T2D_date - assessment1_date),
+                                 max(as.numeric(T2D_date - assessment1_date),
+                                     na.rm=TRUE)),
+         # defines whether individual ever had E11 report
+         T2D_all = (T2D_after_assessment | T2D_before_assessment),
+         # defines whether individual ever had E11 report or diabetes diagnosis (by doctor or by HbA1c)
+         TxD_all = (T2D_after_assessment | T2D_before_assessment |
+                    TxD_reported | (`f.30750.0.0` >= 48 & !is.na(`f.30750.0.0`)))) %>%
+  # tweaked T2D after first assessment definition that NA's pre-assessment diabetics
+  mutate(T2D_onset = ifelse((TxD_all & !T2D_after_assessment) | TxD_reported | `f.30750.0.0` >= 48,
+                            NA, T2D_after_assessment))
+
+# keeps table with all the T2D definitions with expanded cohort size. Later sized down
+T2D_definitions <- T2D_tbl
+
+# removes pre-assessment diabetics from main table
+T2D_tbl <- T2D_tbl %>%
+  filter(!is.na(T2D_onset)) %>%
+  rename(userId = IID, PHENO = T2D_onset, TIME = T2D_onset_days)
 
 # number of cases
 sum(T2D_tbl$PHENO)
@@ -150,7 +173,9 @@ fields <- tibble(term = colnames(T2D_tbl2)[-c(1:3)]) %>%
   mutate(fieldID = as.numeric(ifelse(use_type=="covar",NA,fieldID)),
          value = ifelse(value==100,-7,value)) %>%
   left_join(ukb_dict %>% select(fieldID=FieldID,fieldname=Field, coding=Coding)) %>%
-  left_join(ukb_codings, by=c("coding"="Coding","value"="Value"))
+  left_join(ukb_codings, by=c("coding"="Coding","value"="Value")) %>%
+  mutate(traitname = ifelse(is.na(Meaning),fieldname,
+                            paste0(fieldname,": ",Meaning)))
 
 loc_out <- paste0(dir_scratch,"fields_tbl.txt")
 fwrite(fields, loc_out, sep="\t")
@@ -162,6 +187,25 @@ tbl_out <- as_tibble(cbind(FID = T2D_tbl2$ID,IID = T2D_tbl2$ID,
 #loc_out <- paste0(dir_scratch,"pheno_EC.txt")
 # loc_phenoEC comes from paths.R
 fwrite(tbl_out, loc_phenoEC, sep="\t", na="NA", quote=FALSE)
+
+# saves the phenotype data with the T2D definitions
+CRFs_tbl <- CRFs_tbl %>% mutate(term = paste0("f",fieldID))
+T2D_definitions_out <- tibble(.rows = nrow(T2D_definitions))
+# I am ashamed of this code, there has got to be a better way to do this
+for (col in colnames(T2D_definitions)) {
+  if (col=="IID") {
+    T2D_definitions_out[,c("FID","IID")] <- cbind(T2D_definitions$IID, T2D_definitions$IID)
+  } else if (col %in% col_covs) {
+    T2D_definitions_out[,col] <- T2D_definitions[,col]
+  } else if (col %in% CRFs_tbl$field) {
+    col2 <- CRFs_tbl$term[CRFs_tbl$field==col]
+    T2D_definitions_out[,col2] <- T2D_definitions[,col]
+  } else if (grepl("T2D",col) | grepl("TxD",col)) {
+    T2D_definitions_out[,col] <- T2D_definitions[,col]
+  }
+}
+loc_out <- paste0(dir_scratch, "phenoEC_fullT2D.txt")
+fwrite(T2D_definitions_out, loc_out, sep="\t", na="NA", quote=FALSE)
 
 # some of the following code is commented out because we are opting to use the
 # exposures in group 1, not group 2
