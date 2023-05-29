@@ -44,7 +44,7 @@ echo '#!/bin/sh
 --bgenMinMAF 1e-3 \
 --bgenMinINFO 0.3 \
 --sampleFile /n/no_backup2/patel/ukb22881_imp_chr1_v3_s487324.sample \
---statsFileBgenSnps '${subfolder}'/'${pheno}'_all_'${CRF}'_bgen.txt
+--statsFileBgenSnps '${subfolder}'/'${pheno}'_all__bgen.txt
 
 ' > ${subfolder}/genCorr_${pheno}_all_onset.sh
 sbatch ${subfolder}/genCorr_${pheno}_all_onset.sh

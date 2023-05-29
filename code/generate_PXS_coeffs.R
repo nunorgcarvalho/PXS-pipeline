@@ -205,7 +205,7 @@ for (col in colnames(T2D_definitions)) {
   }
 }
 loc_out <- paste0(dir_scratch, "phenoEC_fullT2D.txt")
-fwrite(T2D_definitions_out, loc_out, sep="\t", na="NA", quote=FALSE)
+fwrite(T2D_definitions_out, loc_out, sep="\t", na="NA", quote=FALSE, logical01=TRUE)
 
 # some of the following code is commented out because we are opting to use the
 # exposures in group 1, not group 2
