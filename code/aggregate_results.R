@@ -159,24 +159,45 @@ genCorr_REML_tbl %>% filter(rowSums(is.na(.)) > 0) %>% select(ends_with("term"))
 
 # Adds named terms to table
 genCorr_REML_tbl <- genCorr_REML_tbl %>%
-  left_join(fields %>% select(term, traitname), by=c("pheno1_term"="term")) %>% rename(pheno1_termname = traitname) %>%
-  left_join(fields %>% select(term, traitname), by=c("pheno2_term"="term")) %>% rename(pheno2_termname = traitname)
+  left_join(fields %>% select(term, traitname), by=c("pheno1_term"="term")) %>% rename(pheno1_traitname = traitname) %>%
+  left_join(fields %>% select(term, traitname), by=c("pheno2_term"="term")) %>% rename(pheno2_traitname = traitname)
 
 # Compares CRF gencorr with PXS_T2D vs T2D
 genCorr_REML_tbl %>%
   filter(pheno1_term %in% c("PXS_T2D","T2D")) %>%
-  select(pheno1_term, pheno2_term, gencorr, gencorr_err) %>%
+  select(pheno1_term, pheno2_traitname, gencorr, gencorr_err) %>%
   pivot_wider(names_from = pheno1_term,
               values_from = c(gencorr, gencorr_err),
-              id_cols = pheno2_term) %>%
-  left_join(fields %>% select(term, traitname), by=c("pheno2_term"="term")) #%>% View()
+              id_cols = pheno2_traitname) %>%
+  arrange(-abs(gencorr_PXS_T2D))
 
 # Saves tables
 loc_out <- paste0(dir_scratch, "genCorr_REML_results.txt")
 write.table(genCorr_REML_tbl, loc_out, sep="\t", quote=FALSE, row.names=FALSE)
 
+# Visualizes exposure x CRF gencorrs
+ggplot(genCorr_REML_tbl, aes(x=pheno2_traitname, y=pheno1_traitname, fill=gencorr)) +
+  geom_tile() +
+  geom_text(aes(label = round(gencorr,4))) +
+  scale_fill_gradient2(low="red",mid="white", high="green", midpoint = 0) +
+  scale_x_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=30)) +
+  scale_y_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=50)) +
+  xlab("Clinical Risk Factor (CRF)") +
+  ylab("Exposure") +
+  labs(title = "Genetic Correlations between exposures and CRFs")
 
-
+# prints out mean absolute gencorr for each CRF
+genCorr_REML_tbl %>% filter(pheno1_term %in% exposures_list) %>%
+  group_by(pheno2_term,pheno2_traitname) %>%
+  summarize(h2 = mean(h2g2, na.rm=TRUE),
+            mean_abs_gencorr= mean(abs(gencorr), na.rm=TRUE)) %>%
+  arrange(-mean_abs_gencorr)
+# prints out mean absolute gencorr for each exposure
+genCorr_REML_tbl %>% filter(pheno1_term %in% exposures_list) %>%
+  group_by(pheno1_term,pheno1_traitname) %>%
+  summarize(h2 = mean(h2g1, na.rm=TRUE),
+            mean_abs_gencorr= mean(abs(gencorr), na.rm=TRUE)) %>%
+  arrange(-mean_abs_gencorr) %>% print(n=Inf)
 
 #### GWAS ANALYSIS ########
 
