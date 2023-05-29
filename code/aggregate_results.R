@@ -4,52 +4,24 @@ library(tidyverse)
 library(data.table)
 # Functions #
 source("helper_functions.R")
-
-dir_script <- "../code/"
-dir_scratch <- "../scratch/"
-#dir_scratch <- "~/scratch3/08-01_PXS_pipeline/"
-dir_data_showcase <- "~/group_nuno/key_data/" # contains 'Data_Dictionary_Showcase.tsv' from UKBB
+source("paths.R")
 
 loc_phenolist <- paste0(dir_script,"../input_data/phenotypes.txt")
 pheno_list <- readLines(loc_phenolist)
 loc_expolist <- paste0(dir_script,"../input_data/exposures.txt")
 exposures_list <- readLines(loc_expolist)
 fields <- as_tibble(fread(paste0(dir_scratch,"fields_tbl.txt"))) %>%
-  mutate(trait_name = ifelse(is.na(Meaning), fieldname, paste0(fieldname,": ", Meaning)))
-ukb_dict <- as_tibble(fread(paste0(dir_data_showcase,"Data_Dictionary_Showcase.tsv"))) %>%
-  mutate(field = paste0("f",FieldID)) %>%
-  select(field, fieldname=Field) %>%
-  add_row(
-    field = c("AF", "CAD", "COPD", "T2D","fev1_inst1"),
-    fieldname = c("Atrial fibrillation", "Coronary artery disease", "Chronic obstructive pulmonary disease",
-                  "Type 2 diabetes", "Forced expiratory volume in 1-second (FEV1)")
-  )
+  add_row(term = c("T2D","PXS_T2D"),
+          traitname = c("Type 2 Diabetes","PXS for Type 2 Diabetes"))
+# ukb_dict <- as_tibble(fread(paste0(dir_data_showcase,"Data_Dictionary_Showcase.tsv"))) %>%
+#   mutate(field = paste0("f",FieldID)) %>% select(field, fieldname=Field) %>%
+#   add_row(field = c("AF", "CAD", "COPD", "T2D","fev1_inst1"),
+#           fieldname = c("Atrial fibrillation", "Coronary artery disease", "Chronic obstructive pulmonary disease",
+#                   "Type 2 diabetes", "Forced expiratory volume in 1-second (FEV1)"))
 
 
 ## Functions ##
-extract_from_REML <- function(REML) {
-  N <- length(REML)
-
-  # extract time for analysis
-  line <- REML[N]
-  elapsed_hours <- as.numeric(str_split(line," ")[[1]][7]) / (60 * 60)
-
-  # extract h2e
-  line <- REML[N-4]
-  line_split <- str_split(line, ": ")[[1]][2]
-  h2e <- as.numeric(str_split(line_split, " ")[[1]][1])
-  h2e_err <- parse_number(str_split(line_split, " ")[[1]][2])
-
-  # extract h2g
-  line <- REML[N-2]
-  line_split <- str_split(line, ": ")[[1]][2]
-  h2g <- as.numeric(str_split(line_split, " ")[[1]][1])
-  h2g_err <- parse_number(str_split(line_split, " ")[[1]][2])
-
-  out <- c(h2e, h2e_err, h2g, h2g_err, elapsed_hours)
-  out
-}
-extract_from_genCorr <- function(genCorr) {
+extract_REML_genCorr <- function(genCorr) {
   N <- length(genCorr)
 
   # extract time for analysis
@@ -98,11 +70,12 @@ extract_from_envLM <- function(envLM) {
 ## Code ##
 
 ### REML results for genCorr PXS with CRFs
-genCorr_CRF_tbl <- tibble(
-  pheno_field = as.character(),
+# includes both heritability and genCorr
+genCorr_REML_tbl <- tibble(
+  pheno1_term = as.character(),
   h2g1 = as.numeric(),
   h2g1_err = as.numeric(),
-  CRF_field = as.character(),
+  pheno2_term = as.character(),
   h2g2 = as.numeric(),
   h2g2_err = as.numeric(),
   gencorr = as.numeric(),
@@ -123,13 +96,13 @@ for (pheno in pheno_list) {
       }
       genCorr <- readLines(loc_genCorr)
 
-      out <- extract_from_genCorr(genCorr)
+      out <- extract_REML_genCorr(genCorr)
       
-      genCorr_CRF_tbl <- genCorr_CRF_tbl %>% add_row(
-        pheno_field = expo,
+      genCorr_REML_tbl <- genCorr_REML_tbl %>% add_row(
+        pheno1_term = expo,
         h2g1 = out[1],
         h2g1_err = out[2],
-        CRF_field = CRF,
+        pheno2_term = CRF,
         h2g2 = out[5],
         h2g2_err = out[6],
         gencorr = out[3],
@@ -143,14 +116,14 @@ for (pheno in pheno_list) {
     loc_genCorr <- paste0(dir_scratch,pheno,"/PXS_",pheno,"_",CRF,"_genCorr.out")
     genCorr <- readLines(loc_genCorr)
     
-    out <- extract_from_genCorr(genCorr)
+    out <- extract_REML_genCorr(genCorr)
 
     # adds row to table
-    genCorr_CRF_tbl <- genCorr_CRF_tbl %>% add_row(
-      pheno_field = paste0("PXS_",pheno),
+    genCorr_REML_tbl <- genCorr_REML_tbl %>% add_row(
+      pheno1_term = paste0("PXS_",pheno),
       h2g1 = out[1],
       h2g1_err = out[2],
-      CRF_field = CRF,
+      pheno2_term = CRF,
       h2g2 = out[5],
       h2g2_err = out[6],
       gencorr = out[3],
@@ -163,14 +136,14 @@ for (pheno in pheno_list) {
     loc_genCorr <- paste0(dir_scratch,pheno,"/",pheno,"_",CRF,"_genCorr.out")
     genCorr <- readLines(loc_genCorr)
     
-    out <- extract_from_genCorr(genCorr)
+    out <- extract_REML_genCorr(genCorr)
     
     # adds row to table
-    genCorr_CRF_tbl <- genCorr_CRF_tbl %>% add_row(
-      pheno_field = pheno,
+    genCorr_REML_tbl <- genCorr_REML_tbl %>% add_row(
+      pheno1_term = pheno,
       h2g1 = out[1],
       h2g1_err = out[2],
-      CRF_field = CRF,
+      pheno2_term = CRF,
       h2g2 = out[5],
       h2g2_err = out[6],
       gencorr = out[3],
@@ -180,36 +153,30 @@ for (pheno in pheno_list) {
     print(paste("Read genCorr results for",pheno,"x",CRF))
   }
 }
+# Prints out missing data
+print("GenCorr combinations with missing data:")
+genCorr_REML_tbl %>% filter(rowSums(is.na(.)) > 0) %>% select(ends_with("term"))
 
+# Adds named terms to table
+genCorr_REML_tbl <- genCorr_REML_tbl %>%
+  left_join(fields %>% select(term, traitname), by=c("pheno1_term"="term")) %>% rename(pheno1_termname = traitname) %>%
+  left_join(fields %>% select(term, traitname), by=c("pheno2_term"="term")) %>% rename(pheno2_termname = traitname)
 
-
-### Appends fields name to REML and genCorr tables
-REML_PXS_tbl <- REML_PXS_tbl %>% left_join(ukb_dict, by="field")
-#REML_expo_tbl <- REML_expo_tbl %>% left_join(ukb_dict, by="field")
-REML_expo_tbl <- REML_expo_tbl %>% left_join(fields %>% select(term,fieldname, Meaning), by=c("field"="term"))
-envLM_PXS_tbl_wider <- envLM_PXS_tbl_wider %>% left_join(ukb_dict, by="field")
-envLM_PXS_tvals <- envLM_PXS_tvals %>% left_join(ukb_dict, by="field")
-#genCorr_CRF_tbl <- genCorr_CRF_tbl %>% left_join(ukb_dict, by=c("pheno_field"="field")) %>% rename(pheno_fieldname = fieldname)
-#genCorr_CRF_tbl <- genCorr_CRF_tbl %>% left_join(ukb_dict, by=c("CRF_field"="field")) %>% rename(CRF_fieldname = fieldname)
-genCorr_CRF_tbl <- genCorr_CRF_tbl %>%
-  left_join(fields %>% select(term, trait_name), by=c("CRF_field"="term")) %>% rename(CRF_fieldname = trait_name) %>%
-  left_join(fields %>% select(term, trait_name), by=c("expo_field"="term")) %>% rename(expo_fieldname = trait_name)
+# Compares CRF gencorr with PXS_T2D vs T2D
+genCorr_REML_tbl %>%
+  filter(pheno1_term %in% c("PXS_T2D","T2D")) %>%
+  select(pheno1_term, pheno2_term, gencorr, gencorr_err) %>%
+  pivot_wider(names_from = pheno1_term,
+              values_from = c(gencorr, gencorr_err),
+              id_cols = pheno2_term) %>%
+  left_join(fields %>% select(term, traitname), by=c("pheno2_term"="term")) #%>% View()
 
 # Saves tables
-loc_out <- paste0(dir_scratch, "REML_PXS_results.txt")
-write.table(REML_PXS_tbl, loc_out, sep="\t", quote=FALSE, row.names=FALSE)
+loc_out <- paste0(dir_scratch, "genCorr_REML_results.txt")
+write.table(genCorr_REML_tbl, loc_out, sep="\t", quote=FALSE, row.names=FALSE)
 
-loc_out <- paste0(dir_scratch, "REML_exposures_results.txt")
-write.table(REML_expo_tbl, loc_out, sep="\t", quote=FALSE, row.names=FALSE)
 
-loc_out <- paste0(dir_scratch, "envLM_PXS_results.txt")
-write.table(envLM_PXS_tbl_wider, loc_out, sep="\t", quote=FALSE, row.names=FALSE)
 
-loc_out <- paste0(dir_scratch, "envLM_PXS_tvals.txt")
-write.table(envLM_PXS_tvals, loc_out, sep="\t", quote=FALSE, row.names=FALSE)
-
-loc_out <- paste0(dir_scratch, "genCorr_CRF_results.txt")
-write.table(genCorr_CRF_tbl, loc_out, sep="\t", quote=FALSE, row.names=FALSE)
 
 #### GWAS ANALYSIS ########
 
