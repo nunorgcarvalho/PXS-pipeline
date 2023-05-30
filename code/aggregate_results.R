@@ -178,7 +178,7 @@ write.table(genCorr_REML_tbl, loc_out, sep="\t", quote=FALSE, row.names=FALSE)
 # Visualizes exposure x CRF gencorrs
 ggplot(genCorr_REML_tbl, aes(x=pheno2_traitname, y=pheno1_traitname, fill=gencorr)) +
   geom_tile() +
-  geom_text(aes(label = round(gencorr,4))) +
+  geom_text(aes(label = signif(gencorr,digits=2))) +
   scale_fill_gradient2(low="red",mid="white", high="green", midpoint = 0) +
   scale_x_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=30)) +
   scale_y_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=50)) +
@@ -198,6 +198,77 @@ genCorr_REML_tbl %>% filter(pheno1_term %in% exposures_list) %>%
   summarize(h2 = mean(h2g1, na.rm=TRUE),
             mean_abs_gencorr= mean(abs(gencorr), na.rm=TRUE)) %>%
   arrange(-mean_abs_gencorr) %>% print(n=Inf)
+
+#### genCorr results from LDsc ####
+extract_LDsc_genCorr <- function(gencorr_log) {
+  N <- length(gencorr_log)
+  
+  # extract pheno1_h2
+  line <- gencorr_log[N-32]
+  line_split <- str_split(line, ": ")[[1]][2]
+  pheno1_h2 <- as.numeric(str_split(line_split, " ")[[1]][1])
+  pheno1_h2_se <- parse_number(str_split(line_split, " ")[[1]][2])
+  # extract pheno1_lambda
+  line <- gencorr_log[N-31]
+  line_split <- str_split(line, ": ")[[1]][2]
+  pheno1_lambda <- as.numeric(line_split)
+  
+  
+  # extract pheno2_h2
+  line <- gencorr_log[N-24]
+  line_split <- str_split(line, ": ")[[1]][2]
+  pheno2_h2 <- as.numeric(str_split(line_split, " ")[[1]][1])
+  pheno2_h2_se <- parse_number(str_split(line_split, " ")[[1]][2])
+  # extract pheno1_lambda
+  line <- gencorr_log[N-23]
+  line_split <- str_split(line, ": ")[[1]][2]
+  pheno2_lambda <- as.numeric(line_split)
+  
+  # extract gencorr
+  line <- gencorr_log[N-10]
+  line_split <- str_split(line, ": ")[[1]][2]
+  gencorr <- as.numeric(str_split(line_split, " ")[[1]][1])
+  gencorr_se <- parse_number(str_split(line_split, " ")[[1]][2])
+  
+  # extract gencorr_Z and gencorr P
+  line <- gencorr_log[N-9]
+  gencorr_Z <- as.numeric(str_split(line, ": ")[[1]][2])
+  line <- gencorr_log[N-8]
+  gencorr_P <- as.numeric(str_split(line, ": ")[[1]][2])
+  
+  out <- c(pheno1_h2, pheno1_h2_se, pheno1_lambda, pheno2_h2, pheno2_h2_se, pheno2_lambda,
+           gencorr, gencorr_se, gencorr_Z, gencorr_P)
+  out
+}
+
+genCorr_LDsc_tbl <- tibble(
+  pheno1_term = as.character(),
+  pheno1_h2 = as.numeric(),
+  pheno1_h2_se = as.numeric(),
+  pheno1_lambda = as.numeric(),
+  pheno2_term = as.character(),
+  pheno2_h2 = as.numeric(),
+  pheno2_h2_se = as.numeric(),
+  pheno2_lambda = as.numeric(),
+  gencorr = as.numeric(),
+  gencorr_se = as.numeric(),
+  gencorr_Z = as.numeric(),
+  gencorr_P = as.numeric()
+)
+MAGIC_traits <- c("2hGlu","FG","FI","HbA1c")
+for (MAGIC_trait in MAGIC_traits) {
+  loc_gencorr_log <- paste0("../scratch/MAGIC/MAGIC_",MAGIC_trait,"_PXS_rg.log")
+  gencorr_log <- readLines(loc_gencorr_log)
+  out <- extract_LDsc_genCorr(gencorr_log)
+  
+  genCorr_LDsc_tbl <- genCorr_LDsc_tbl %>% add_row(
+    pheno1_term = MAGIC_trait, pheno2_term = "PXS_T2D",
+    pheno1_h2=out[1], pheno1_h2_se=out[2], pheno1_lambda=out[3],
+    pheno2_h2=out[4], pheno2_h2_se=out[5], pheno2_lambda=out[6],
+    gencorr=out[7], gencorr_se=out[8], gencorr_Z=out[9], gencorr_P=out[10]
+  )
+}
+genCorr_LDsc_tbl$gencorr_P_adj <- p.adjust(genCorr_LDsc_tbl$gencorr_P_adj)
 
 #### GWAS ANALYSIS ########
 

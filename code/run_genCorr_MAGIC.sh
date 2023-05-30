@@ -81,7 +81,6 @@ ${dir_ldsc}munge_sumstats.py \
 --out ${out}
 
 sf_munge=${out}.sumstats
-#gunzip ${sf_munge}.gz
 
 dir_LD=${dir_scratch}LDscore/
 # LD Score Regression
@@ -92,7 +91,4 @@ ${dir_ldsc}ldsc.py \
 --out ${out}_PXS_rg
 
 
-done 
-
-# --p p_value \
-# --frq effect_allele_frequency \
+done
