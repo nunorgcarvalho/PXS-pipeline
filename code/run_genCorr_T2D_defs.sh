@@ -16,9 +16,9 @@ cd ${subfolder}
 #########################################
 echo '#!/bin/sh
 #SBATCH -c 20
-#SBATCH -t 2-11:59
+#SBATCH -t 2-23:59
 #SBATCH -p medium
-#SBATCH --mem=100G
+#SBATCH --mem=125G
 #SBATCH -o '${pheno}'_all_onset_genCorr.out
 #SBATCH -e '${pheno}'_all_onset_genCorr.err
 

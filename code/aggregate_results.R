@@ -11,14 +11,8 @@ pheno_list <- readLines(loc_phenolist)
 loc_expolist <- paste0(dir_script,"../input_data/exposures.txt")
 exposures_list <- readLines(loc_expolist)
 fields <- as_tibble(fread(paste0(dir_scratch,"fields_tbl.txt"))) %>%
-  add_row(term = c("T2D","PXS_T2D"),
-          traitname = c("Type 2 Diabetes","PXS for Type 2 Diabetes"))
-# ukb_dict <- as_tibble(fread(paste0(dir_data_showcase,"Data_Dictionary_Showcase.tsv"))) %>%
-#   mutate(field = paste0("f",FieldID)) %>% select(field, fieldname=Field) %>%
-#   add_row(field = c("AF", "CAD", "COPD", "T2D","fev1_inst1"),
-#           fieldname = c("Atrial fibrillation", "Coronary artery disease", "Chronic obstructive pulmonary disease",
-#                   "Type 2 diabetes", "Forced expiratory volume in 1-second (FEV1)"))
-
+  add_row(term = c("T2D","PXS_T2D", "T2D_all"),
+          traitname = c("Type 2 Diabetes onset","PXS for Type 2 Diabetes onset","Type 2 Diabetes (all)"))
 
 ## Functions ##
 extract_REML_genCorr <- function(genCorr) {
@@ -71,17 +65,9 @@ extract_from_envLM <- function(envLM) {
 
 ### REML results for genCorr PXS with CRFs
 # includes both heritability and genCorr
-genCorr_REML_tbl <- tibble(
-  pheno1_term = as.character(),
-  h2g1 = as.numeric(),
-  h2g1_err = as.numeric(),
-  pheno2_term = as.character(),
-  h2g2 = as.numeric(),
-  h2g2_err = as.numeric(),
-  gencorr = as.numeric(),
-  gencorr_err = as.numeric(),
-  elapsed_hours = as.numeric()
-)
+gencorr_logs <- tibble(path=as.character(),
+                           term1=as.character(), term2=as.character())
+# compiles list of gencorr.out results to read
 for (pheno in pheno_list) {
   loc_CRFs <- paste0(dir_scratch,pheno,"/",pheno,"_CRFs.txt")
   if (!file.exists(loc_CRFs)) {next}
@@ -94,64 +80,54 @@ for (pheno in pheno_list) {
         print(paste("Did not find genCorr for",expo,"x",CRF))
         next
       }
-      genCorr <- readLines(loc_genCorr)
-
-      out <- extract_REML_genCorr(genCorr)
-      
-      genCorr_REML_tbl <- genCorr_REML_tbl %>% add_row(
-        pheno1_term = expo,
-        h2g1 = out[1],
-        h2g1_err = out[2],
-        pheno2_term = CRF,
-        h2g2 = out[5],
-        h2g2_err = out[6],
-        gencorr = out[3],
-        gencorr_err = out[4],
-        elapsed_hours = out[7]
-      )
-      print(paste("Read genCorr results for",expo,"x",CRF))
+      gencorr_logs <- gencorr_logs %>%
+        add_row(path=loc_genCorr,term1=expo,term2=CRF)
     }
     
     # reads PXS x CRFs gencorrs
     loc_genCorr <- paste0(dir_scratch,pheno,"/PXS_",pheno,"_",CRF,"_genCorr.out")
-    genCorr <- readLines(loc_genCorr)
+    gencorr_logs <- gencorr_logs %>%
+      add_row(path=loc_genCorr,term1=paste0("PXS_",pheno),term2=CRF)
     
-    out <- extract_REML_genCorr(genCorr)
-
-    # adds row to table
-    genCorr_REML_tbl <- genCorr_REML_tbl %>% add_row(
-      pheno1_term = paste0("PXS_",pheno),
-      h2g1 = out[1],
-      h2g1_err = out[2],
-      pheno2_term = CRF,
-      h2g2 = out[5],
-      h2g2_err = out[6],
-      gencorr = out[3],
-      gencorr_err = out[4],
-      elapsed_hours = out[7]
-    )
-    print(paste("Read genCorr results for PXS",pheno,"x",CRF))
-    
-    # reads PXS x CRFs gencorrs
+    # reads T2D x CRFs gencorrs
     loc_genCorr <- paste0(dir_scratch,pheno,"/",pheno,"_",CRF,"_genCorr.out")
-    genCorr <- readLines(loc_genCorr)
+    gencorr_logs <- gencorr_logs %>%
+      add_row(path=loc_genCorr,term1=pheno,term2=CRF)
     
-    out <- extract_REML_genCorr(genCorr)
-    
-    # adds row to table
-    genCorr_REML_tbl <- genCorr_REML_tbl %>% add_row(
-      pheno1_term = pheno,
-      h2g1 = out[1],
-      h2g1_err = out[2],
-      pheno2_term = CRF,
-      h2g2 = out[5],
-      h2g2_err = out[6],
-      gencorr = out[3],
-      gencorr_err = out[4],
-      elapsed_hours = out[7]
-    )
-    print(paste("Read genCorr results for",pheno,"x",CRF))
+    # reads T2D_all x CRFs gencorrs
+    loc_genCorr <- paste0(dir_scratch,pheno,"/",pheno,"_all_",CRF,"_genCorr.out")
+    gencorr_logs <- gencorr_logs %>%
+      add_row(path=loc_genCorr,term1=paste0(pheno,"_all"),term2=CRF)
   }
+}
+genCorr_REML_tbl <- tibble(
+  pheno1_term = as.character(),
+  h2g1 = as.numeric(),
+  h2g1_err = as.numeric(),
+  pheno2_term = as.character(),
+  h2g2 = as.numeric(),
+  h2g2_err = as.numeric(),
+  gencorr = as.numeric(),
+  gencorr_err = as.numeric(),
+  elapsed_hours = as.numeric()
+)
+# actually reads each listed result
+for (i in 1:nrow(gencorr_logs)) {
+  gencorr_log <- readLines(gencorr_logs$path[i])
+  out <- extract_REML_genCorr(gencorr_log)
+  genCorr_REML_tbl <- genCorr_REML_tbl %>% add_row(
+    pheno1_term = gencorr_logs$term1[i],
+    h2g1 = out[1],
+    h2g1_err = out[2],
+    pheno2_term = gencorr_logs$term2[i],
+    h2g2 = out[5],
+    h2g2_err = out[6],
+    gencorr = out[3],
+    gencorr_err = out[4],
+    elapsed_hours = out[7]
+  )
+  print(paste("Read genCorr results for",gencorr_logs$term1[i],"x",gencorr_logs$term2[i]))
+  
 }
 # Prints out missing data
 print("GenCorr combinations with missing data:")
@@ -171,20 +147,36 @@ genCorr_REML_tbl %>%
               id_cols = pheno2_traitname) %>%
   arrange(-abs(gencorr_PXS_T2D))
 
+# Compares CRF gencorr with T2D vs T2D_all
+genCorr_REML_tbl %>%
+  filter(pheno1_term %in% c("T2D","T2D_all")) %>%
+  select(pheno1_term, pheno2_traitname, gencorr, gencorr_err) %>%
+  pivot_wider(names_from = pheno1_term,
+              values_from = c(gencorr, gencorr_err),
+              id_cols = pheno2_traitname) %>%
+  arrange(-abs(gencorr_T2D))
+
 # Saves tables
 loc_out <- paste0(dir_scratch, "genCorr_REML_results.txt")
 write.table(genCorr_REML_tbl, loc_out, sep="\t", quote=FALSE, row.names=FALSE)
 
+# calculates Bonferroni-corrected confidence intervals
+b <- qnorm(1 - (0.05 / nrow(genCorr_REML_tbl %>% filter(pheno1_term %in% exposures_list))))
 # Visualizes exposure x CRF gencorrs
-ggplot(genCorr_REML_tbl, aes(x=pheno2_traitname, y=pheno1_traitname, fill=gencorr)) +
+ggplot(genCorr_REML_tbl %>% filter(pheno1_term %in% exposures_list),
+       aes(x=pheno2_traitname, y=pheno1_traitname, fill=gencorr)) +
   geom_tile() +
-  geom_text(aes(label = signif(gencorr,digits=2))) +
+  geom_text(data=genCorr_REML_tbl %>%
+              filter(pheno1_term %in% exposures_list,
+                     abs(gencorr)-b*gencorr_err > 0),
+            aes(label = signif(gencorr,digits=2))) +
   scale_fill_gradient2(low="red",mid="white", high="green", midpoint = 0) +
   scale_x_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=30)) +
   scale_y_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=50)) +
   xlab("Clinical Risk Factor (CRF)") +
   ylab("Exposure") +
-  labs(title = "Genetic Correlations between exposures and CRFs")
+  labs(title = "Genetic Correlations between exposures and CRFs",
+       subtitle = "Only significant genetic correlations (p < 0.05 / 150)")
 
 # prints out mean absolute gencorr for each CRF
 genCorr_REML_tbl %>% filter(pheno1_term %in% exposures_list) %>%
@@ -268,7 +260,7 @@ for (MAGIC_trait in MAGIC_traits) {
     gencorr=out[7], gencorr_se=out[8], gencorr_Z=out[9], gencorr_P=out[10]
   )
 }
-genCorr_LDsc_tbl$gencorr_P_adj <- p.adjust(genCorr_LDsc_tbl$gencorr_P_adj)
+genCorr_LDsc_tbl$gencorr_P_adj <- p.adjust(genCorr_LDsc_tbl$gencorr_P, method="fdr")
 
 #### GWAS ANALYSIS ########
 
