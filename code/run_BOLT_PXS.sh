@@ -13,6 +13,7 @@ subfolder=$(echo ${dir_scratch}${disease})
 
 cd ${subfolder}
 
+### PXS_T2D ###
 ########################################
 ## Creates BOLT-LMM script and submits##
 ########################################
@@ -42,30 +43,28 @@ echo '#!/bin/sh
 --covarMaxLevels 25 \
 --lmm \
 --verboseStats \
---statsFile '${subfolder}'/LMM_'${disease}'.txt \
+--statsFile '${subfolder}'/LMM_PXS_'${disease}'.txt \
 --bgenFile /n/no_backup2/patel/ukb_imp_chr{1:22}_v3.bgen \
 --bgenMinMAF 1e-3 \
 --bgenMinINFO 0.3 \
 --sampleFile /n/no_backup2/patel/ukb22881_imp_chr1_v3_s487324.sample \
---statsFileBgenSnps '${subfolder}'/LMM_'${disease}'_bgen.txt
+--statsFileBgenSnps '${subfolder}'/LMM_PXS_'${disease}'_bgen.txt
 
 ' > ${subfolder}/${disease}_PXS_BOLTLMM.sh
 sbatch ${subfolder}/${disease}_PXS_BOLTLMM.sh
-echo 'Submitted BOLT-LMM for '${disease}
+echo 'Submitted BOLT-LMM for PXS_'${disease}
 
-#########################################
-## Creates BOLT-REML script and submits##
-#########################################
-
-# no longer running because genCorr already computed h2 estimate
-
+### T2D_all ###
+########################################
+## Creates BOLT-LMM script and submits##
+########################################
 echo '#!/bin/sh
 #SBATCH -c 20
 #SBATCH -t 4-23:59
 #SBATCH -p medium
 #SBATCH --mem=125G
-#SBATCH -o '${disease}'_PXS_BOLTREML.out
-#SBATCH -e '${disease}'_PXS_BOLTREML.err
+#SBATCH -o '${disease}'_all_BOLTLMM.out
+#SBATCH -e '${disease}'_all_BOLTLMM.err
 
 ~/bolt \
 --numThreads 20 \
@@ -75,24 +74,66 @@ echo '#!/bin/sh
 --LDscoresFile /n/groups/patel/bin/BOLT-LMM_v2.3.2/tables/LDSCORE.1000G_EUR.tab.gz \
 --remove '${subfolder}'/IIDs_NA_exposures.txt \
 --remove '${dir_script}'../input_data/bolt.in_plink_but_not_imputed.FID_IID.978.txt \
---phenoFile '${subfolder}'/PXS_'${disease}'.txt \
---phenoCol PXS_'${disease}' \
+--phenoFile '${dir_scratch}'phenoEC_fullT2D.txt \
+--phenoCol '${pheno}'_all \
 --covarFile '${dir_scratch}'pheno_EC.txt \
 --covarCol sex \
 --covarCol assessment_center \
 --qCovarCol age \
 --qCovarCol pc{1:40} \
 --covarMaxLevels 25 \
---reml \
---remlNoRefine \
+--lmm \
+--verboseStats \
+--statsFile '${subfolder}'/LMM_'${disease}'_all.txt \
 --bgenFile /n/no_backup2/patel/ukb_imp_chr{1:22}_v3.bgen \
 --bgenMinMAF 1e-3 \
 --bgenMinINFO 0.3 \
 --sampleFile /n/no_backup2/patel/ukb22881_imp_chr1_v3_s487324.sample \
---statsFileBgenSnps '${subfolder}'/LMM_'${disease}'_bgen.txt
+--statsFileBgenSnps '${subfolder}'/LMM_'${disease}'_all_bgen.txt
 
-' > ${subfolder}/${disease}_PXS_BOLTREML.sh
-#sbatch ${subfolder}/${disease}_PXS_BOLTREML.sh
-#echo 'Submitted BOLT-REML for '${disease}
+' > ${subfolder}/${disease}_all_BOLTLMM.sh
+sbatch ${subfolder}/${disease}_all_BOLTLMM.sh
+echo 'Submitted BOLT-LMM for '${disease}'_all'
+
+### T2D_onset ###
+########################################
+## Creates BOLT-LMM script and submits##
+########################################
+echo '#!/bin/sh
+#SBATCH -c 20
+#SBATCH -t 4-23:59
+#SBATCH -p medium
+#SBATCH --mem=125G
+#SBATCH -o '${disease}'_onset_BOLTLMM.out
+#SBATCH -e '${disease}'_onset_BOLTLMM.err
+
+~/bolt \
+--numThreads 20 \
+--bed /n/groups/patel/uk_biobank/main_data_9512/ukb_cal_chr{1:22}_v2.bed \
+--bim /n/groups/patel/uk_biobank/main_data_9512/ukb_snp_chr{1:22}_v2.bim \
+--fam /n/groups/patel/uk_biobank/main_data_9512/ukb_bolt_lmm.fam \
+--LDscoresFile /n/groups/patel/bin/BOLT-LMM_v2.3.2/tables/LDSCORE.1000G_EUR.tab.gz \
+--remove '${subfolder}'/IIDs_NA_exposures.txt \
+--remove '${dir_script}'../input_data/bolt.in_plink_but_not_imputed.FID_IID.978.txt \
+--phenoFile '${dir_scratch}'pheno_EC.txt \
+--phenoCol '${pheno}'_onset \
+--covarFile '${dir_scratch}'pheno_EC.txt \
+--covarCol sex \
+--covarCol assessment_center \
+--qCovarCol age \
+--qCovarCol pc{1:40} \
+--covarMaxLevels 25 \
+--lmm \
+--verboseStats \
+--statsFile '${subfolder}'/LMM_'${disease}'_onset.txt \
+--bgenFile /n/no_backup2/patel/ukb_imp_chr{1:22}_v3.bgen \
+--bgenMinMAF 1e-3 \
+--bgenMinINFO 0.3 \
+--sampleFile /n/no_backup2/patel/ukb22881_imp_chr1_v3_s487324.sample \
+--statsFileBgenSnps '${subfolder}'/LMM_'${disease}'_onset_bgen.txt
+
+' > ${subfolder}/${disease}_onset_BOLTLMM.sh
+sbatch ${subfolder}/${disease}_onset_BOLTLMM.sh
+echo 'Submitted BOLT-LMM for '${disease}'_onset'
 
 done
