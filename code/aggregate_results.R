@@ -261,6 +261,7 @@ for (MAGIC_trait in MAGIC_traits) {
   )
 }
 genCorr_LDsc_tbl$gencorr_P_adj <- p.adjust(genCorr_LDsc_tbl$gencorr_P, method="fdr")
+genCorr_LDsc_tbl %>% select(-ends_with("_se"),-ends_with("lambda"))
 
 #### GWAS ANALYSIS ########
 
