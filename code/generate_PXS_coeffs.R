@@ -2,14 +2,15 @@
 ## Libraries and directories ##
 library(tidyverse)
 library(data.table)
-library(PXStools)
 library(callr)
 source('paths.R')
 
 loc_pheno_full1 <- "/n/groups/patel/uk_biobank/main_data_34521/ukb34521.tab"
 loc_pheno_full2 <- "/n/groups/patel/uk_biobank/project_22881_669542/ukb669542.csv"
 loc_40PCs <- "~/scratch3/key_data/UKB_40PCs_500k.txt"
-loc_PXS_function <- "~/jobs/PXStools/R/PXS.R"
+# location to modified PXS function as present here:
+# https://github.com/nunorgcarvalho/PXStools/blob/nuno_edits/R/PXS.R
+loc_PXS_function <- paste0(dir_script,"../../PXStools/R/PXS.R")
 
 # gets list of exposures
 loc_expos <- paste0(dir_script,"../input_data/T2D_XWAS_exposures.txt")
@@ -253,7 +254,6 @@ sig_expos1_tbl <- (xwas1_c %>%
 sig_expos1 <- sig_expos1_tbl$Field
 sig_expos1_groups <- sig_expos1_tbl$FieldID
 #sig_expos2 <- (xwas2_c %>% filter(fdr < 0.05))$Field
-source(paste0(dir_script,"../../PXStools/R/PXS.R"))
 source(loc_PXS_function)
 PXS1 <- PXS(df = T2D_tbl2, X = sig_expos1, cov = col_covs[-3], mod = "cox",
 #PXS1 <- PXS(df = T2D_tbl2, X = sig_expos1, cov = col_covs, mod = "cox",

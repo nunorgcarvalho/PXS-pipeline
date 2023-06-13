@@ -6,5 +6,5 @@
 
 dir_script <- "~/group_nuno/PXS-pipeline/code/"
 dir_scratch <- "~/group_nuno/PXS-pipeline/scratch/"
-dir_data_showcase <- "~/group_nuno/key_data/" # contains 'Data_Dictionary_Showcase.tsv' from UKBB
+dir_data_showcase <- "~/group_nuno/key_data/" # contains 'Data_Dictionary_Showcase.tsv' and 'Codings.tsv' from UKBB
 loc_phenoEC <- paste0(dir_scratch,"pheno_EC.txt")

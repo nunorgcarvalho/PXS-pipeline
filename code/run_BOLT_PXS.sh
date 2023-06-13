@@ -51,7 +51,7 @@ echo '#!/bin/sh
 --statsFileBgenSnps '${subfolder}'/LMM_PXS_'${disease}'_bgen.txt
 
 ' > ${subfolder}/${disease}_PXS_BOLTLMM.sh
-sbatch ${subfolder}/${disease}_PXS_BOLTLMM.sh
+#sbatch ${subfolder}/${disease}_PXS_BOLTLMM.sh
 echo 'Submitted BOLT-LMM for PXS_'${disease}
 
 ### T2D_all ###
@@ -75,7 +75,7 @@ echo '#!/bin/sh
 --remove '${subfolder}'/IIDs_NA_exposures.txt \
 --remove '${dir_script}'../input_data/bolt.in_plink_but_not_imputed.FID_IID.978.txt \
 --phenoFile '${dir_scratch}'phenoEC_fullT2D.txt \
---phenoCol '${pheno}'_all \
+--phenoCol '${disease}'_all \
 --covarFile '${dir_scratch}'pheno_EC.txt \
 --covarCol sex \
 --covarCol assessment_center \
@@ -116,7 +116,7 @@ echo '#!/bin/sh
 --remove '${subfolder}'/IIDs_NA_exposures.txt \
 --remove '${dir_script}'../input_data/bolt.in_plink_but_not_imputed.FID_IID.978.txt \
 --phenoFile '${dir_scratch}'pheno_EC.txt \
---phenoCol '${pheno}'_onset \
+--phenoCol '${disease}'_onset \
 --covarFile '${dir_scratch}'pheno_EC.txt \
 --covarCol sex \
 --covarCol assessment_center \
