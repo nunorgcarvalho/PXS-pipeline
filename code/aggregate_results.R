@@ -3,9 +3,13 @@
 library(tidyverse)
 library(data.table)
 # Functions #
-source("helper_functions.R")
 source("paths.R")
 
+# makes directory for figures
+dir_figs <- paste0(dir_scratch,"figures/")
+dir.create(dir_figs, showWarnings = FALSE)
+
+# paths
 loc_phenolist <- paste0(dir_script,"../input_data/phenotypes.txt")
 pheno_list <- readLines(loc_phenolist)
 loc_expolist <- paste0(dir_script,"../input_data/exposures.txt")
@@ -13,6 +17,8 @@ exposures_list <- readLines(loc_expolist)
 fields <- as_tibble(fread(paste0(dir_scratch,"fields_tbl.txt"))) %>%
   add_row(term = c("T2D","PXS_T2D", "T2D_all"),
           traitname = c("Type 2 Diabetes onset","PXS for Type 2 Diabetes onset","Type 2 Diabetes (all)"))
+#manually shortens long-named traits
+fields[fields$term=="f4080","traitname"] <- "Systolic blood pressure"
 
 ## Functions ##
 extract_REML_genCorr <- function(genCorr) {
@@ -41,23 +47,6 @@ extract_REML_genCorr <- function(genCorr) {
   h2g2_err <- parse_number(str_split(line_split, " ")[[1]][2])
 
   out <- c(h2g1, h2g1_err, gencorr, gencorr_err, h2g2, h2g2_err, elapsed_hours)
-  out
-}
-extract_from_envLM <- function(envLM) {
-
-  summary <- summary(envLM)
-  R2 <- summary$r.squared
-  R2adj <- summary$adj.r.squared
-  F_stat <- unname(summary$fstatistic[1])
-  p <- unname(pf(summary$fstatistic[1],summary$fstatistic[2],summary$fstatistic[3], lower.tail = FALSE))
-
-  tvals <- summary$coefficients[,"t value"]
-
-  out <- tibble(
-    colname = c("R2","R2adj","F_stat","p",paste0("t_",names(tvals))),
-    value = c(R2, R2adj, F_stat, p, unname(tvals))
-  )
-
   out
 }
 
@@ -160,24 +149,6 @@ genCorr_REML_tbl %>%
 loc_out <- paste0(dir_scratch, "genCorr_REML_results.txt")
 write.table(genCorr_REML_tbl, loc_out, sep="\t", quote=FALSE, row.names=FALSE)
 
-# calculates Bonferroni-corrected confidence intervals
-b <- qnorm(1 - (0.05 / nrow(genCorr_REML_tbl %>% filter(pheno1_term %in% exposures_list))))
-# Visualizes exposure x CRF gencorrs
-ggplot(genCorr_REML_tbl %>% filter(pheno1_term %in% exposures_list),
-       aes(x=pheno2_traitname, y=pheno1_traitname, fill=gencorr)) +
-  geom_tile() +
-  geom_text(data=genCorr_REML_tbl %>%
-              filter(pheno1_term %in% exposures_list,
-                     abs(gencorr)-b*gencorr_err > 0),
-            aes(label = signif(gencorr,digits=2))) +
-  scale_fill_gradient2(low="red",mid="white", high="green", midpoint = 0) +
-  scale_x_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=30)) +
-  scale_y_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=50)) +
-  xlab("Clinical Risk Factor (CRF)") +
-  ylab("Exposure") +
-  labs(title = "Genetic Correlations between exposures and CRFs",
-       subtitle = "Only significant genetic correlations (p < 0.05 / 150)")
-
 # prints out mean absolute gencorr for each CRF
 genCorr_REML_tbl %>% filter(pheno1_term %in% exposures_list) %>%
   group_by(pheno2_term,pheno2_traitname) %>%
@@ -190,6 +161,47 @@ genCorr_REML_tbl %>% filter(pheno1_term %in% exposures_list) %>%
   summarize(h2 = mean(h2g1, na.rm=TRUE),
             mean_abs_gencorr= mean(abs(gencorr), na.rm=TRUE)) %>%
   arrange(-mean_abs_gencorr) %>% print(n=Inf)
+# prints out gencorrs for just PXS_T2D x CRFs, and mean |rg|
+genCorr_REML_tbl%>%filter(pheno1_term=="PXS_T2D") %>% arrange(-abs(gencorr))
+(genCorr_REML_tbl%>%filter(pheno1_term=="PXS_T2D"))$gencorr %>% abs() %>% mean()
+
+# calculates Bonferroni-corrected confidence intervals
+b1 <- qnorm(1 - (0.025 / nrow(genCorr_REML_tbl %>% filter(pheno1_term %in% exposures_list))))
+# gets order of exposures from decreasing p-value
+coeffs <- as_tibble(fread(paste0(dir_script,"../input_data/PXS_coefficients.txt")))
+expo_order <- factor(c("PXS for Type 2 Diabetes onset",
+                       (coeffs %>%
+                          filter(term %in% exposures_list) %>% 
+                          left_join(fields%>%select(term,traitname), by="term") %>%
+                          arrange(p.value))$traitname)
+                     )
+CRF_order <- factor((genCorr_REML_tbl%>%filter(pheno1_term=="PXS_T2D") %>% arrange(-abs(gencorr)))$pheno2_traitname)
+# Visualizes exposure x CRF gencorrs
+ggplot(genCorr_REML_tbl %>% filter(pheno1_traitname %in% expo_order),
+       aes(x=factor(pheno2_traitname,levels=CRF_order),
+           y=fct_rev(factor(pheno1_traitname,levels=expo_order)),
+           fill=gencorr)) +
+  geom_tile() +
+  geom_text(data=genCorr_REML_tbl %>%
+              filter(pheno1_traitname %in% expo_order, abs(gencorr)-b1*gencorr_err > 0),
+            aes(label = formatC(signif(gencorr,digits=2), digits=2,format="fg", flag="#"))) +
+  geom_rect(aes(xmin = -Inf, xmax = Inf,
+                ymin = length(expo_order)-0.5, ymax = length(expo_order)+0.5),
+            color = "black", fill = NA) +
+  scale_fill_gradient2(low="red",mid="white", high="green", midpoint = 0) +
+  scale_x_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=20), expand = c(0, 0)) +
+  scale_y_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=40), expand = c(0, 0)) +
+  xlab("Clinical Risk Factor (CRF)") +
+  ylab("Behavior") +
+  labs(title = "Genetic Correlations between behaviors + PXS-T2D and CRFs",
+       subtitle = "Only significant genetic correlations shown (p < 0.05 / 150). Row for PXS-T2D highlighted",
+       fill = "Genetic Correlation") +
+  theme_light()
+# saves to system
+loc_fig <- paste0(dir_figs,"genCorrs_PXS-expos_CRFs.png")
+ggsave(loc_fig,width=4000, height=3000, units="px")
+
+
 
 #### genCorr results from LDsc ####
 extract_LDsc_genCorr <- function(gencorr_log) {
@@ -260,134 +272,139 @@ for (MAGIC_trait in MAGIC_traits) {
     gencorr=out[7], gencorr_se=out[8], gencorr_Z=out[9], gencorr_P=out[10]
   )
 }
-genCorr_LDsc_tbl$gencorr_P_adj <- p.adjust(genCorr_LDsc_tbl$gencorr_P, method="fdr")
+b2 <- qnorm(1 - (0.025 / nrow(genCorr_LDsc_tbl)))
+genCorr_LDsc_tbl$gencorr_P_adj <- p.adjust(genCorr_LDsc_tbl$gencorr_P, method="bonferroni")
+genCorr_LDsc_tbl <- genCorr_LDsc_tbl %>%
+  mutate(gencorr_low = gencorr - b2 * gencorr_se,
+         gencorr_upp = gencorr + b2 * gencorr_se)
 genCorr_LDsc_tbl %>% select(-ends_with("_se"),-ends_with("lambda"))
 
 #### GWAS ANALYSIS ########
 
-# Code
-cols_to_keep <- c("SNP","CHR","BP","BETA","P_BOLT_LMM_INF","CHISQ_BOLT_LMM_INF")
-
-sig_SNPs_PXS <- tibble(
-  SNP = as.character(),
-  CHR = as.numeric(),
-  BP = as.numeric(),
-  BETA = as.numeric(),
-  P_unadj = as.numeric(),
-  P = as.numeric(),
-  field = as.character()
-)
-sig_SNPs_expo <-  sig_SNPs_PXS
-
-LMM_PXS_tbl <- tibble(
-  field = as.character(),
-  lambda = as.numeric(),
-  N = as.numeric(),
-  N_above_bonferroni = as.numeric(),
-  N_above_5E_8 = as.numeric()
-)
-LMM_expo_tbl <- LMM_PXS_tbl
-
-# Loop through disease PXSs
-for (pheno in pheno_list) {
-  
-  fieldname <- paste0(pheno, " PXS")
-  loc_LMM <- paste0(dir_scratch,pheno,"/LMM_",pheno,"_bgen.txt")
-  LMM <- as_tibble(fread(loc_LMM, select=cols_to_keep)) %>%
-    rename(P_unadj = P_BOLT_LMM_INF)
-  
-  N <- nrow(LMM)
-  bonferroni <- 0.05 / N
-  lambda <- get_lambda(LMM$CHISQ_BOLT_LMM_INF)
-  
-  # adjusts for lambda inflation factor
-  LMM <- LMM %>% mutate(
-    P = exp(pchisq(CHISQ_BOLT_LMM_INF/lambda,1, lower.tail=FALSE, log.p=TRUE))
-  )
-  sig_SNPs_PXS <- sig_SNPs_PXS %>% add_row(
-    LMM %>% select(SNP,CHR,BP,BETA,P_unadj,P) %>% filter(P_unadj < 5E-8) %>% mutate(field = pheno)
-  )
-  LMM_PXS_tbl <- LMM_PXS_tbl %>%
-    add_row(
-      field = pheno,
-      lambda = lambda,
-      N = N,
-      N_above_bonferroni = nrow(LMM %>% filter(P < bonferroni)),
-      N_above_5E_8 = nrow(LMM %>% filter(P < 5E-8))
-    )
-  
-  
-  # reduces the number of points to plot significantly while trying to keep
-  # the Manhattan plot visually the same as before
-  LMM2 <- downscale_sf(LMM)
-  
-  gg <- plot_Manhattan(LMM2, fieldname, N, lambda)
-  
-  loc_out <- paste0(dir_scratch,pheno,"/LMM_",pheno,"_manhattan.png")
-  ggsave(loc_out, gg, width=3600,height=2700, units="px")
-  
-  print(paste("Saved Manhattan plot for",pheno))
-}
-# Loop through exposures
-for (expo in exposures_list) {
-  
-  fieldname <- expo
-  loc_LMM <- paste0(dir_scratch,"exposures/",expo,"/LMM_",expo,"_bgen.txt")
-  if (!file.exists(loc_LMM)) {next}
-  LMM <- as_tibble(fread(loc_LMM, select=cols_to_keep)) %>%
-    rename(P_unadj = P_BOLT_LMM_INF)
-  
-  N <- nrow(LMM)
-  bonferroni <- 0.05 / N
-  lambda <- get_lambda(LMM$CHISQ_BOLT_LMM_INF)
-  
-  # adjusts for lambda inflation factor
-  if (lambda > 1) {
-    LMM <- LMM %>% mutate(
-      P = exp(pchisq(CHISQ_BOLT_LMM_INF/lambda,1, lower.tail=FALSE, log.p=TRUE))
-    )
-  } else { LMM <- LMM %>% mutate(P = P_unadj) }
-  sig_SNPs_expo <- sig_SNPs_expo %>% add_row(
-    LMM %>% select(SNP,CHR,BP,BETA,P_unadj,P) %>% filter(P_unadj < 5E-8) %>% mutate(field = expo)
-  )
-  
-  LMM_expo_tbl <- LMM_expo_tbl %>%
-    add_row(
-      field = expo,
-      lambda = lambda,
-      N = N,
-      N_above_bonferroni = nrow(LMM %>% filter(P < bonferroni)),
-      N_above_5E_8 = nrow(LMM %>% filter(P < 5E-8))
-    )
-  
-  
-  # reduces the number of points to plot significantly while trying to keep
-  # the Manhattan plot visually the same as before
-  LMM2 <- downscale_sf(LMM)
-  
-  gg <- plot_Manhattan(LMM2, fieldname, N, lambda)
-  
-  loc_out <- paste0(dir_scratch,"exposures/",expo,"/LMM_",expo,"_manhattan.png")
-  ggsave(loc_out, gg, width=3600,height=2700, units="px")
-  
-  print(paste("Saved Manhattan plot for",expo))
-}
-
-
-LMM_PXS_tbl <- LMM_PXS_tbl %>% left_join(ukb_dict, by="field")
-LMM_expo_tbl <- LMM_expo_tbl %>% left_join(fields %>% select(term,fieldname, Meaning), by=c("field"="term"))
-
-loc_out <- paste0(dir_scratch, "LMM_PXS_sig_SNPs.txt")
-write.table(sig_SNPs_PXS, loc_out, sep="\t", quote=FALSE, row.names=FALSE)
-
-loc_out <- paste0(dir_scratch, "LMM_expo_sig_SNPs.txt")
-write.table(sig_SNPs_expo, loc_out, sep="\t", quote=FALSE, row.names=FALSE)
-
-loc_out <- paste0(dir_scratch, "LMM_PXS_results.txt")
-write.table(LMM_PXS_tbl, loc_out, sep="\t", quote=FALSE, row.names=FALSE)
-
-loc_out <- paste0(dir_scratch, "LMM_exposures_results.txt")
-write.table(LMM_expo_tbl, loc_out, sep="\t", quote=FALSE, row.names=FALSE)
+# # Code
+# source("helper_functions.R")
+# cols_to_keep <- c("SNP","CHR","BP","BETA","P_BOLT_LMM_INF","CHISQ_BOLT_LMM_INF")
+# 
+# sig_SNPs_PXS <- tibble(
+#   SNP = as.character(),
+#   CHR = as.numeric(),
+#   BP = as.numeric(),
+#   BETA = as.numeric(),
+#   P_unadj = as.numeric(),
+#   P = as.numeric(),
+#   field = as.character()
+# )
+# sig_SNPs_expo <-  sig_SNPs_PXS
+# 
+# LMM_PXS_tbl <- tibble(
+#   field = as.character(),
+#   lambda = as.numeric(),
+#   N = as.numeric(),
+#   N_above_bonferroni = as.numeric(),
+#   N_above_5E_8 = as.numeric()
+# )
+# LMM_expo_tbl <- LMM_PXS_tbl
+# 
+# # Loop through disease PXSs
+# for (pheno in pheno_list) {
+#   
+#   fieldname <- paste0(pheno, " PXS")
+#   loc_LMM <- paste0(dir_scratch,pheno,"/LMM_",pheno,"_bgen.txt")
+#   LMM <- as_tibble(fread(loc_LMM, select=cols_to_keep)) %>%
+#     rename(P_unadj = P_BOLT_LMM_INF)
+#   
+#   N <- nrow(LMM)
+#   bonferroni <- 0.05 / N
+#   lambda <- get_lambda(LMM$CHISQ_BOLT_LMM_INF)
+#   
+#   # adjusts for lambda inflation factor
+#   LMM <- LMM %>% mutate(
+#     P = exp(pchisq(CHISQ_BOLT_LMM_INF/lambda,1, lower.tail=FALSE, log.p=TRUE))
+#   )
+#   sig_SNPs_PXS <- sig_SNPs_PXS %>% add_row(
+#     LMM %>% select(SNP,CHR,BP,BETA,P_unadj,P) %>% filter(P_unadj < 5E-8) %>% mutate(field = pheno)
+#   )
+#   LMM_PXS_tbl <- LMM_PXS_tbl %>%
+#     add_row(
+#       field = pheno,
+#       lambda = lambda,
+#       N = N,
+#       N_above_bonferroni = nrow(LMM %>% filter(P < bonferroni)),
+#       N_above_5E_8 = nrow(LMM %>% filter(P < 5E-8))
+#     )
+#   
+#   
+#   # reduces the number of points to plot significantly while trying to keep
+#   # the Manhattan plot visually the same as before
+#   LMM2 <- downscale_sf(LMM)
+#   
+#   gg <- plot_Manhattan(LMM2, fieldname, N, lambda)
+#   
+#   loc_out <- paste0(dir_scratch,pheno,"/LMM_",pheno,"_manhattan.png")
+#   ggsave(loc_out, gg, width=3600,height=2700, units="px")
+#   
+#   print(paste("Saved Manhattan plot for",pheno))
+# }
+# # Loop through exposures
+# for (expo in exposures_list) {
+#   
+#   fieldname <- expo
+#   loc_LMM <- paste0(dir_scratch,"exposures/",expo,"/LMM_",expo,"_bgen.txt")
+#   if (!file.exists(loc_LMM)) {next}
+#   LMM <- as_tibble(fread(loc_LMM, select=cols_to_keep)) %>%
+#     rename(P_unadj = P_BOLT_LMM_INF)
+#   
+#   N <- nrow(LMM)
+#   bonferroni <- 0.05 / N
+#   lambda <- get_lambda(LMM$CHISQ_BOLT_LMM_INF)
+#   
+#   # adjusts for lambda inflation factor
+#   if (lambda > 1) {
+#     LMM <- LMM %>% mutate(
+#       P = exp(pchisq(CHISQ_BOLT_LMM_INF/lambda,1, lower.tail=FALSE, log.p=TRUE))
+#     )
+#   } else { LMM <- LMM %>% mutate(P = P_unadj) }
+#   sig_SNPs_expo <- sig_SNPs_expo %>% add_row(
+#     LMM %>% select(SNP,CHR,BP,BETA,P_unadj,P) %>% filter(P_unadj < 5E-8) %>% mutate(field = expo)
+#   )
+#   
+#   LMM_expo_tbl <- LMM_expo_tbl %>%
+#     add_row(
+#       field = expo,
+#       lambda = lambda,
+#       N = N,
+#       N_above_bonferroni = nrow(LMM %>% filter(P < bonferroni)),
+#       N_above_5E_8 = nrow(LMM %>% filter(P < 5E-8))
+#     )
+#   
+#   
+#   # reduces the number of points to plot significantly while trying to keep
+#   # the Manhattan plot visually the same as before
+#   LMM2 <- downscale_sf(LMM)
+#   
+#   gg <- plot_Manhattan(LMM2, fieldname, N, lambda)
+#   
+#   loc_out <- paste0(dir_scratch,"exposures/",expo,"/LMM_",expo,"_manhattan.png")
+#   ggsave(loc_out, gg, width=3600,height=2700, units="px")
+#   
+#   print(paste("Saved Manhattan plot for",expo))
+# }
+# 
+# 
+# LMM_PXS_tbl <- LMM_PXS_tbl %>% left_join(ukb_dict, by="field")
+# LMM_expo_tbl <- LMM_expo_tbl %>% left_join(fields %>% select(term,fieldname, Meaning), by=c("field"="term"))
+# 
+# loc_out <- paste0(dir_scratch, "LMM_PXS_sig_SNPs.txt")
+# write.table(sig_SNPs_PXS, loc_out, sep="\t", quote=FALSE, row.names=FALSE)
+# 
+# loc_out <- paste0(dir_scratch, "LMM_expo_sig_SNPs.txt")
+# write.table(sig_SNPs_expo, loc_out, sep="\t", quote=FALSE, row.names=FALSE)
+# 
+# loc_out <- paste0(dir_scratch, "LMM_PXS_results.txt")
+# write.table(LMM_PXS_tbl, loc_out, sep="\t", quote=FALSE, row.names=FALSE)
+# 
+# loc_out <- paste0(dir_scratch, "LMM_exposures_results.txt")
+# write.table(LMM_expo_tbl, loc_out, sep="\t", quote=FALSE, row.names=FALSE)
 
 ## Looking closer at envLM
 # AC_tbl <- as_tibble(fread(paste0(dir_data_showcase,"Codings.tsv"),quote="")) %>%

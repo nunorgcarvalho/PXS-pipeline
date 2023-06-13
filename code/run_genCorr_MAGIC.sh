@@ -37,7 +37,8 @@ fi
 
 ## Converts PXS summary statistics to sumstats format
 loc_PXS_LMM=${dir_scratch}'T2D/LMM_T2D_bgen.txt'
-N=282118
+N=$(wc -l ${dir_scratch}'T2D/PXS_T2D.txt' | awk '{print $1}')
+#N=282118
 echo ${loc_PXS_LMM}
 out_PXS="${loc_PXS_LMM%????}"
 
