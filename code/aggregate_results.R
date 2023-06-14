@@ -165,17 +165,15 @@ genCorr_REML_tbl %>% filter(pheno1_term %in% exposures_list) %>%
 genCorr_REML_tbl%>%filter(pheno1_term=="PXS_T2D") %>% arrange(-abs(gencorr))
 (genCorr_REML_tbl%>%filter(pheno1_term=="PXS_T2D"))$gencorr %>% abs() %>% mean()
 
-# calculates Bonferroni-corrected confidence intervals
-b1 <- qnorm(1 - (0.025 / nrow(genCorr_REML_tbl %>% filter(pheno1_term %in% exposures_list))))
 # gets order of exposures from decreasing p-value
 coeffs <- as_tibble(fread(paste0(dir_script,"../input_data/PXS_coefficients.txt")))
 expo_order <- factor(c("PXS for Type 2 Diabetes onset",
-                       (coeffs %>%
-                          filter(term %in% exposures_list) %>% 
+                       (coeffs %>% filter(term %in% exposures_list) %>% 
                           left_join(fields%>%select(term,traitname), by="term") %>%
-                          arrange(p.value))$traitname)
-                     )
+                          arrange(p.value))$traitname) )
 CRF_order <- factor((genCorr_REML_tbl%>%filter(pheno1_term=="PXS_T2D") %>% arrange(-abs(gencorr)))$pheno2_traitname)
+# calculates Bonferroni-corrected confidence intervals
+b1 <- qnorm(1 - (0.025 / nrow(genCorr_REML_tbl %>% filter(pheno1_term %in% exposures_list))))
 # Visualizes exposure x CRF gencorrs
 ggplot(genCorr_REML_tbl %>% filter(pheno1_traitname %in% expo_order),
        aes(x=factor(pheno2_traitname,levels=CRF_order),
@@ -194,7 +192,8 @@ ggplot(genCorr_REML_tbl %>% filter(pheno1_traitname %in% expo_order),
   xlab("Clinical Risk Factor (CRF)") +
   ylab("Behavior") +
   labs(title = "Genetic Correlations between behaviors + PXS-T2D and CRFs",
-       subtitle = "Only significant genetic correlations shown (p < 0.05 / 150). Row for PXS-T2D highlighted",
+       subtitle = "Only significant genetic correlations shown (p < 0.05 / 150).\n
+       Row for PXS-T2D highlighted. Behaviors in descending order of T2D onset association",
        fill = "Genetic Correlation") +
   theme_light()
 # saves to system
