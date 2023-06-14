@@ -168,4 +168,42 @@ for (i in 1:(nrow(jobID_tbl)-1)) {
       add_row(job_data %>% mutate(term = term, traitname = traitname))
   }
 }
-GWAS_catalog %>% group_by(Trait) %>% summarize(n=n()) %>% arrange(-n)
+# list of studies with many individual traits which represent similar concepts, removed
+GWAS_catalog %>% group_by(Study, Link) %>% summarize(n=n()) %>% arrange(-n)
+offender_studies <- c("www.ncbi.nlm.nih.gov/pubmed/35668104","www.ncbi.nlm.nih.gov/pubmed/34503513")
+GWAS_catalog_trait_count <- GWAS_catalog %>% group_by(Trait) %>% summarize(n=n()) %>% arrange(-n)
+#GWAS_catalog_traits <- GWAS_catalog_trait_count$Trait
+GWAS_catalog_trait_count_subset <- GWAS_catalog %>%
+  filter(!Link %in% offender_studies) %>%
+  group_by(Trait) %>% summarize(n = n()) %>% arrange(-n) %>%
+  filter(n >= 2^6)
+GWAS_catalog_trait_count_subset$Trait %>% unique() %>% paste(collapse="|")
+# Fed this ^ into ChatGPT Plus (GPT4)
+
+# goes through file of groupings
+groupings_file <- readLines("../input_data/GWAS_catalog_groupings.txt")
+groupings_file <- groupings_file[groupings_file != ""]
+groupings_tbl <- tibble(Group = as.character(), Trait = as.character())
+for (line in groupings_file) {
+  Group <- strsplit(line, ": ")[[1]][1]
+  traits_text <- strsplit(line, ": ")[[1]][2]
+  traits <- strsplit(traits_text,", ")[[1]]
+  groupings_tbl <- groupings_tbl %>% add_row(Group = Group, Trait = traits)
+}
+groupings_tbl$Group %>% unique()
+# check for duplicates
+groupings_tbl %>% 
+  filter(Trait %in% (groupings_tbl%>%group_by(Trait)%>%summarize(n=n()) %>% filter(n>1))$Trait) %>%
+  arrange(Trait)
+# check for missingness
+(missing_traits <- (GWAS_catalog_trait_count_subset %>% filter(!Trait %in% groupings_tbl$Trait))$Trait)
+# manually fixes groupings
+groupings_tbl <- groupings_tbl[-c(45,66,84,134),]
+groupings_tbl %>%
+  add_row(Group = c("Metabolic Traits","Cardiovascular Traits","Cardiovascular Traits"),
+          Trait = missing_traits)
+
+GWAS_catalog <- GWAS_catalog %>% left_join(groupings_tbl, by="Trait")
+GWAS_catalog %>%
+  group_by(Group) %>% summarize(n = n()) %>%
+  filter(!is.na(Group)) %>% arrange(-n)
