@@ -200,7 +200,10 @@ ggplot(genCorr_REML_tbl %>% filter(pheno1_traitname %in% expo_order),
 loc_fig <- paste0(dir_figs,"genCorrs_PXS-expos_CRFs.png")
 ggsave(loc_fig,width=4000, height=3000, units="px")
 
-
+# looks at heritabilities of traits
+genCorr_REML_tbl %>% group_by(pheno1_term,pheno1_traitname) %>%
+  summarize(h2 = mean(h2g1), h2_err = mean(h2g1_err)) %>%
+  arrange(-h2) %>% print(n=Inf)
 
 #### genCorr results from LDsc ####
 extract_LDsc_genCorr <- function(gencorr_log) {

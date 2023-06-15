@@ -2,7 +2,7 @@ dir_repo=${HOME}'/group_nuno/PXS-pipeline/'
 dir_scratch=${dir_repo}'scratch/'
 dir_MAGIC=${dir_scratch}'MAGIC/'
 dir_script=${dir_repo}'code/'
-
+dir_LD=${dir_scratch}LDscore/
 dir_ldsc=${HOME}'/group_nuno/ldsc/'
 
 ## Downloading data, skip if already done
@@ -43,7 +43,7 @@ echo ${loc_PXS_LMM}
 out_PXS="${loc_PXS_LMM%????}"
 
 ${dir_ldsc}munge_sumstats.py \
---sumstats $loc_PXS_LMM \
+--sumstats ${loc_PXS_LMM} \
 --N ${N} \
 --snp SNP \
 --a1 ALLELE1 \
@@ -82,8 +82,6 @@ ${dir_ldsc}munge_sumstats.py \
 --out ${out}
 
 sf_munge=${out}.sumstats
-
-dir_LD=${dir_scratch}LDscore/
 # LD Score Regression
 ${dir_ldsc}ldsc.py \
 --rg ${out}.sumstats.gz,${out_PXS}.sumstats.gz \
