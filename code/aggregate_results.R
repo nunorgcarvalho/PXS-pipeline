@@ -52,7 +52,7 @@ extract_REML_genCorr <- function(genCorr) {
 
 ## Code ##
 
-### REML results for genCorr PXS with CRFs
+#### REML results for genCorr PXS with CRFs ####
 # includes both heritability and genCorr
 gencorr_logs <- tibble(path=as.character(),
                            term1=as.character(), term2=as.character())
@@ -205,7 +205,8 @@ genCorr_REML_tbl %>% group_by(pheno1_term,pheno1_traitname) %>%
   summarize(h2 = mean(h2g1), h2_err = mean(h2g1_err)) %>%
   arrange(-h2) %>% print(n=Inf)
 
-#### genCorr results from LDsc ####
+#### LDsc results ####
+##### genCorr results from LDsc #####
 extract_LDsc_genCorr <- function(gencorr_log) {
   N <- length(gencorr_log)
   
@@ -262,11 +263,13 @@ genCorr_LDsc_tbl <- tibble(
   gencorr_P = as.numeric()
 )
 MAGIC_traits <- c("2hGlu","FG","FI","HbA1c")
+# loops through each MAGIC trait
 for (MAGIC_trait in MAGIC_traits) {
+  # extracts ldsc gencorr data
   loc_gencorr_log <- paste0("../scratch/MAGIC/MAGIC_",MAGIC_trait,"_PXS_rg.log")
   gencorr_log <- readLines(loc_gencorr_log)
   out <- extract_LDsc_genCorr(gencorr_log)
-  
+  # adds to table
   genCorr_LDsc_tbl <- genCorr_LDsc_tbl %>% add_row(
     pheno1_term = MAGIC_trait, pheno2_term = "PXS_T2D",
     pheno1_h2=out[1], pheno1_h2_se=out[2], pheno1_lambda=out[3],
@@ -274,9 +277,108 @@ for (MAGIC_trait in MAGIC_traits) {
     gencorr=out[7], gencorr_se=out[8], gencorr_Z=out[9], gencorr_P=out[10]
   )
 }
+# coefficient used for bonferroni-corrected confidence intervals
 b2 <- qnorm(1 - (0.025 / nrow(genCorr_LDsc_tbl)))
 genCorr_LDsc_tbl$gencorr_P_adj <- p.adjust(genCorr_LDsc_tbl$gencorr_P, method="bonferroni")
 genCorr_LDsc_tbl <- genCorr_LDsc_tbl %>%
   mutate(gencorr_low = gencorr - b2 * gencorr_se,
          gencorr_upp = gencorr + b2 * gencorr_se)
 genCorr_LDsc_tbl %>% select(-ends_with("_se"),-ends_with("lambda"))
+
+##### h2 results from LDsc #####
+# function for extracting data from ldsc h2 log file
+extract_LDsc_h2 <- function(h2_log) {
+  N <- length(h2_log)
+  
+  # extract h2
+  line <- h2_log[N-6]
+  line_split <- str_split(line, ": ")[[1]][2]
+  h2 <- as.numeric(str_split(line_split, " ")[[1]][1])
+  h2_se <- parse_number(str_split(line_split, " ")[[1]][2])
+  # extract lambda
+  line <- h2_log[N-5]
+  line_split <- str_split(line, ": ")[[1]][2]
+  lambda <- as.numeric(line_split)
+  # extract mean_chi2
+  line <- h2_log[N-4]
+  line_split <- str_split(line, ": ")[[1]][2]
+  mean_chi2 <- as.numeric(line_split)
+  # extract intercept
+  line <- h2_log[N-3]
+  line_split <- str_split(line, ": ")[[1]][2]
+  intercept <- as.numeric(str_split(line_split, " ")[[1]][1])
+  intercept_se <- parse_number(str_split(line_split, " ")[[1]][2])
+  # extract ratio
+  line <- h2_log[N-2]
+  line_split <- str_split(line, ": ")[[1]][2]
+  ratio <- as.numeric(str_split(line_split, " ")[[1]][1])
+  ratio_se <- parse_number(str_split(line_split, " ")[[1]][2])
+  
+  
+  out <- c(h2, h2_se, lambda, mean_chi2, intercept, intercept_se, ratio, ratio_se)
+  out
+}
+
+h2_LDsc_tbl <- tibble(
+  term = as.character(),
+  h2 = as.numeric(),
+  h2_se = as.numeric(),
+  lambda = as.numeric(),
+  mean_chi2 = as.numeric(),
+  intercept = as.numeric(),
+  intercept_se = as.numeric(),
+  ratio = as.numeric(),
+  ratio_se = as.numeric()
+)
+# loops through each exposure
+for (expo in exposures_list) {
+  loc_h2_log <- paste0(dir_scratch,"exposures/",expo,"/ldsc_h2_",expo,".log")
+  # skips if log file is missing
+  if (!file.exists(loc_h2_log)) {print(paste("Missing log file for",expo)); next}
+  print(paste("Reading log file for", expo))
+  h2_log <- readLines(loc_h2_log)
+  if (length(h2_log)==0) {print("Log file is empty!"); next}
+  out <- extract_LDsc_h2(h2_log)
+  # adds data to table
+  h2_LDsc_tbl <- h2_LDsc_tbl %>% add_row(
+    term=expo, h2=out[1], h2_se=out[2], lambda=out[3], mean_chi2=out[4],
+    intercept=out[5], intercept_se=out[6], ratio=out[7], ratio_se=out[8]
+  )
+}
+# appends trait names
+h2_LDsc_tbl <- h2_LDsc_tbl %>% left_join(fields[,c("term","traitname")], by="term")
+
+# compares BOLT-REML vs LDsc in h2 computation
+h2_comparison <- h2_LDsc_tbl %>%
+  select(term, traitname, ldsc_h2=h2,ldsc_h2_se=h2_se,ldsc_lambda=lambda, ldsc_ratio=ratio) %>%
+  mutate(ldsc_h2_pre.GC = ldsc_h2 * ldsc_lambda,
+         ldsc_h2_ratio.adj = ldsc_h2_pre.GC - ldsc_ratio * (ldsc_h2_pre.GC - ldsc_h2)) %>%
+  left_join(genCorr_REML_tbl %>% group_by(pheno1_term) %>%
+              summarize(REML_h2 = mean(h2g1), REML_h2_err = mean(h2g1_err)),
+            by = c("term"="pheno1_term"))
+# shows h2 comparisons after LDsc's GC adjustment
+(lm1 <- lm(ldsc_h2 ~ REML_h2, data = h2_comparison))
+ggplot(h2_comparison, aes(x=REML_h2, y=ldsc_h2)) +
+  geom_abline(slope=1) +
+  geom_smooth(method='lm') +
+  geom_point() +
+  geom_errorbar(aes(ymin = ldsc_h2-2*ldsc_h2_se, ymax = ldsc_h2+2*ldsc_h2_se)) +
+  geom_errorbarh(aes(xmin = REML_h2-2*REML_h2_err, xmax = REML_h2+2*REML_h2_err)) +
+  xlim(0,0.15) + ylim(0,0.15) +
+  xlab("h2 estimated by BOLT-REML") +
+  ylab("h2 estimated by LDsc") +
+  labs(title = "Comparison of h2 estimate of 25 exposures by LDsc vs BOLT-REML",
+       subtitle = paste0("LDsc_h2 ~ BOLT-REML_h2 slope = ", round(lm1$coefficients[2],3)))
+# dont know if any of this is correct to do:
+# shows h2 comparisons reversing LDsc's GC adjustment (s.e. bars may be wrong)
+ggplot(h2_comparison, aes(x=REML_h2, y=ldsc_h2_pre.GC)) +
+  geom_abline(slope=1) +
+  geom_point() +
+  geom_errorbar(aes(ymin = ldsc_h2_pre.GC-2*ldsc_h2_se, ymax = ldsc_h2_pre.GC+2*ldsc_h2_se)) +
+  geom_errorbarh(aes(xmin = REML_h2-2*ldsc_h2_se, xmax = REML_h2+2*ldsc_h2_se))
+# shows h2 comparisons using ratio-adjusted LDsc h2 estimate
+ggplot(h2_comparison, aes(x=REML_h2, y=ldsc_h2_ratio.adj)) +
+  geom_abline(slope=1) +
+  geom_point() +
+  geom_errorbar(aes(ymin = ldsc_h2_ratio.adj-2*ldsc_h2_se, ymax = ldsc_h2_ratio.adj+2*ldsc_h2_se)) +
+  geom_errorbarh(aes(xmin = REML_h2-2*ldsc_h2_se, xmax = REML_h2+2*ldsc_h2_se))
