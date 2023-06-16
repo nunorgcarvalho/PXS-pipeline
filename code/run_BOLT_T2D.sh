@@ -76,7 +76,7 @@ echo '#!/bin/sh
 --remove '${dir_script}'../input_data/bolt.in_plink_but_not_imputed.FID_IID.978.txt \
 --phenoFile '${dir_scratch}'phenoEC_fullT2D.txt \
 --phenoCol '${disease}'_all \
---covarFile '${dir_scratch}'pheno_EC.txt \
+--covarFile '${dir_scratch}'phenoEC_fullT2D.txt \
 --covarCol sex \
 --covarCol assessment_center \
 --qCovarCol age \
@@ -133,7 +133,7 @@ echo '#!/bin/sh
 --statsFileBgenSnps '${subfolder}'/LMM_'${disease}'_onset_bgen.txt
 
 ' > ${subfolder}/${disease}_onset_BOLTLMM.sh
-sbatch ${subfolder}/${disease}_onset_BOLTLMM.sh
+#sbatch ${subfolder}/${disease}_onset_BOLTLMM.sh
 echo 'Submitted BOLT-LMM for '${disease}'_onset'
 
 done

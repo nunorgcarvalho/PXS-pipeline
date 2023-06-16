@@ -36,21 +36,23 @@ Define paths inside of `code/paths.R`
 
 1.  `initial_setup.sh`: runs the R script `generate_PXS_coeffs.R` and then runs `compute_PXS_LM.R` for each disease
 
-    -   `generate_PXS_coeffs.R`: formats the exposures correctly from the UK BioBank and runs an XWAS in order to get the PXS coefficients for chosen diseases
-    -   `compute_PXS_LM.R`: computes the PXS for all individuals for the disease and saves phenotype file. Also makes a list of associated clinical risk factors, a list of associated exposures, and a list of individuals with missing data for any of those exposures
+    1.  `generate_PXS_coeffs.R`: formats the exposures correctly from the UK BioBank and runs an XWAS in order to get the PXS coefficients for chosen diseases
 
-2.  Genome-wide association analyses (order does not matter)
+    2.  `compute_PXS_LM.R`: computes the PXS for all individuals for the disease and saves phenotype file. Also makes a list of associated clinical risk factors, a list of associated exposures, and a list of individuals with missing data for any of those exposures
+
+2.  Genome-wide association analyses (order does not matter, except for FUMA)
 
     1.  `run_BOLT_exposures.sh`: runs BOLT-LMM on each disease-associated exposure
-    2.  `run_BOLT_PXS.sh`: runs BOLT-LMM on the PXSs of the diseases, as well as the different definitions of T2D as generated in `generate_PXS_coeffs.R`
-
-    -   run GWAS results through FUMA and place unzipped FUMA data in `~/scratch/FUMA_results/` for later analysis
+    2.  `run_BOLT_T2D.sh`: runs BOLT-LMM on the PXS-T2D and the different definitions of T2D as generated in `generate_PXS_coeffs.R`
+    3.  run GWAS results through FUMA and place unzipped FUMA data in `~/scratch/FUMA_results/` for later analysis
 
 3.  Genetic correlations (order does not matter)
 
-    -   `run_genCorr_CRFs.sh`: run BOLT-REML (genetic correlation) for each PXS and its disease's clinical risk factors
-    -   `run_genCorr_expos.sh`: run BOLT-REML (genetic correlation) for each PXS's exposures and its disease's clinical risk factors
-    -   `run_genCorr_MAGIC.sh`: run LDsc genetic correlation for PXS_T2D and 4 MAGIC cohorts phenotypes
+    1.  `run_genCorr_CRFs.sh`: run BOLT-REML (genetic correlation) for each PXS and its disease's clinical risk factors
+
+    2.  `run_genCorr_expos.sh`: run BOLT-REML (genetic correlation) for each PXS's exposures and its disease's clinical risk factors
+
+    3.  `run_genCorr_MAGIC.sh`: run LDsc genetic correlation for PXS_T2D and 4 MAGIC cohorts phenotypes
 
 ## Visualizing/Summarizing data (inside `code/`)
 
