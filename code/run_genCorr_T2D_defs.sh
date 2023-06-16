@@ -52,7 +52,7 @@ ${dir_ldsc}ldsc.py \
 --rg ${pheno1_sf},${pheno2_sf} \
 --ref-ld-chr ${dir_LD}LDscore. \
 --w-ld-chr ${dir_LD}LDscore. \
---out LDsc_gencorr_${pheno1}_${pheno2}
+--out ${dir_T2D}LDsc_gencorr_${pheno1}_${pheno2}
 
 done
 
@@ -61,48 +61,7 @@ fi
 # BOLT-REML gencorr
 if [ "$run_BOLTREML" == "TRUE" ]; then
 
-# genCorr(T2D_all, T2D_onset)
-
-#########################################
-## Creates BOLT-REML script and submits##
-#########################################
-echo '#!/bin/sh
-#SBATCH -c 20
-#SBATCH -t 2-23:59
-#SBATCH -p medium
-#SBATCH --mem=120G
-#SBATCH -o T2D_all_onset_genCorr.out
-#SBATCH -e T2D_all_onset_genCorr.err
-
-~/bolt \
---numThreads 20 \
---bed /n/groups/patel/uk_biobank/main_data_9512/ukb_cal_chr{1:22}_v2.bed \
---bim /n/groups/patel/uk_biobank/main_data_9512/ukb_snp_chr{1:22}_v2.bim \
---fam /n/groups/patel/uk_biobank/main_data_9512/ukb_bolt_lmm.fam \
---LDscoresFile /n/groups/patel/bin/BOLT-LMM_v2.3.2/tables/LDSCORE.1000G_EUR.tab.gz \
---remove '${dir_script}'../input_data/bolt.in_plink_but_not_imputed.FID_IID.978.txt \
---phenoFile '${dir_scratch}'phenoEC_fullT2D.txt \
---phenoCol T2D_all \
---phenoCol T2D_onset \
---covarFile '${dir_scratch}'phenoEC_fullT2D.txt \
---covarCol sex \
---covarCol assessment_center \
---qCovarCol age \
---qCovarCol pc{1:40} \
---covarMaxLevels 25 \
---reml \
---remlNoRefine \
---bgenFile /n/no_backup2/patel/ukb_imp_chr{1:22}_v3.bgen \
---bgenMinMAF 1e-3 \
---bgenMinINFO 0.3 \
---sampleFile /n/no_backup2/patel/ukb22881_imp_chr1_v3_s487324.sample \
---statsFileBgenSnps '${dir_T2D}'_all_onset_bgen.txt
-
-' > ${dir_T2D}/genCorr_T2D_all_onset.sh
-sbatch ${dir_T2D}/genCorr_T2D_all_onset.sh
-echo Submitted genCorr for T2D_all and T2D_onset
-
-# genCorr(TPXS_T2D, T2D_onset)
+# genCorr(PXS_T2D, T2D_onset)
 
 #########################################
 ## Creates BOLT-REML script and submits##
