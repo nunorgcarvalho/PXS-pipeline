@@ -20,19 +20,22 @@ N=$(echo $line | awk -F'= ' '{print $2}')
 # uses munge_stats.py from ldsc to properly format summary file for ldsc
 loc_sf_raw=${dir_expo}LMM_${exposure}_bgen.txt
 loc_out_sf="${loc_sf_raw%????}"
-# takes about 3 minutes
-echo 'Formatting summary file for ldsc'
-${dir_ldsc}munge_sumstats.py \
---sumstats ${loc_sf_raw} \
---N ${N} \
---snp SNP \
---a1 ALLELE1 \
---a2 ALLELE0 \
---signed-sumstats BETA,0 \
---p P_BOLT_LMM_INF \
---out ${loc_out_sf}
-
 loc_sf=${loc_out_sf}.sumstats.gz
+
+if [ ! -f "$loc_sf" ]; then
+  # takes about 3 minutes
+  echo 'Formatting summary file for ldsc'
+  ${dir_ldsc}munge_sumstats.py \
+  --sumstats ${loc_sf_raw} \
+  --N ${N} \
+  --snp SNP \
+  --a1 ALLELE1 \
+  --a2 ALLELE0 \
+  --signed-sumstats BETA,0 \
+  --p P_BOLT_LMM_INF \
+  --out ${loc_out_sf}
+fi
+
 loc_out=${dir_expo}ldsc_h2_${exposure}
 # LD Score Regression. Quick (< 1 minute)
 echo 'Running ldsc h2 estimation'
