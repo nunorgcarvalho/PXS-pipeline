@@ -88,21 +88,6 @@ for (pheno in pheno_list) {
     gencorr_logs <- gencorr_logs %>%
       add_row(path=loc_genCorr,term1=paste0(pheno,"_all"),term2=CRF)
   }
-  
-  # reads PXS_T2D x T2D_onset
-  loc_genCorr <- paste0(dir_scratch,pheno,"/LDsc_gencorr_PXS_",pheno,"_",pheno,"_onset.log")
-  gencorr_logs <- gencorr_logs %>%
-    add_row(path=loc_genCorr,term1=paste0("PXS_",pheno),term2=paste0(pheno,"_onset"))
-  
-  # reads PXS_T2D x T2D_all
-  loc_genCorr <- paste0(dir_scratch,pheno,"/LDsc_gencorr_PXS_",pheno,"_",pheno,"_all.log")
-  gencorr_logs <- gencorr_logs %>%
-    add_row(path=loc_genCorr,term1=paste0("PXS_",pheno),term2=paste0(pheno,"_all"))
-  
-  # reads T2D_onset x T2D_all
-  loc_genCorr <- paste0(dir_scratch,pheno,"/LDsc_gencorr_",pheno,"_onset_",pheno,"_all.log")
-  gencorr_logs <- gencorr_logs %>%
-    add_row(path=loc_genCorr,term1=paste0(pheno,"_onset"),term2=paste0(pheno,"_all"))
 }
 genCorr_REML_tbl <- tibble(
   pheno1_term = as.character(),
@@ -275,6 +260,13 @@ ldsc_logs <- tibble(
   path=paste0(dir_scratch,"T2D/LDsc_gencorr_",terms1,"_",terms2,".log"),
   term1=terms1, term2=terms2
 )
+for (MAGIC_trait in MAGIC_traits) {
+  ldsc_logs <- ldsc_logs %>% add_row(
+    path = paste0(dir_scratch,"MAGIC/MAGIC_",MAGIC_trait,"_",exposures_list,"_rg.log"),
+    term1=exposures_list, term2=MAGIC_trait
+  )
+}
+
 genCorr_LDsc_tbl <- tibble(
   pheno1_term = as.character(),
   pheno1_h2 = as.numeric(),
@@ -293,6 +285,7 @@ genCorr_LDsc_tbl <- tibble(
 for (i in 1:nrow(ldsc_logs)) {
   # extracts ldsc gencorr data
   loc_gencorr_log <- ldsc_logs$path[i]
+  if (!file.exists(loc_gencorr_log)) {next}
   gencorr_log <- readLines(loc_gencorr_log)
   out <- extract_LDsc_genCorr(gencorr_log)
   # adds to table
@@ -303,18 +296,30 @@ for (i in 1:nrow(ldsc_logs)) {
     gencorr=out[7], gencorr_se=out[8], gencorr_Z=out[9], gencorr_P=out[10]
   )
 }
+# declares columns and uses standard z=1.96 for 95% confidence
+genCorr_LDsc_tbl$gencorr_P_adj <- genCorr_LDsc_tbl$gencorr_P
+genCorr_LDsc_tbl$gencorr_low <- genCorr_LDsc_tbl$gencorr - 1.96 * genCorr_LDsc_tbl$gencorr_se
+genCorr_LDsc_tbl$gencorr_upp <- genCorr_LDsc_tbl$gencorr + 1.96 * genCorr_LDsc_tbl$gencorr_se
+# p-adjusts gencorr(PXS_T2D, MAGIC)
 # coefficient used for bonferroni-corrected confidence intervals
-b2 <- qnorm(1 - (0.025 / length(MAGIC_traits)))
-genCorr_LDsc_tbl$gencorr_P_adj[genCorr_LDsc_tbl$pheno2_term %in% MAGIC_traits] <-
-  p.adjust(genCorr_LDsc_tbl$gencorr_P[genCorr_LDsc_tbl$pheno2_term %in% MAGIC_traits],
-           method="bonferroni")
-genCorr_LDsc_tbl <- genCorr_LDsc_tbl %>%
-  mutate(gencorr_low = gencorr - b2 * gencorr_se,
-         gencorr_upp = gencorr + b2 * gencorr_se)
-genCorr_LDsc_tbl %>% select(-ends_with("_se"),-ends_with("lambda"),-gencorr_Z) %>%
-  filter(pheno2_term %in% MAGIC_traits)
-genCorr_LDsc_tbl %>% select(-ends_with("_se"),-ends_with("lambda"),-gencorr_Z, -gencorr_P_adj) %>%
-  filter(!pheno2_term %in% MAGIC_traits)
+i_PXS_MAGIC <- which(genCorr_LDsc_tbl$pheno2_term %in% MAGIC_traits & genCorr_LDsc_tbl$pheno1_term =="PXS_T2D")
+genCorr_LDsc_tbl$gencorr_P_adj[i_PXS_MAGIC] <- p.adjust(genCorr_LDsc_tbl$gencorr_P[i_PXS_MAGIC],method="bonferroni")
+b2 <- qnorm(1 - (0.025 / length(i_PXS_MAGIC)))
+genCorr_LDsc_tbl$gencorr_low[i_PXS_MAGIC] <- genCorr_LDsc_tbl$gencorr[i_PXS_MAGIC] - b2 * genCorr_LDsc_tbl$gencorr_se[i_PXS_MAGIC]
+genCorr_LDsc_tbl$gencorr_upp[i_PXS_MAGIC] <- genCorr_LDsc_tbl$gencorr[i_PXS_MAGIC] + b2 * genCorr_LDsc_tbl$gencorr_se[i_PXS_MAGIC]
+# p-adjusts gencorr(exposures, MAGIC)
+i_expos_MAGIC <- which(genCorr_LDsc_tbl$pheno2_term %in% MAGIC_traits & genCorr_LDsc_tbl$pheno1_term %in% exposures_list)
+genCorr_LDsc_tbl$gencorr_P_adj[i_expos_MAGIC] <- p.adjust(genCorr_LDsc_tbl$gencorr_P[i_expos_MAGIC],method="bonferroni")
+b3 <- qnorm(1 - (0.025 / length(i_expos_MAGIC)))
+genCorr_LDsc_tbl$gencorr_low[i_expos_MAGIC] <- genCorr_LDsc_tbl$gencorr[i_expos_MAGIC] - b2 * genCorr_LDsc_tbl$gencorr_se[i_expos_MAGIC]
+genCorr_LDsc_tbl$gencorr_upp[i_expos_MAGIC] <- genCorr_LDsc_tbl$gencorr[i_expos_MAGIC] + b2 * genCorr_LDsc_tbl$gencorr_se[i_expos_MAGIC]
+
+# determines significance
+genCorr_LDsc_tbl$significant <- genCorr_LDsc_tbl$gencorr_P_adj < 0.05
+
+# Views significant gencorrs
+genCorr_LDsc_tbl %>% filter(significant) %>%
+  select(-contains("h2"), -gencorr_Z, -gencorr_P, - ends_with("lambda"))
 
 ##### h2 results from LDsc #####
 # function for extracting data from ldsc h2 log file
@@ -382,8 +387,6 @@ h2_LDsc_tbl <- h2_LDsc_tbl %>% left_join(fields[,c("term","traitname")], by="ter
 # compares BOLT-REML vs LDsc in h2 computation
 h2_comparison <- h2_LDsc_tbl %>%
   select(term, traitname, ldsc_h2=h2,ldsc_h2_se=h2_se,ldsc_lambda=lambda, ldsc_ratio=ratio) %>%
-  mutate(ldsc_h2_pre.GC = ldsc_h2 * ldsc_lambda,
-         ldsc_h2_ratio.adj = ldsc_h2_pre.GC - ldsc_ratio * (ldsc_h2_pre.GC - ldsc_h2)) %>%
   left_join(genCorr_REML_tbl %>% group_by(pheno1_term) %>%
               summarize(REML_h2 = mean(h2g1), REML_h2_err = mean(h2g1_err)),
             by = c("term"="pheno1_term"))
@@ -400,16 +403,3 @@ ggplot(h2_comparison, aes(x=REML_h2, y=ldsc_h2)) +
   ylab("h2 estimated by LDsc") +
   labs(title = "Comparison of h2 estimate of 25 exposures by LDsc vs BOLT-REML",
        subtitle = paste0("LDsc_h2 ~ BOLT-REML_h2 slope = ", round(lm1$coefficients[2],3)))
-# dont know if any of this is correct to do:
-# shows h2 comparisons reversing LDsc's GC adjustment (s.e. bars may be wrong)
-ggplot(h2_comparison, aes(x=REML_h2, y=ldsc_h2_pre.GC)) +
-  geom_abline(slope=1) +
-  geom_point() +
-  geom_errorbar(aes(ymin = ldsc_h2_pre.GC-2*ldsc_h2_se, ymax = ldsc_h2_pre.GC+2*ldsc_h2_se)) +
-  geom_errorbarh(aes(xmin = REML_h2-2*ldsc_h2_se, xmax = REML_h2+2*ldsc_h2_se))
-# shows h2 comparisons using ratio-adjusted LDsc h2 estimate
-ggplot(h2_comparison, aes(x=REML_h2, y=ldsc_h2_ratio.adj)) +
-  geom_abline(slope=1) +
-  geom_point() +
-  geom_errorbar(aes(ymin = ldsc_h2_ratio.adj-2*ldsc_h2_se, ymax = ldsc_h2_ratio.adj+2*ldsc_h2_se)) +
-  geom_errorbarh(aes(xmin = REML_h2-2*ldsc_h2_se, xmax = REML_h2+2*ldsc_h2_se))
