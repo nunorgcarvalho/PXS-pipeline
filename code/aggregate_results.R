@@ -55,7 +55,7 @@ extract_REML_genCorr <- function(genCorr) {
 #### REML results for genCorr PXS with CRFs ####
 # includes both heritability and genCorr
 gencorr_logs <- tibble(path=as.character(),
-                           term1=as.character(), term2=as.character())
+                       term1=as.character(), term2=as.character())
 # compiles list of gencorr.out results to read
 for (pheno in pheno_list) {
   loc_CRFs <- paste0(dir_scratch,pheno,"/",pheno,"_CRFs.txt")
@@ -88,6 +88,21 @@ for (pheno in pheno_list) {
     gencorr_logs <- gencorr_logs %>%
       add_row(path=loc_genCorr,term1=paste0(pheno,"_all"),term2=CRF)
   }
+  
+  # reads PXS_T2D x T2D_onset
+  loc_genCorr <- paste0(dir_scratch,pheno,"/LDsc_gencorr_PXS_",pheno,"_",pheno,"_onset.log")
+  gencorr_logs <- gencorr_logs %>%
+    add_row(path=loc_genCorr,term1=paste0("PXS_",pheno),term2=paste0(pheno,"_onset"))
+  
+  # reads PXS_T2D x T2D_all
+  loc_genCorr <- paste0(dir_scratch,pheno,"/LDsc_gencorr_PXS_",pheno,"_",pheno,"_all.log")
+  gencorr_logs <- gencorr_logs %>%
+    add_row(path=loc_genCorr,term1=paste0("PXS_",pheno),term2=paste0(pheno,"_all"))
+  
+  # reads T2D_onset x T2D_all
+  loc_genCorr <- paste0(dir_scratch,pheno,"/LDsc_gencorr_",pheno,"_onset_",pheno,"_all.log")
+  gencorr_logs <- gencorr_logs %>%
+    add_row(path=loc_genCorr,term1=paste0(pheno,"_onset"),term2=paste0(pheno,"_all"))
 }
 genCorr_REML_tbl <- tibble(
   pheno1_term = as.character(),
@@ -202,7 +217,9 @@ ggsave(loc_fig,width=4000, height=3000, units="px")
 
 # looks at heritabilities of traits
 genCorr_REML_tbl %>% group_by(pheno1_term,pheno1_traitname) %>%
+  filter(h2g1_err == min(h2g1_err)) %>%
   summarize(h2 = mean(h2g1), h2_err = mean(h2g1_err)) %>%
+  mutate(h2_low = h2 - 1.96*h2_err, h2_upp = h2 + 1.96*h2_err) %>%
   arrange(-h2) %>% print(n=Inf)
 
 #### LDsc results ####
@@ -248,6 +265,16 @@ extract_LDsc_genCorr <- function(gencorr_log) {
   out
 }
 
+MAGIC_traits <- c("2hGlu","FG","FI","HbA1c")
+terms1 <- c("PXS_T2D","PXS_T2D","T2D_onset")
+terms2 <- c("T2D_onset","T2D_all","T2D_all")
+ldsc_logs <- tibble(
+  path=paste0(dir_scratch,"MAGIC/MAGIC_",MAGIC_traits,"_PXS_rg.log"),
+  term1="PXS_T2D", term2=MAGIC_traits
+) %>% add_row(
+  path=paste0(dir_scratch,"T2D/LDsc_gencorr_",terms1,"_",terms2,".log"),
+  term1=terms1, term2=terms2
+)
 genCorr_LDsc_tbl <- tibble(
   pheno1_term = as.character(),
   pheno1_h2 = as.numeric(),
@@ -262,28 +289,32 @@ genCorr_LDsc_tbl <- tibble(
   gencorr_Z = as.numeric(),
   gencorr_P = as.numeric()
 )
-MAGIC_traits <- c("2hGlu","FG","FI","HbA1c")
 # loops through each MAGIC trait
-for (MAGIC_trait in MAGIC_traits) {
+for (i in 1:nrow(ldsc_logs)) {
   # extracts ldsc gencorr data
-  loc_gencorr_log <- paste0("../scratch/MAGIC/MAGIC_",MAGIC_trait,"_PXS_rg.log")
+  loc_gencorr_log <- ldsc_logs$path[i]
   gencorr_log <- readLines(loc_gencorr_log)
   out <- extract_LDsc_genCorr(gencorr_log)
   # adds to table
   genCorr_LDsc_tbl <- genCorr_LDsc_tbl %>% add_row(
-    pheno1_term = MAGIC_trait, pheno2_term = "PXS_T2D",
+    pheno1_term = ldsc_logs$term1[i], pheno2_term = ldsc_logs$term2[i],
     pheno1_h2=out[1], pheno1_h2_se=out[2], pheno1_lambda=out[3],
     pheno2_h2=out[4], pheno2_h2_se=out[5], pheno2_lambda=out[6],
     gencorr=out[7], gencorr_se=out[8], gencorr_Z=out[9], gencorr_P=out[10]
   )
 }
 # coefficient used for bonferroni-corrected confidence intervals
-b2 <- qnorm(1 - (0.025 / nrow(genCorr_LDsc_tbl)))
-genCorr_LDsc_tbl$gencorr_P_adj <- p.adjust(genCorr_LDsc_tbl$gencorr_P, method="bonferroni")
+b2 <- qnorm(1 - (0.025 / length(MAGIC_traits)))
+genCorr_LDsc_tbl$gencorr_P_adj[genCorr_LDsc_tbl$pheno2_term %in% MAGIC_traits] <-
+  p.adjust(genCorr_LDsc_tbl$gencorr_P[genCorr_LDsc_tbl$pheno2_term %in% MAGIC_traits],
+           method="bonferroni")
 genCorr_LDsc_tbl <- genCorr_LDsc_tbl %>%
   mutate(gencorr_low = gencorr - b2 * gencorr_se,
          gencorr_upp = gencorr + b2 * gencorr_se)
-genCorr_LDsc_tbl %>% select(-ends_with("_se"),-ends_with("lambda"))
+genCorr_LDsc_tbl %>% select(-ends_with("_se"),-ends_with("lambda"),-gencorr_Z) %>%
+  filter(pheno2_term %in% MAGIC_traits)
+genCorr_LDsc_tbl %>% select(-ends_with("_se"),-ends_with("lambda"),-gencorr_Z, -gencorr_P_adj) %>%
+  filter(!pheno2_term %in% MAGIC_traits)
 
 ##### h2 results from LDsc #####
 # function for extracting data from ldsc h2 log file
@@ -361,9 +392,9 @@ h2_comparison <- h2_LDsc_tbl %>%
 ggplot(h2_comparison, aes(x=REML_h2, y=ldsc_h2)) +
   geom_abline(slope=1) +
   geom_smooth(method='lm') +
-  geom_point() +
   geom_errorbar(aes(ymin = ldsc_h2-2*ldsc_h2_se, ymax = ldsc_h2+2*ldsc_h2_se)) +
   geom_errorbarh(aes(xmin = REML_h2-2*REML_h2_err, xmax = REML_h2+2*REML_h2_err)) +
+  geom_point() +
   xlim(0,0.15) + ylim(0,0.15) +
   xlab("h2 estimated by BOLT-REML") +
   ylab("h2 estimated by LDsc") +
