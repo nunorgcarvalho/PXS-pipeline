@@ -1,5 +1,6 @@
 dir_repo=${HOME}'/group_nuno/PXS-pipeline/'
 dir_scratch=${dir_repo}'scratch/'
+dir_script=${dir_repo}'code/'
 dir_LD=${dir_scratch}LDscore/
 dir_ldsc=${HOME}'/group_nuno/ldsc/'
 dir_T2D=${dir_scratch}'T2D/'
@@ -8,7 +9,7 @@ run_ldsc="FALSE"
 run_BOLTREML="TRUE"
 
 # LDsc gencorr
-if [ "$run_lsdc" == "TRUE" ]; then
+if [ "$run_ldsc" == "TRUE" ]; then
 # corrects formatting for all the two T2Ds (PXS_T2D already done in run_genCorr_MAGIC.sh)
 for pheno in T2D_onset T2D_all
 do
@@ -60,6 +61,8 @@ fi
 
 # BOLT-REML gencorr
 if [ "$run_BOLTREML" == "TRUE" ]; then
+
+cd ${dir_T2D}
 
 # genCorr(PXS_T2D, T2D_onset)
 
