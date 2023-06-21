@@ -14,9 +14,12 @@ loc_phenolist <- paste0(dir_script,"../input_data/phenotypes.txt")
 pheno_list <- readLines(loc_phenolist)
 loc_expolist <- paste0(dir_script,"../input_data/exposures.txt")
 exposures_list <- readLines(loc_expolist)
+MAGIC_traits <- c("2hGlu","FG","FI","HbA1c")
 fields <- as_tibble(fread(paste0(dir_scratch,"fields_tbl.txt"))) %>%
-  add_row(term = c("T2D","PXS_T2D", "T2D_all"),
-          traitname = c("Type 2 Diabetes onset","PXS for Type 2 Diabetes onset","Type 2 Diabetes (all)"))
+  add_row(term = c("T2D","T2D_onset","PXS_T2D", "T2D_all"),
+          traitname = c("Type 2 Diabetes onset","Type 2 Diabetes onset","PXS for Type 2 Diabetes onset","Diabetes (all)")) %>%
+  add_row(term = MAGIC_traits,
+          traitname = c("2-hour Glucose","Fasting Glucose","Fasting Insulin","Glycated haemoglobin (HbA1c)"))
 #manually shortens long-named traits
 fields[fields$term=="f4080","traitname"] <- "Systolic blood pressure"
 
@@ -250,7 +253,6 @@ extract_LDsc_genCorr <- function(gencorr_log) {
   out
 }
 
-MAGIC_traits <- c("2hGlu","FG","FI","HbA1c")
 terms1 <- c("PXS_T2D","PXS_T2D","T2D_onset")
 terms2 <- c("T2D_onset","T2D_all","T2D_all")
 ldsc_logs <- tibble(
@@ -317,9 +319,48 @@ genCorr_LDsc_tbl$gencorr_upp[i_expos_MAGIC] <- genCorr_LDsc_tbl$gencorr[i_expos_
 # determines significance
 genCorr_LDsc_tbl$significant <- genCorr_LDsc_tbl$gencorr_P_adj < 0.05
 
+# Adds named terms to table
+genCorr_LDsc_tbl <- genCorr_LDsc_tbl %>%
+  left_join(fields %>% select(term, traitname), by=c("pheno1_term"="term")) %>% rename(pheno1_traitname = traitname) %>%
+  left_join(fields %>% select(term, traitname), by=c("pheno2_term"="term")) %>% rename(pheno2_traitname = traitname)
+
 # Views significant gencorrs
 genCorr_LDsc_tbl %>% filter(significant) %>%
-  select(-contains("h2"), -gencorr_Z, -gencorr_P, - ends_with("lambda"))
+  select(-contains("h2"), -gencorr_Z, -gencorr_P, - ends_with("lambda"), -ends_with("term"))
+
+# Visualizes exposure x CRF gencorrs
+ggplot(genCorr_LDsc_tbl[c(i_PXS_MAGIC,i_expos_MAGIC),],
+       aes(x=pheno2_traitname,#factor(pheno2_traitname,levels=CRF_order),
+           y=fct_rev(factor(pheno1_traitname,levels=expo_order)),
+           fill=gencorr)) +
+  geom_tile() +
+  geom_text(data=genCorr_LDsc_tbl[c(i_PXS_MAGIC,i_expos_MAGIC),] %>% filter(significant),
+            aes(label = formatC(signif(gencorr,digits=2), digits=2,format="fg", flag="#"))) +
+  geom_rect(aes(xmin = -Inf, xmax = Inf,
+                ymin = length(expo_order)-0.5, ymax = length(expo_order)+0.5),
+            color = "black", fill = NA) +
+  scale_fill_gradient2(low="red",mid="white", high="green", midpoint = 0) +
+  scale_x_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=20), expand = c(0, 0)) +
+  scale_y_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=40), expand = c(0, 0)) +
+  xlab("MAGIC Phenotype") +
+  ylab("Behavior") +
+  labs(title = "Genetic Correlations between behaviors + PXS-T2D and MAGIC phenotypes",
+       subtitle = "Only significant genetic correlations shown (p < 0.05 / 100).\nRow for PXS-T2D highlighted. Behaviors in descending order of T2D onset association",
+       fill = "Genetic Correlation") +
+  theme_light()
+# saves to system
+loc_fig <- paste0(dir_figs,"genCorrs_PXS-expos_MAGIC.png")
+ggsave(loc_fig,width=4000, height=3000, units="px")
+
+
+
+
+
+
+
+
+
+
 
 ##### h2 results from LDsc #####
 # function for extracting data from ldsc h2 log file
