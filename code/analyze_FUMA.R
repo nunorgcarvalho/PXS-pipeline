@@ -22,7 +22,7 @@ expo_order <- factor(c("PXS for Type 2 Diabetes onset",
                           left_join(fields%>%select(term,traitname), by="term") %>%
                           arrange(p.value))$traitname) )
 
-## GTEx Category data ####
+## General Tissue data ####
 for (i in 1:(nrow(jobID_tbl))) {
   jobID <- jobID_tbl$JobID[i]
   term <- jobID_tbl$term[i]
@@ -41,9 +41,10 @@ for (i in 1:(nrow(jobID_tbl))) {
 # Bonferroni correction (FUMA already Bonferonni corrects within each trait)
 GTEx_general$P_adjusted <- p.adjust(GTEx_general$P / length(unique(GTEx_general$VARIABLE)), method = 'bonferroni')
 GTEx_general$significant_P_adj <- GTEx_general$P_adjusted < 0.05
+GTEx_general$tissue_name <- sapply(GTEx_general$VARIABLE, function(x) gsub("_", " ", x))
 GTEx_general %>% filter(significant_P_adj) %>% arrange(P_adjusted) %>% print(n=Inf)
 ### tile plot ####
-ggplot(GTEx_general, aes(x = VARIABLE,
+ggplot(GTEx_general, aes(x = tissue_name,
                          y = fct_rev(factor(traitname, levels=expo_order)))) +
   geom_tile(aes(fill=-log10(P_adjusted))) +
   geom_rect(aes(xmin = -Inf, xmax = Inf,
@@ -55,9 +56,10 @@ ggplot(GTEx_general, aes(x = VARIABLE,
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
   xlab("Tissue Category") + ylab("Trait") +
   labs(title = "Average gene expression per tissue category for each behavior",
-       subtitle = "Using MAGMA with GTEx through FUMA. White: p<0.05 (Bonferroni adjusted)")
+       subtitle = "Using MAGMA with GTEx through FUMA. White: adjusted p = 0.05",
+       fill = bquote(-log[10](P)) )
 
-## GTEx Cpecific tissue data ####
+## Specific tissue data ####
 for (i in 1:(nrow(jobID_tbl))) {
   jobID <- jobID_tbl$JobID[i]
   term <- jobID_tbl$term[i]
@@ -76,21 +78,58 @@ for (i in 1:(nrow(jobID_tbl))) {
 # Bonferroni correction (FUMA already Bonferonni corrects within each trait)
 GTEx_specific$P_adjusted <- p.adjust(GTEx_specific$P / length(unique(GTEx_specific$VARIABLE)), method = 'bonferroni')
 GTEx_specific$significant_P_adj <- GTEx_specific$P_adjusted < 0.05
+GTEx_specific$tissue_name <- sapply(GTEx_specific$FULL_NAME, function(x) gsub("_", " ", x))
 GTEx_specific %>% filter(significant_P_adj) %>% arrange(P_adjusted) %>% print(n=Inf)
 ### tile plot ####
-ggplot(GTEx_specific, aes(x = VARIABLE,
+ggplot(GTEx_specific, aes(x = tissue_name,
                          y = fct_rev(factor(traitname, levels=expo_order)))) +
   geom_tile(aes(fill=-log10(P_adjusted))) +
   geom_rect(aes(xmin = -Inf, xmax = Inf,
                 ymin = length(expo_order)-0.5, ymax = length(expo_order)+0.5),
             color = "black", fill = NA) +
-  scale_x_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=30), expand = c(0, 0)) +
+  scale_x_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=25), expand = c(0, 0)) +
   scale_y_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=50), expand = c(0, 0)) +
-  scale_fill_gradient2(low="white",mid="white", high="green", midpoint = -log10(0.05)) +
+  scale_fill_gradient2(low="red",mid="white", high="green", midpoint = -log10(0.05)) +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
   xlab("Tissue") + ylab("Trait") +
   labs(title = "Average gene expression per tissue for each behavior",
-       subtitle = "Using MAGMA with GTEx through FUMA. White: p<0.05 (adjusted)")
+       subtitle = "Using MAGMA with GTEx through FUMA. White: adjusted p = 0.05",
+       fill = bquote(-log[10](P)) )
+
+## Combined tissue data ####
+# keeps list of tissues with at least one significant GTEx result
+keep_general <- (GTEx_general %>% group_by(tissue_name) %>%
+                   summarize(significant_P_adj = any(significant_P_adj)) %>%
+                   filter(significant_P_adj))$tissue_name %>% unname()
+keep_specific <- (GTEx_specific %>% group_by(tissue_name) %>%
+                    summarize(significant_P_adj = any(significant_P_adj)) %>%
+                    filter(significant_P_adj))$tissue_name %>% unname()
+# keeps only the general tissue type if its duplicated as a specific tissue
+keep_specific <-  keep_specific[!keep_specific %in% keep_general]
+
+GTEx_combined <- GTEx_general %>% filter(tissue_name %in% keep_general) %>%
+  add_row( GTEx_specific %>% select(-FULL_NAME) %>% filter(tissue_name %in% keep_specific) ) %>%
+  select(-VARIABLE, -TYPE)
+
+### tile plot ####
+ggplot(GTEx_combined, aes(x = factor(tissue_name, levels = c(keep_general, keep_specific)),
+                          y = fct_rev(factor(traitname, levels=expo_order)))) +
+  geom_tile(aes(fill=-log10(P_adjusted))) +
+  geom_rect(aes(xmin = -Inf, xmax = Inf,
+                ymin = length(expo_order)-0.5, ymax = length(expo_order)+0.5),
+            color = "black", fill = NA) +
+  geom_rect(aes(xmin = 0.5, xmax = length(keep_general)+0.5),
+                ymin = -Inf, ymax = Inf,
+            color = "black", fill = NA) +
+  scale_x_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=15), expand = c(0, 0)) +
+  scale_y_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=50), expand = c(0, 0)) +
+  scale_fill_gradient2(low="red",mid="white", high="green", midpoint = -log10(0.05)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  xlab("Tissue") + ylab("Trait") +
+  labs(title = "Average gene expression per tissue for each behavior",
+       subtitle = "Using MAGMA with GTEx through FUMA. White: adjusted p = 0.05",
+       fill = bquote(-log[10](P)))
+
 
 # GWAS CATALOG ####
 
