@@ -5,6 +5,7 @@ library(ggrepel)
 source('paths.R')
 
 dir_FUMA <- paste0(dir_scratch,"FUMA_results/")
+dir_results <- paste0(dir_script,"../final_results/")
 # used for plotting purposes
 shortnames <- as_tibble(fread("../input_data/exposures_shortnames.csv"))
 # loads job ID table to match jobs to fields
@@ -188,7 +189,13 @@ groupings_tbl$Trait <- gsub("\\\\", "", groupings_tbl$Trait)
 # (missing_traits <- (GWAS_catalog_trait_count_subset %>% filter(!Trait %in% groupings_tbl$Trait))$Trait)
 
 GWAS_catalog <- GWAS_catalog %>% left_join(groupings_tbl, by="Trait")
-GWAS_catalog %>%
+GWAS_catalog_group_count <- GWAS_catalog %>%
   group_by(Group) %>% summarize(n = n()) %>%
   filter(!is.na(Group)) %>% arrange(-n)
-GWAS_catalog_trait_count
+
+# saves tables
+loc_out <- paste0(dir_results,"GWAS_catalog_group_count.txt")
+fwrite(GWAS_catalog_group_count, loc_out, sep="\t")
+
+loc_out <- paste0(dir_results,"GWAS_catalog_trait_count.txt")
+fwrite(GWAS_catalog_trait_count, loc_out, sep="\t")
