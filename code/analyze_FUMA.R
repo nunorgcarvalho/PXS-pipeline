@@ -1,4 +1,5 @@
 # Libraries and paths ####
+library(GenomicRanges)
 library(tidyverse)
 library(data.table)
 library(ggrepel)
@@ -6,6 +7,8 @@ source('paths.R')
 
 dir_FUMA <- paste0(dir_scratch,"FUMA_results/")
 dir_results <- paste0(dir_script,"../final_results/")
+
+# Shared code ####
 # used for plotting purposes
 shortnames <- as_tibble(fread("../input_data/exposures_shortnames.csv"))
 # loads job ID table to match jobs to fields
@@ -18,7 +21,7 @@ jobID_tbl[jobID_tbl$JobName=="PXS NC", "term"] <- "PXS_T2D"
 jobID_tbl <- jobID_tbl %>%
   left_join(fields %>% select(term, traitname, shortname), by="term") %>%
   select(-V4)
-# GTEx Data ####
+
 # gets order of exposures from decreasing p-value
 coeffs <- as_tibble(fread(paste0(dir_script,"../input_data/PXS_coefficients.txt")))
 expo_order <- factor(c(shortnames$shortname[1],
@@ -26,6 +29,7 @@ expo_order <- factor(c(shortnames$shortname[1],
                           filter(term %in% fields[fields$use_type=="exposure",]$term) %>% 
                           left_join(fields%>%select(term,shortname), by="term") %>%
                           arrange(p.value))$shortname) )
+# GTEx Data ####
 
 ## General Tissue data ####
 for (i in 1:(nrow(jobID_tbl))) {
@@ -199,3 +203,57 @@ fwrite(GWAS_catalog_group_count, loc_out, sep="\t")
 
 loc_out <- paste0(dir_results,"GWAS_catalog_trait_count.txt")
 fwrite(GWAS_catalog_trait_count, loc_out, sep="\t")
+
+# Genomic Loci ####
+for (i in 1:(nrow(jobID_tbl))) {
+  jobID <- jobID_tbl$JobID[i]
+  term <- jobID_tbl$term[i]
+  shortname <- jobID_tbl$shortname[i]
+  print(paste(i,jobID,term,shortname))
+  
+  loc_file <- paste0(dir_FUMA,"FUMA_job",jobID,"/GenomicRiskLoci.txt")
+  job_data <- as_tibble(fread(loc_file, skip="GenomicLocus"))
+  
+  if (i==1) {GRLoci <- job_data %>% mutate(term = term, shortname = shortname)
+  } else {
+    GRLoci <- GRLoci %>%
+      add_row(job_data %>% mutate(term = term, shortname = shortname))
+  }
+}
+# shared loci
+gr <- GenomicRanges::GRanges(seqnames = GRLoci$chr,
+                             ranges = IRanges(start = GRLoci$start, end = GRLoci$end)) %>%
+  GenomicRanges::reduce()
+GRLoci_merged <- as_tibble(gr) %>%
+  mutate(GLM_ID = row_number()) %>%
+  select(GLM_chr = seqnames, GLM_start = start, GLM_end = end, GLM_ID)
+
+GRLoci <- GRLoci %>% arrange(chr, start) %>%
+  mutate(GLM_ID=0)
+for (i in 1:nrow(GRLoci)) {
+  GRLoci_merged_chr <- GRLoci_merged %>% filter(GLM_chr==GRLoci$chr[i])
+  for (ii in 1:nrow(GRLoci_merged_chr)) {
+    if (GRLoci$start[i] >= GRLoci_merged_chr$GLM_start[ii] & GRLoci$end[i] <= GRLoci_merged_chr$GLM_end[ii]) {
+      GRLoci$GLM_ID[i] <- GRLoci_merged_chr$GLM_ID[ii]
+      break
+    }
+  }
+  if (i %% 50 == 0) {print(i)}
+}
+GRLoci <- GRLoci %>% left_join(GRLoci_merged, by="GLM_ID")
+GRLoci %>% group_by(GLM_ID, GLM_chr, GLM_start, GLM_end) %>% summarize(n=n()) %>% arrange(-n)
+n3_GLM <- (GRLoci %>% group_by(GLM_ID) %>% summarize(n=n()) %>%
+             filter(n>2) %>% arrange(-n))$GLM_ID
+GRLoci_top <- GRLoci %>% filter(GLM_ID %in% n3_GLM) %>%
+  mutate(GLM_ID = as.factor(GLM_ID))
+
+# plots crappy heatmap of repeated loci
+ggplot(GRLoci_top, aes(x = factor(GLM_ID, levels = n3_GLM),
+                       y = fct_rev(factor(shortname, levels=expo_order)))) +
+  geom_tile(fill = "red") + theme_light()
+
+# Number of loci by traits
+GRLoci %>% group_by(shortname) %>% summarize(n = n()) %>% arrange(-n)
+# prints table
+loc_out <- paste0(dir_results,"genomic_risk_loci.txt")
+fwrite(GRLoci, loc_out, sep="\t")
