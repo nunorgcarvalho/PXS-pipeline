@@ -6,7 +6,7 @@ library(data.table)
 source("paths.R")
 
 # makes directory for figures
-dir_figs <- paste0(dir_scratch,"figures/")
+dir_figs <- paste0(dir_results,"figures/")
 dir.create(dir_figs, showWarnings = FALSE)
 dir_results <- paste0(dir_script,"../final_results/")
 
@@ -24,10 +24,22 @@ fields <- as_tibble(fread(paste0(dir_scratch,"fields_tbl.txt"))) %>%
   add_row(term = c("T2D","T2D_onset","PXS_T2D", "T2D_all"), use_type="phenotype",
           shortname = c("T2D onset","T2D onset","PXS for T2D onset","Diabetes (all)")) %>%
   add_row(term = MAGIC_traits, use_type="MAGIC",
-          shortname = c("2-hour Glucose","Fasting Glucose","Fasting Insulin","Glycated haemoglobin (HbA1c)"))
+          shortname = c("2-hour Glucose","Fasting Glucose","Fasting Insulin","HbA1c"))
 #manually shortens long-named traits
-fields$shortname[fields$use_type=="CRF"] <- fields$traitname[fields$use_type=="CRF"]
-fields[fields$term=="f4080","shortname"] <- "Systolic blood pressure"
+fields$shortname[fields$use_type=="CRF"] <- c("Systolic BP","BMI","Glucose","HbA1c","HDL","Triglycerides")
+
+# shared theme for multiple plots
+tileplot_theme <- theme(
+  legend.key.size = unit(2, "mm"),
+  legend.title = element_text(size=6),
+  legend.text = element_text(size=5),
+  legend.margin = margin(0,-1,0,-2, unit="mm"),
+  legend.text.align = 1,
+  plot.title = element_text(size=7),
+  plot.subtitle = element_text(size=5),
+  axis.title = element_text(size=6),
+  axis.text = element_text(size=5)
+)
 
 # BOLT-REML results ####
 extract_REML_genCorr <- function(genCorr) {
@@ -190,23 +202,25 @@ ggplot(genCorr_REML_tbl %>% filter(pheno1_shortname %in% expo_order),
   geom_tile() +
   geom_text(data=genCorr_REML_tbl %>%
               filter(pheno1_shortname %in% expo_order, abs(gencorr)-b1*gencorr_err > 0),
-            aes(label = formatC(signif(gencorr,digits=2), digits=2,format="fg", flag="#"))) +
+            aes(label = formatC(signif(gencorr,digits=2), digits=2,format="fg", flag="#")),
+            size = 2) +
+  theme_light() +
   geom_rect(aes(xmin = -Inf, xmax = Inf,
                 ymin = length(expo_order)-0.5, ymax = length(expo_order)+0.5),
             color = "black", fill = NA) +
-  scale_fill_gradient2(low="red",mid="white", high="green", midpoint = 0) +
+  scale_fill_gradient2(low="#DE1B1B",mid="white", high="#93CF1A", midpoint = 0) +
   scale_x_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=20), expand = c(0, 0)) +
   scale_y_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=20), expand = c(0, 0)) +
   xlab("Clinical Risk Factor (CRF)") +
   ylab("Behavior") +
-  labs(title = "Genetic Correlations between behaviors + PXS-T2D and CRFs",
-       subtitle = "Only significant genetic correlations shown (p < 0.05 / 150).\n
-       Row for PXS-T2D highlighted. Behaviors in descending order of T2D onset association",
-       fill = "Genetic Correlation") +
-  theme_light()
+  labs(#title = "Genetic Correlations between behaviors + PXS-T2D and CRFs",
+       #subtitle = "Only significant genetic correlations shown (p < 0.05 / 150). Row for PXS-T2D highlighted. Behaviors in descending order of T2D onset association",
+       fill = bquote(r[g])) +
+  tileplot_theme
 # saves to system
-loc_fig <- paste0(dir_figs,"genCorrs_PXS-expos_CRFs.png")
-ggsave(loc_fig,width=4000, height=3000, units="px")
+loc_fig <- paste0(dir_figs,"genCorrs_PXS-expos_CRFs")
+ggsave(paste0(loc_fig,".png"), width=110, height=120, units="mm", dpi=300)
+ggsave(paste0(loc_fig,".pdf"), width=110, height=120, units="mm", dpi=300)
 
 # looks at heritabilities of traits
 genCorr_REML_tbl %>% group_by(pheno1_term,pheno1_shortname) %>%
@@ -341,24 +355,25 @@ ggplot(genCorr_LDsc_tbl[c(i_PXS_MAGIC,i_expos_MAGIC),],
            fill=gencorr)) +
   geom_tile() +
   geom_text(data=genCorr_LDsc_tbl[c(i_PXS_MAGIC,i_expos_MAGIC),] %>% filter(significant),
-            aes(label = formatC(signif(gencorr,digits=2), digits=2,format="fg", flag="#"))) +
+            aes(label = formatC(signif(gencorr,digits=2), digits=2,format="fg", flag="#")),
+            size = 2) +
   geom_rect(aes(xmin = -Inf, xmax = Inf,
                 ymin = length(expo_order)-0.5, ymax = length(expo_order)+0.5),
             color = "black", fill = NA) +
-  scale_fill_gradient2(low="red",mid="white", high="green", midpoint = 0) +
-  scale_x_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=20), expand = c(0, 0)) +
+  scale_fill_gradient2(low="#DE1B1B",mid="white", high="#93CF1A", midpoint = 0) +
+  scale_x_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=10), expand = c(0, 0)) +
   scale_y_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=20), expand = c(0, 0)) +
-  xlab("MAGIC Phenotype") +
+  xlab("Glycemic Phenotype") +
   ylab("Behavior") +
-  labs(title = "Genetic Correlations between behaviors + PXS-T2D and MAGIC phenotypes",
-       subtitle = "Only significant genetic correlations shown (p < 0.05 / 100).\nRow for PXS-T2D highlighted. Behaviors in descending order of T2D onset association",
-       fill = "Genetic Correlation") +
-  theme_light()
+  labs(#title = "Genetic Correlations between behaviors + PXS-T2D and MAGIC phenotypes",
+       #subtitle = "Only significant genetic correlations shown (p < 0.05 / 100).\nRow for PXS-T2D highlighted. Behaviors in descending order of T2D onset association",
+       fill = bquote(r[g])) +
+  theme_light() +
+  tileplot_theme
 # saves to system
-loc_fig <- paste0(dir_figs,"genCorrs_PXS-expos_MAGIC.png")
-ggsave(loc_fig,width=4000, height=3000, units="px")
-
-
+loc_fig <- paste0(dir_figs,"genCorrs_PXS-expos_MAGIC")
+ggsave(paste0(loc_fig,".png"), width=80, height=120, units="mm", dpi=300)
+ggsave(paste0(loc_fig,".pdf"), width=80, height=120, units="mm", dpi=300)
 
 
 

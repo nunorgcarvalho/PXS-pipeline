@@ -6,5 +6,6 @@ scratch/*
 sandbox/scratch/*
 final_results/*.png
 final_results/*.pdf
+final_results/*.rtf
 final_results/Manhattan_plots/*
 final_results/figures/*

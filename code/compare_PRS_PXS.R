@@ -20,7 +20,7 @@ pheno_T2D <- pheno %>% select("IID",contains("T2D")) %>% drop_na()
 ## Plot
 cor1 <- cor.test(pheno_T2D$PRS_T2D, pheno_T2D$PXS_T2D)
 text <- paste0("r==",round(cor1$estimate,4),"~~p<2.2%*%10^-16")
-ggplot(pheno_T2D, aes(x=PRS_T2D,y=PXS_T2D)) +
+gg <- ggplot(pheno_T2D, aes(x=PRS_T2D,y=PXS_T2D)) +
   geom_point(shape=1, alpha=0.01) +
   geom_smooth(method="lm") +
   theme_light() +
@@ -29,5 +29,6 @@ ggplot(pheno_T2D, aes(x=PRS_T2D,y=PXS_T2D)) +
   annotate("text", label = text, parse=TRUE,
            x = min(pheno_T2D$PRS_T2D) + 0.1, hjust = 0,
            y = max(pheno_T2D$PXS_T2D) - 0.1, vjust = 1,)
-loc_out <- paste0(dir_results, "figures/PRS_vs_PXS.png")
-ggsave(loc_out, width = 3000, height = 2000, units = "px")
+loc_out <- paste0(dir_results, "figures/PRS_vs_PXS")
+ggsave(paste0(loc_out,".png"), plot=gg, width=180, height = 120, units="mm", dpi=300)
+ggsave(paste0(loc_out,".pdf"), plot=gg, width=180, height = 120, units="mm", dpi=300)

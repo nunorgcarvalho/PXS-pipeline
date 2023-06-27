@@ -6,7 +6,7 @@ library(ggrepel)
 source('paths.R')
 
 dir_FUMA <- paste0(dir_scratch,"FUMA_results/")
-dir_results <- paste0(dir_script,"../final_results/")
+dir_figs <- paste0(dir_results,"figures/")
 
 # Shared code ####
 # used for plotting purposes
@@ -29,6 +29,20 @@ expo_order <- factor(c(shortnames$shortname[1],
                           filter(term %in% fields[fields$use_type=="exposure",]$term) %>% 
                           left_join(fields%>%select(term,shortname), by="term") %>%
                           arrange(p.value))$shortname) )
+
+# shared theme for multiple plots
+tileplot_theme <- theme(
+  legend.key.size = unit(2, "mm"),
+  legend.title = element_text(size=6),
+  legend.text = element_text(size=5),
+  legend.margin = margin(0,-1,0,-2, unit="mm"),
+  legend.text.align = 1,
+  plot.title = element_text(size=7),
+  plot.subtitle = element_text(size=5),
+  axis.title = element_text(size=6),
+  axis.text = element_text(size=5)
+)
+
 # GTEx Data ####
 
 ## General Tissue data ####
@@ -61,12 +75,21 @@ ggplot(GTEx_general, aes(x = tissue_name,
             color = "black", fill = NA) +
   scale_x_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=30), expand = c(0, 0)) +
   scale_y_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=20), expand = c(0, 0)) +
-  scale_fill_gradient2(low="red",mid="white", high="green", midpoint = -log10(0.05)) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  scale_fill_gradient2(low="#DE1B1B",mid="white", high="#93CF1A", midpoint = -log10(0.05)) +
   xlab("Tissue Category") + ylab("Trait") +
-  labs(title = "Average gene expression per tissue category for each behavior",
-       subtitle = "Using MAGMA with GTEx through FUMA. White: adjusted p = 0.05",
-       fill = bquote(-log[10](P)) )
+  labs(#title = "Average gene expression per tissue category for each behavior",
+       #subtitle = "Using MAGMA with GTEx through FUMA. White: adjusted p = 0.05",
+       fill = bquote(-log[10](P)) ) +
+  theme_light() +
+  tileplot_theme +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+        legend.key.size = unit(4, "mm"),
+        legend.title = element_text(size=5))
+# saves to system
+loc_fig <- paste0(dir_figs,"GTEx_category")
+ggsave(paste0(loc_fig,".png"), width=180, height=120, units="mm", dpi=300)
+ggsave(paste0(loc_fig,".pdf"), width=180, height=120, units="mm", dpi=300)
+
 
 ## Specific tissue data ####
 for (i in 1:(nrow(jobID_tbl))) {
@@ -98,12 +121,20 @@ ggplot(GTEx_specific, aes(x = tissue_name,
             color = "black", fill = NA) +
   scale_x_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=25), expand = c(0, 0)) +
   scale_y_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=20), expand = c(0, 0)) +
-  scale_fill_gradient2(low="red",mid="white", high="green", midpoint = -log10(0.05)) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  scale_fill_gradient2(low="#DE1B1B",mid="white", high="#93CF1A", midpoint = -log10(0.05)) +
   xlab("Tissue") + ylab("Trait") +
-  labs(title = "Average gene expression per tissue for each behavior",
-       subtitle = "Using MAGMA with GTEx through FUMA. White: adjusted p = 0.05",
-       fill = bquote(-log[10](P)) )
+  labs(#title = "Average gene expression per tissue for each behavior",
+       #subtitle = "Using MAGMA with GTEx through FUMA. White: adjusted p = 0.05",
+       fill = bquote(-log[10](P)) ) +
+  tileplot_theme +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size = 4),
+        legend.key.size = unit(4, "mm"),
+        legend.title = element_text(size=5))
+
+# saves to system
+loc_fig <- paste0(dir_figs,"GTEx_specific")
+ggsave(paste0(loc_fig,".png"), width=180, height=120, units="mm", dpi=300)
+ggsave(paste0(loc_fig,".pdf"), width=180, height=120, units="mm", dpi=300)
 
 ## Combined tissue data ####
 # keeps list of tissues with at least one significant GTEx result
@@ -132,12 +163,29 @@ ggplot(GTEx_combined, aes(x = factor(tissue_name, levels = c(keep_general, keep_
             color = "black", fill = NA) +
   scale_x_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=15), expand = c(0, 0)) +
   scale_y_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=20), expand = c(0, 0)) +
-  scale_fill_gradient2(low="red",mid="white", high="green", midpoint = -log10(0.05)) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  scale_fill_gradient2(low="#DE1B1B",mid="white", high="#93CF1A", midpoint = -log10(0.05)) +
   xlab("Tissue") + ylab("Trait") +
-  labs(title = "Average gene expression per tissue for each behavior",
-       subtitle = "Using MAGMA with GTEx through FUMA. White: adjusted p = 0.05",
-       fill = bquote(-log[10](P)))
+  labs(#title = "Average gene expression per tissue for each behavior",
+       #subtitle = "Using MAGMA with GTEx through FUMA. White: adjusted p = 0.05",
+       fill = bquote(-log[10](P))) +
+  tileplot_theme +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+        legend.key.size = unit(4, "mm"),
+        legend.title = element_text(size=5))
+# saves to system
+loc_fig <- paste0(dir_figs,"GTEx_combined")
+ggsave(paste0(loc_fig,".png"), width=140, height=120, units="mm", dpi=300)
+ggsave(paste0(loc_fig,".pdf"), width=140, height=120, units="mm", dpi=300)
+
+
+
+
+
+
+
+
+
+
 
 
 # GWAS CATALOG ####
