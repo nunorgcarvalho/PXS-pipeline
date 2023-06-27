@@ -4,7 +4,7 @@ library(data.table)
 library(gt)
 source('paths.R')
 
-dir_results <- paste0(dir_script,"../final_results/")
+dir_tbls <- paste0(dir_results,"tables/")
 
 # Common code ####
 gt_theme <- function(data) {
@@ -36,7 +36,8 @@ tbl_gt <- gt(tbl) %>%
   cols_label(Trait = "GWAS Catalog Trait", n = "# of SNP replications") %>%
   cols_align(align = "left", columns = c("Trait"))
 tbl_gt
-gtsave(tbl_gt, "GWAS_catalog_trait_count.png",dir_results)
+gtsave(tbl_gt, "GWAS_catalog_trait_count.png",dir_tbls)
+gtsave(tbl_gt, "GWAS_catalog_trait_count.rtf",dir_tbls)
 
 ## Group count ####
 loc_tbl <- paste0(dir_results, "GWAS_catalog_group_count.txt")
@@ -48,7 +49,8 @@ tbl_gt <- gt(tbl) %>%
   cols_label(Group = "GWAS Catalog Trait Group", n = "# of SNP replications") %>%
   cols_align(align = "left", columns = c("Group"))
 tbl_gt
-gtsave(tbl_gt, "GWAS_catalog_group_count.png",dir_results)
+gtsave(tbl_gt, "GWAS_catalog_group_count.png",dir_tbls)
+gtsave(tbl_gt, "GWAS_catalog_group_count.rtf",dir_tbls)
 
 # Fields Table ####
 ## All behavioral traits ####
@@ -69,7 +71,8 @@ tbl_gt <- gt(tbl) %>%
     ValueType = "Data Type") %>%
   cols_align(align = "left", columns = c("Field"))
 tbl_gt
-gtsave(tbl_gt, "fields_ALL_behaviors.png",dir_results) # maybe just save as .csv?
+gtsave(tbl_gt, "fields_ALL_behaviors.png",dir_tbls) # maybe just save as .csv?
+gtsave(tbl_gt, "fields_ALL_behaviors.rtf",dir_tbls)
 
 ## PXS Coefficients ####
 loc_tbl <- paste0(dir_script,"../input_data/PXS_coefficients.txt")
@@ -117,22 +120,25 @@ tbl_gt <- gt(tbl) %>%
              value ~ px(60),
              estimate ~ px(100))
 tbl_gt
-gtsave(tbl_gt, "PXS_coefficients.png",dir_results) # maybe just save as .csv?
+gtsave(tbl_gt, "PXS_coefficients.png",dir_tbls) # maybe just save as .csv?
+gtsave(tbl_gt, "PXS_coefficients.rtf",dir_tbls)
 
 # Heritabilities + Lambdas + # of genetic loci ####
 h2_tbl <- as_tibble(fread(paste0(dir_results,"h2_ldsc_REML.txt")))
 GRL_tbl <- as_tibble(fread(paste0(dir_results, "genomic_risk_loci.txt"))) %>%
   group_by(shortname) %>% summarize(n = n()) %>% arrange(-n)
+GWAS_tbl <- as_tibble(fread(paste0(dir_results,"GWAS_summary_tbl.txt")))
 
 b1 <- qnorm(1 - (0.025 / nrow(h2_tbl)))
 tbl <- h2_tbl %>%
   left_join(GRL_tbl, by="shortname") %>%
+  left_join(GWAS_tbl, by="term") %>%
   mutate(REML_h2_low = REML_h2 - b1 * REML_h2_err,
          REML_h2_upp = REML_h2 + b1 * REML_h2_err) %>%
   mutate(REML_h2_CI = paste0("[",sprintf(paste0("%.",rnd_dec,"f"), REML_h2_low),", ",
                              sprintf(paste0("%.",rnd_dec,"f"), REML_h2_upp), "]"),
          shortname = factor(shortname, levels=shortnames$shortname)) %>%
-  select(shortname, REML_h2, REML_h2_CI, ldsc_lambda, n) %>%
+  select(shortname, REML_h2, REML_h2_CI, lambda_BOLT, n, n_sig_SNPs) %>%
   arrange(-REML_h2)#arrange(shortname)
 
 tbl_gt <- gt(tbl) %>%
@@ -141,11 +147,13 @@ tbl_gt <- gt(tbl) %>%
     shortname = "Behavior",
     REML_h2 = md("h<sup>2</sup>"),
     REML_h2_CI = md("h<sup>2</sup> 95% CI"),
-    ldsc_lambda = "Lambda",
-    n = "Number of Genomic Loci"
+    lambda_BOLT = "Lambda",
+    n = "Genomic Loci",
+    n_sig_SNPs = "Significant SNPs"
   ) %>%
-  fmt_number(columns = c("REML_h2","ldsc_lambda"), decimals = 3) %>%
+  fmt_number(columns = c("REML_h2","lambda_BOLT"), decimals = 3) %>%
   cols_width(n ~ px(120)) %>%
   cols_align(align = "left", columns = c("shortname"))
 tbl_gt
-gtsave(tbl_gt, "behaviors_genetic_profile.png",dir_results)
+gtsave(tbl_gt, "behaviors_genetic_profile.png",dir_tbls)
+gtsave(tbl_gt, "behaviors_genetic_profile.rtf",dir_tbls)

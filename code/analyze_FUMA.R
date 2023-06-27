@@ -208,10 +208,11 @@ for (i in 1:(nrow(jobID_tbl)-1)) {
       add_row(job_data %>% mutate(term = term, shortname = shortname))
   }
 }
+GWAS_catalog_trait_count <- GWAS_catalog %>% group_by(Trait) %>% summarize(n=n()) %>% arrange(-n)
 # # list of studies with many individual traits which represent similar concepts, removed
 # GWAS_catalog %>% group_by(Study, Link) %>% summarize(n=n()) %>% arrange(-n)
 # offender_studies <- c("www.ncbi.nlm.nih.gov/pubmed/35668104","www.ncbi.nlm.nih.gov/pubmed/34503513")
-# GWAS_catalog_trait_count <- GWAS_catalog %>% group_by(Trait) %>% summarize(n=n()) %>% arrange(-n)
+
 # #GWAS_catalog_traits <- GWAS_catalog_trait_count$Trait
 # GWAS_catalog_trait_count_subset <- GWAS_catalog %>%
 #   filter(!Link %in% offender_studies) %>%

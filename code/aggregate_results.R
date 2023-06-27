@@ -8,7 +8,6 @@ source("paths.R")
 # makes directory for figures
 dir_figs <- paste0(dir_results,"figures/")
 dir.create(dir_figs, showWarnings = FALSE)
-dir_results <- paste0(dir_script,"../final_results/")
 
 # paths
 loc_phenolist <- paste0(dir_script,"../input_data/phenotypes.txt")
