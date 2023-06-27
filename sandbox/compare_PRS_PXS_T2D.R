@@ -1,19 +1,20 @@
 library(tidyverse)
 library(data.table)
+source("paths.R")
 
 loc_pheno3 <- "/n/groups/patel/uk_biobank/project_22881_671028/ukb671028.csv"
 cols_keep <- c("eid","26285-0.0")
 pheno3 <- as_tibble(fread(loc_pheno3, select=cols_keep)) %>%
   rename(PRS_T2D = `26285-0.0`)
 
-dir_scratch <- "~/scratch3/PXS_pipeline/"
 loc_pheno <- paste0(dir_scratch, "pheno_EC.txt")
 pheno <- as_tibble(fread(loc_pheno)) %>%
   left_join(pheno3, by=c("IID"="eid"))
 
 
-pheno_T2D <- pheno %>% select("IID",ends_with("T2D")) %>% drop_na()
+pheno_T2D <- pheno %>% select("IID",contains("T2D")) %>% drop_na()
 
+summary(lm(PRS_T2D ~ PXS_T2D, data = pheno_T2D))
 ggplot(pheno_T2D, aes(x=PRS_T2D,y=PXS_T2D)) +
   geom_point(alpha=0.01) +
   geom_smooth(method="lm")
@@ -23,7 +24,13 @@ ggplot(pheno_T2D, aes(x=PRS_T2D,y=PXS_T2D)) +
   geom_hex()
 
 cor.test(pheno_T2D$PXS_T2D, pheno_T2D$PRS_T2D)
+cor.test(pheno_T2D$T2D_onset, pheno_T2D$PRS_T2D)
+cor.test(pheno_T2D$T2D_onset, pheno_T2D$PXS_T2D)
+ggplot(pheno_T2D, aes(x=as.factor(T2D_onset), y = PXS_T2D)) +
+  geom_boxplot()
 
+ggplot(pheno_T2D, aes(x=as.factor(T2D_onset), y = PRS_T2D)) +
+  geom_boxplot()
 
 ####
 library(sf)
