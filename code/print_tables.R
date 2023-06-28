@@ -2,7 +2,7 @@
 library(tidyverse)
 library(data.table)
 library(gt)
-source('paths.R')
+source('code/paths.R')
 
 dir_tbls <- paste0(dir_results,"tables/")
 

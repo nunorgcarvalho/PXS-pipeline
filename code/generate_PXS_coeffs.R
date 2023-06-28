@@ -3,7 +3,7 @@
 library(tidyverse)
 library(data.table)
 library(callr)
-source('paths.R')
+source('code/paths.R')
 
 loc_pheno_full1 <- "/n/groups/patel/uk_biobank/main_data_34521/ukb34521.tab"
 loc_pheno_full2 <- "/n/groups/patel/uk_biobank/project_22881_669542/ukb669542.csv"

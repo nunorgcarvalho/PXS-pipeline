@@ -3,14 +3,14 @@ library(GenomicRanges)
 library(tidyverse)
 library(data.table)
 library(ggrepel)
-source('paths.R')
+source('code/paths.R')
 
 dir_FUMA <- paste0(dir_scratch,"FUMA_results/")
 dir_figs <- paste0(dir_results,"figures/")
 
 # Shared code ####
 # used for plotting purposes
-shortnames <- as_tibble(fread("../input_data/exposures_shortnames.csv"))
+shortnames <- as_tibble(fread(paste0(dir_script,"../input_data/exposures_shortnames.csv")))
 # loads job ID table to match jobs to fields
 fields <- as_tibble(fread(paste0(dir_scratch,"fields_tbl.txt"))) %>%
   add_row(term="PXS_T2D", traitname="PXS for Type 2 Diabetes onset") %>%
@@ -222,7 +222,7 @@ GWAS_catalog_trait_count <- GWAS_catalog %>% group_by(Trait) %>% summarize(n=n()
 # # Fed this ^ into ChatGPT Plus (GPT4), and then manually fixed errors, check github repository
 
 # goes through file of groupings
-groupings_file <- readLines("../input_data/GWAS_catalog_groupings.txt")
+groupings_file <- readLines("input_data/GWAS_catalog_groupings.txt")
 #groupings_file <- groupings_file[groupings_file != ""]
 groupings_tbl <- tibble(Group = as.character(), Trait = as.character())
 for (line in groupings_file) {

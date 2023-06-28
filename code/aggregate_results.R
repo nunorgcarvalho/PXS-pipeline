@@ -3,7 +3,7 @@
 library(tidyverse)
 library(data.table)
 # Functions #
-source("paths.R")
+source("code/paths.R")
 
 # makes directory for figures
 dir_figs <- paste0(dir_results,"figures/")
@@ -16,7 +16,7 @@ loc_expolist <- paste0(dir_script,"../input_data/exposures.txt")
 exposures_list <- readLines(loc_expolist)
 MAGIC_traits <- c("2hGlu","FG","FI","HbA1c")
 # used for plotting purposes
-shortnames <- as_tibble(fread("../input_data/exposures_shortnames.csv"))
+shortnames <- as_tibble(fread("input_data/exposures_shortnames.csv"))
 # field information
 fields <- as_tibble(fread(paste0(dir_scratch,"fields_tbl.txt"))) %>%
   left_join(shortnames, by="term") %>%

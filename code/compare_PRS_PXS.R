@@ -1,7 +1,7 @@
 # Libraries and paths ####
 library(tidyverse)
 library(data.table)
-source("paths.R")
+source("code/paths.R")
 
 # path to UKBB phenotype file with field 26285
 loc_pheno3 <- "/n/groups/patel/uk_biobank/project_22881_671028/ukb671028.csv"
@@ -13,7 +13,7 @@ cols_keep <- c("eid","26285-0.0")
 pheno3 <- as_tibble(fread(loc_pheno3, select=cols_keep)) %>%
   rename(PRS_T2D = `26285-0.0`)
 # adds PRS-T2D to pheno
-pheno <- as_tibble(fread(loc_pheno)) %>%
+pheno <- as_tibble(fread(loc_phenoEC)) %>%
   left_join(pheno3, by=c("IID"="eid"))
 pheno_T2D <- pheno %>% select("IID",contains("T2D")) %>% drop_na()
 

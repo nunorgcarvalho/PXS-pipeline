@@ -1,8 +1,8 @@
 # Libraries and paths ####
 library(tidyverse)
 library(data.table)
-source('paths.R')
-source("old_code/helper_functions.R")
+source('code/paths.R')
+#source("old_code/helper_functions.R")
 
 exposures_list <- readLines(paste0(dir_script,"../input_data/exposures.txt"))
 shortnames <- as_tibble(fread(paste0(dir_script,"../input_data/exposures_shortnames.csv")))

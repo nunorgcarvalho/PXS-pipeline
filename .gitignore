@@ -9,3 +9,4 @@ final_results/*.pdf
 final_results/*.rtf
 final_results/Manhattan_plots/*
 final_results/figures/*
+.Rproj.user
