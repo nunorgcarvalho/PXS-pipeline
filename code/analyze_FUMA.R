@@ -3,6 +3,8 @@ library(GenomicRanges)
 library(tidyverse)
 library(data.table)
 library(ggrepel)
+library(rjson)
+library(curl)
 source('code/paths.R')
 
 dir_FUMA <- paste0(dir_scratch,"FUMA_results/")
@@ -241,6 +243,10 @@ groupings_tbl$Trait <- gsub("\\\\", "", groupings_tbl$Trait)
 # # check for missingness
 # (missing_traits <- (GWAS_catalog_trait_count_subset %>% filter(!Trait %in% groupings_tbl$Trait))$Trait)
 
+# saves groupings_tbl to system
+loc_out <- paste0(dir_results,"GWAS_catalog_groupings.txt")
+fwrite(groupings_tbl, loc_out, sep="\t")
+
 GWAS_catalog <- GWAS_catalog %>% left_join(groupings_tbl, by="Trait")
 GWAS_catalog_group_count <- GWAS_catalog %>%
   group_by(Group) %>% summarize(n = n()) %>%
@@ -252,6 +258,87 @@ fwrite(GWAS_catalog_group_count, loc_out, sep="\t")
 
 loc_out <- paste0(dir_results,"GWAS_catalog_trait_count.txt")
 fwrite(GWAS_catalog_trait_count, loc_out, sep="\t")
+
+
+
+
+# Genes ####
+
+## extracts FUMA gene results ####
+for (i in 1:(nrow(jobID_tbl))) {
+  jobID <- jobID_tbl$JobID[i]
+  term <- jobID_tbl$term[i]
+  shortname <- jobID_tbl$shortname[i]
+  print(paste(i,jobID,term,shortname))
+  
+  loc_file <- paste0(dir_FUMA,"FUMA_job",jobID,"/genes.txt")
+  job_data <- as_tibble(fread(loc_file, skip="ensg"))
+  
+  if (i==1) {Genes <- job_data %>% mutate(term = term, shortname = shortname,
+                                          GenomicLocus = as.character(GenomicLocus))
+  } else {
+    Genes <- Genes %>%
+      add_row(job_data %>% mutate(term = term, shortname = shortname,
+                                  GenomicLocus = as.character(GenomicLocus)))
+  }
+}
+topGenes <- Genes %>%
+  group_by(symbol) %>%
+  summarize(n=n()) %>%
+  arrange(-n) %>%
+  mutate(AMP_tbl = NA)
+
+## HugeAMP gene-associations query ####
+return_AMP_genes <- function(gene, index='gene-associations') {
+  url <- paste0("https://bioindex.hugeamp.org/api/bio/query/",index,"?q=",gene,"&fmt=row")
+  req <- curl_fetch_memory(url)
+  nested_list <- rjson::fromJSON(jsonlite::prettify(rawToChar(req$content)))
+  AMP_gene_assoc <- map_dfr(nested_list$data, as_tibble)
+  return(AMP_gene_assoc)
+}
+genes2query <- c(topGenes$symbol[1:25],
+                (Genes%>%arrange(minGwasP)%>%filter(term=="PXS_T2D"))$symbol[1:25]
+                ) %>% unique()
+for (i in 1:length(genes2query)) {
+  gene <- genes2query[i]
+  
+  if (exists("AMP_genes")) {
+    if (gene %in% AMP_genes$gene) {next}
+  }
+  
+  AMP_tbl <- return_AMP_genes(gene)
+  if (nrow(AMP_tbl) == 0) {
+    print(paste0("Found no results for ", gene))
+    next
+  }
+  if ("T2D" %in% AMP_tbl$phenotype) {
+    T2D_p <- (AMP_tbl %>% filter(phenotype == "T2D"))$pValue
+  } else {T2D_p <- as.numeric(NA)}
+  
+  if (!exists("AMP_genes")) {AMP_genes <- AMP_tbl
+  } else {AMP_genes <- AMP_genes %>% add_row(AMP_tbl)}
+  
+  print(paste0(i," :: p = ",formatC(T2D_p, digits=2, format="E")," :: Queried AMP for ", gene))
+  topGenes <- topGenes %>%
+    mutate(AMP_tbl = ifelse(symbol == gene, list(.GlobalEnv$AMP_tbl), AMP_tbl))
+}
+
+# save to system
+loc_out <- "scratch/AMP_genes.txt"
+fwrite(AMP_genes, loc_out, sep="\t")
+
+AMP_phenos2check <- c("T2D","BMI","TG","HDL","SBP","HBA1C","2hrG","FG","FI")
+
+AMP_summary <- AMP_genes %>%
+  select(gene, pValue, phenotype, chromosome, start, end) %>%
+  filter(phenotype %in% AMP_phenos2check) %>%
+  pivot_wider(names_prefix = "p_",
+              names_from = phenotype,
+              values_from = pValue)
+
+
+
+
 
 # Genomic Loci ####
 for (i in 1:(nrow(jobID_tbl))) {
