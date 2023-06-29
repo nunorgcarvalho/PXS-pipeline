@@ -282,63 +282,43 @@ for (i in 1:(nrow(jobID_tbl))) {
                                   GenomicLocus = as.character(GenomicLocus)))
   }
 }
-topGenes <- Genes %>%
-  group_by(symbol) %>%
-  summarize(n=n()) %>%
-  arrange(-n) %>%
-  mutate(AMP_tbl = NA)
+# gets T2D gene associations from AMP
+AMP_T2D_genes <- as_tibble(fread("input_data/AMP_T2D_gene_table.csv"))
+# makes joint list of gene associations
+Bonferroni_gene <- 2.5E-6 # 0.05 / 20000
+Genes_PXS <- Genes %>% filter(term=="PXS_T2D") %>%
+  select(gene = symbol, p_PXS_T2D = minGwasP) %>%
+  unique() %>%
+  full_join(AMP_T2D_genes %>% select(gene, p_T2D = minP), by="gene") %>%
+  mutate(p_T2D = ifelse(is.na(p_T2D),1,p_T2D),
+         p_PXS_T2D = ifelse(is.na(p_PXS_T2D),1,p_PXS_T2D),
+         sig_T2D = p_T2D < Bonferroni_gene,
+         sig_PXS_T2D = p_PXS_T2D < Bonferroni_gene)
+# compares significance
+(gene_count <- table(Genes_PXS %>% select(starts_with("sig_"))) )
+gene_count[2,2] / sum(gene_count[,2])
 
-## HugeAMP gene-associations query ####
-return_AMP_genes <- function(gene, index='gene-associations') {
-  url <- paste0("https://bioindex.hugeamp.org/api/bio/query/",index,"?q=",gene,"&fmt=row")
-  req <- curl_fetch_memory(url)
-  nested_list <- rjson::fromJSON(jsonlite::prettify(rawToChar(req$content)))
-  AMP_gene_assoc <- map_dfr(nested_list$data, as_tibble)
-  return(AMP_gene_assoc)
-}
-genes2query <- c(topGenes$symbol[1:25],
-                (Genes%>%arrange(minGwasP)%>%filter(term=="PXS_T2D"))$symbol[1:25]
-                ) %>% unique()
-for (i in 1:length(genes2query)) {
-  gene <- genes2query[i]
-  
-  if (exists("AMP_genes")) {
-    if (gene %in% AMP_genes$gene) {next}
-  }
-  
-  AMP_tbl <- return_AMP_genes(gene)
-  if (nrow(AMP_tbl) == 0) {
-    print(paste0("Found no results for ", gene))
-    next
-  }
-  if ("T2D" %in% AMP_tbl$phenotype) {
-    T2D_p <- (AMP_tbl %>% filter(phenotype == "T2D"))$pValue
-  } else {T2D_p <- as.numeric(NA)}
-  
-  if (!exists("AMP_genes")) {AMP_genes <- AMP_tbl
-  } else {AMP_genes <- AMP_genes %>% add_row(AMP_tbl)}
-  
-  print(paste0(i," :: p = ",formatC(T2D_p, digits=2, format="E")," :: Queried AMP for ", gene))
-  topGenes <- topGenes %>%
-    mutate(AMP_tbl = ifelse(symbol == gene, list(.GlobalEnv$AMP_tbl), AMP_tbl))
-}
+# gets table of most repreated genes
+Genes %>% group_by(symbol) %>% summarize(n=n()) %>% arrange(-n)
+n6_Genes <- (Genes %>% group_by(symbol) %>% summarize(n=n()) %>%
+             filter(n>5) %>% arrange(-n))$symbol
+Genes_top <- Genes %>% select(symbol,term,shortname) %>%
+  add_row(AMP_T2D_genes %>% filter(minP < Bonferroni_gene) %>% select(symbol = gene) %>%
+            mutate(term = "T2D", shortname = "Type 2 Diabetes")) %>%
+  filter(symbol %in% n6_Genes) %>%
+  mutate(gene = as.factor(symbol))
 
-# save to system
-loc_out <- "scratch/AMP_genes.txt"
-fwrite(AMP_genes, loc_out, sep="\t")
+# plots crappy heatmap of repeated genes
+ggplot(Genes_top, aes(x = factor(gene, levels = n6_Genes),
+                       y = fct_rev(factor(shortname, levels=c("Type 2 Diabetes", levels(expo_order)[expo_order])) ))) +
+  geom_tile(fill = "red") + theme_light()
 
-AMP_phenos2check <- c("T2D","BMI","TG","HDL","SBP","HBA1C","2hrG","FG","FI")
-
-AMP_summary <- AMP_genes %>%
-  select(gene, pValue, phenotype, chromosome, start, end) %>%
-  filter(phenotype %in% AMP_phenos2check) %>%
-  pivot_wider(names_prefix = "p_",
-              names_from = phenotype,
-              values_from = pValue)
-
-
-
-
+# Number of genes by trait
+Genes_trait <- Genes %>% filter(minGwasP < Bonferroni_gene) %>%
+  group_by(shortname) %>% summarize(n = n()) %>% arrange(-n)
+# saves to system
+loc_out <- paste0(dir_results,"gene_associations_n.txt")
+fwrite(Genes_trait, loc_out, sep="\t")
 
 # Genomic Loci ####
 for (i in 1:(nrow(jobID_tbl))) {

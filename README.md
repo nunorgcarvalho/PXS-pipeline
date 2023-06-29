@@ -22,6 +22,8 @@ Inside of `input_data/`:
 
 -   `exposures.txt`: is automatically created by `prepare_exp_PXS_CRF.R`
 
+-   `AMP_T2D_gene_table.csv`: downloaded from [AMP](https://hugeamp.org/phenotype.html?phenotype=T2D) under "Top common variant gene-level associations for Type 2 diabetes"
+
 External (path must be manually edited inside respective .R scripts):
 
 -   `loc_pheno_full`: path to UKBB phenotype file containing all necessary fields and f.eid. Used in `generate_PXS_coeffs.R`

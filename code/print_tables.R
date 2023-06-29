@@ -125,20 +125,19 @@ gtsave(tbl_gt, "PXS_coefficients.rtf",dir_tbls)
 
 # Heritabilities + Lambdas + # of genetic loci ####
 h2_tbl <- as_tibble(fread(paste0(dir_results,"h2_ldsc_REML.txt")))
-GRL_tbl <- as_tibble(fread(paste0(dir_results, "genomic_risk_loci.txt"))) %>%
-  group_by(shortname) %>% summarize(n = n()) %>% arrange(-n)
+Genes_tbl <- as_tibble(fread(paste0(dir_results, "gene_associations_n.txt")))
 GWAS_tbl <- as_tibble(fread(paste0(dir_results,"GWAS_summary_tbl.txt")))
 
 b1 <- qnorm(1 - (0.025 / nrow(h2_tbl)))
 tbl <- h2_tbl %>%
-  left_join(GRL_tbl, by="shortname") %>%
+  left_join(Genes_tbl, by="shortname") %>%
   left_join(GWAS_tbl, by="term") %>%
   mutate(REML_h2_low = REML_h2 - b1 * REML_h2_err,
          REML_h2_upp = REML_h2 + b1 * REML_h2_err) %>%
   mutate(REML_h2_CI = paste0("[",sprintf(paste0("%.",rnd_dec,"f"), REML_h2_low),", ",
                              sprintf(paste0("%.",rnd_dec,"f"), REML_h2_upp), "]"),
          shortname = factor(shortname, levels=shortnames$shortname)) %>%
-  select(shortname, REML_h2, REML_h2_CI, lambda_BOLT, n, n_sig_SNPs) %>%
+  select(shortname, REML_h2, REML_h2_CI, lambda_BOLT, n_sig_SNPs, n) %>%
   arrange(-REML_h2)#arrange(shortname)
 
 tbl_gt <- gt(tbl) %>%
@@ -148,8 +147,8 @@ tbl_gt <- gt(tbl) %>%
     REML_h2 = md("h<sup>2</sup>"),
     REML_h2_CI = md("h<sup>2</sup> 95% CI"),
     lambda_BOLT = "Lambda",
-    n = "Genomic Loci",
-    n_sig_SNPs = "Significant SNPs"
+    n_sig_SNPs = "Significant SNPs",
+    n = "Significant Genes",
   ) %>%
   fmt_number(columns = c("REML_h2","lambda_BOLT"), decimals = 3) %>%
   cols_width(n ~ px(120)) %>%
