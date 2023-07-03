@@ -9,4 +9,5 @@ final_results/*.pdf
 final_results/*.rtf
 final_results/Manhattan_plots/*
 final_results/figures/*
+final_results/poster/*
 .Rproj.user

@@ -68,6 +68,9 @@ GTEx_general$P_adjusted <- p.adjust(GTEx_general$P / length(unique(GTEx_general$
 GTEx_general$significant_P_adj <- GTEx_general$P_adjusted < 0.05
 GTEx_general$tissue_name <- sapply(GTEx_general$VARIABLE, function(x) gsub("_", " ", x))
 GTEx_general %>% filter(significant_P_adj) %>% arrange(P_adjusted) %>% print(n=Inf)
+# saves to system
+loc_out <- paste0(dir_results,"GTEx_general.txt")
+fwrite(GTEx_general, loc_out, sep="\t")
 ### tile plot ####
 ggplot(GTEx_general, aes(x = tissue_name,
                          y = fct_rev(factor(shortname, levels=expo_order)))) +
@@ -114,6 +117,9 @@ GTEx_specific$P_adjusted <- p.adjust(GTEx_specific$P / length(unique(GTEx_specif
 GTEx_specific$significant_P_adj <- GTEx_specific$P_adjusted < 0.05
 GTEx_specific$tissue_name <- sapply(GTEx_specific$FULL_NAME, function(x) gsub("_", " ", x))
 GTEx_specific %>% filter(significant_P_adj) %>% arrange(P_adjusted) %>% print(n=Inf)
+# saves to system
+loc_out <- paste0(dir_results,"GTEx_specific.txt")
+fwrite(GTEx_specific, loc_out, sep="\t")
 ### tile plot ####
 ggplot(GTEx_specific, aes(x = tissue_name,
                          y = fct_rev(factor(shortname, levels=expo_order)))) +
