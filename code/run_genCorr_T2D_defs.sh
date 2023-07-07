@@ -102,7 +102,49 @@ echo '#!/bin/sh
 --statsFileBgenSnps '${dir_T2D}'_PXS_onset_bgen.txt
 
 ' > ${dir_T2D}/genCorr_T2D_PXS_onset.sh
-sbatch ${dir_T2D}/genCorr_T2D_PXS_onset.sh
+#sbatch ${dir_T2D}/genCorr_T2D_PXS_onset.sh
 echo Submitted genCorr for PXS_T2D and T2D_onset
+
+
+# genCorr(PXS_T2D, PXS_T2D_BMIadj)
+
+#########################################
+## Creates BOLT-REML script and submits##
+#########################################
+echo '#!/bin/sh
+#SBATCH -c 20
+#SBATCH -t 2-11:59
+#SBATCH -p medium
+#SBATCH --mem=100G
+#SBATCH -o T2D_PXS_BMIadj2_genCorr.out
+#SBATCH -e T2D_PXS_BMIadj2_genCorr.err
+
+~/bolt \
+--numThreads 20 \
+--bed /n/groups/patel/uk_biobank/main_data_9512/ukb_cal_chr{1:22}_v2.bed \
+--bim /n/groups/patel/uk_biobank/main_data_9512/ukb_snp_chr{1:22}_v2.bim \
+--fam /n/groups/patel/uk_biobank/main_data_9512/ukb_bolt_lmm.fam \
+--LDscoresFile /n/groups/patel/bin/BOLT-LMM_v2.3.2/tables/LDSCORE.1000G_EUR.tab.gz \
+--remove '${dir_script}'../input_data/bolt.in_plink_but_not_imputed.FID_IID.978.txt \
+--phenoFile '${dir_scratch}'pheno_EC.txt \
+--phenoCol PXS_T2D \
+--phenoCol PXS_T2D_BMIadj \
+--covarFile '${dir_scratch}'pheno_EC.txt \
+--covarCol sex \
+--covarCol assessment_center \
+--qCovarCol age \
+--qCovarCol pc{1:40} \
+--covarMaxLevels 25 \
+--reml \
+--remlNoRefine \
+--bgenFile /n/no_backup2/patel/ukb_imp_chr{1:22}_v3.bgen \
+--bgenMinMAF 1e-3 \
+--bgenMinINFO 0.3 \
+--sampleFile /n/no_backup2/patel/ukb22881_imp_chr1_v3_s487324.sample \
+--statsFileBgenSnps '${dir_T2D}'_PXS_BMIadj2_bgen.txt
+
+' > ${dir_T2D}/genCorr_T2D_PXS_BMIadj2.sh
+sbatch ${dir_T2D}/genCorr_T2D_PXS_BMIadj2.sh
+echo Submitted genCorr for PXS_T2D and PXS_T2D_BMIadj2
 
 fi

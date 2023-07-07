@@ -81,7 +81,6 @@ loc_out <- paste0(dir_out,"PXS_",disease,".txt")
 fwrite(out_PXS,loc_out,sep=" ")
 # appends PXS to phenoEC & fullT2D tables
 pheno <- pheno %>% left_join(out_PXS, by=c("FID","IID"))
-fwrite(pheno, loc_phenoEC, sep="\t", na="NA", quote=FALSE)
 
 loc_fullT2D <- paste0(dir_scratch, "phenoEC_fullT2D.txt")
 T2D_definitions_out <- as_tibble(fread(loc_fullT2D))
@@ -94,10 +93,16 @@ print("Done computing PXS")
 if (col_PXS %in% colnames(pheno)) {
   pheno <- pheno %>% select(-all_of(col_PXS))
 }
-pheno <- pheno %>% left_join(out_PXS, by=c("FID","IID"))
 IIDs_NAs <- pheno[is.na(pheno[[col_PXS]]),c("FID","IID")]
 loc_out <- paste0(dir_scratch,disease,"/IIDs_NA_exposures.txt")
 write.table(IIDs_NAs, loc_out, row.names = FALSE, col.names = FALSE, quote = FALSE)
+
+# appends BMI-adj PXS_T2D to pheno file
+temp <- pheno %>% select(IID, PXS_T2D, f21001) %>% drop_na()
+lm1 <- lm(PXS_T2D ~ f21001, data=pheno)
+temp$PXS_T2D_BMIadj <- lm1$residuals
+pheno <- pheno %>% left_join(temp %>% select(IID, PXS_T2D_BMIadj), by = 'IID')
+fwrite(pheno, loc_phenoEC, sep="\t", na="NA", quote=FALSE)
 
 ### Computes env LM: PXS ~ sex + age + assessment_center + PCs
 PXS_lm_tbl <- pheno %>% select(FID,IID,all_of(col_covs)) %>%
