@@ -43,6 +43,8 @@ for (i in 1:length(genes2query)) {
 #loc_out <- "scratch/AMP_genes.txt"
 #fwrite(AMP_genes, loc_out, sep="\t")
 
+loc_out <- "scratch/AMP_genes.txt"
+AMP_genes <- as_tibble(fread(loc_out))
 # gets AMP T2D gene associations dataset
 AMP_T2D_genes <- as_tibble(fread("input_data/AMP_T2D_gene_table.csv"))
 
@@ -70,8 +72,7 @@ AMP_summary <- AMP_genes %>%
 table(AMP_summary %>% select(starts_with("sig_")))
 
 ggplot(AMP_summary, aes(x = log10(-log10(p_T2D)),
-                        y = log10(-log10(p_PXS_T2D))
-)) +
+                        y = log10(-log10(p_PXS_T2D)) )) +
   geom_point() +
   geom_hline(yintercept = log10(-log10(2.5E-6)), color="red") +
   geom_vline(xintercept = log10(-log10(2.5E-6)), color="red")
