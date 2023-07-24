@@ -115,12 +115,12 @@ ggplot(LMM_PXS_T2D_FTO, aes(x = gvc, y = -log10(P_BOLT_LMM_INF))) +
 
 # gvc check ####
 library(rjson)
-AMP_T2D_genes <- as_tibble(fread("input_data/AMP_T2D_gene_table.csv"))
+AMP_T2D_genes <- as_tibble(fread("scratch/AMP/AMP_T2D_gene_table.csv"))
 AMP_T2D_genes_sig <- AMP_T2D_genes %>% filter(minP < 2.5E-6)
 PXS_T2D_genes <- as_tibble(fread("scratch/FUMA_results/FUMA_job228821/genes.txt"))
 PXS_T2D_genes_sig <- PXS_T2D_genes %>% filter(minGwasP < 2.5E-6)
 
-AMP_T2D_SNPs_json <- fromJSON(file="input_data/AMP_T2D_SNP_table.json")
+AMP_T2D_SNPs_json <- fromJSON(file="scratch/AMP/AMP_T2D_SNP_table.json")
 AMP_T2D_SNPs <- map_dfr(AMP_T2D_SNPs_json, as_tibble) %>%
   select(varId, pValue, beta, maf, nearest) %>% distinct() %>%
   mutate( gvc = 2 * (beta)^2 * (maf) * (1-maf),
@@ -142,3 +142,65 @@ ggplot(joint_sig_genes, aes(x=AMP_T2D_log10P)) +
   geom_density(aes(color = PXS_T2D_sig))
 wilcox.test(joint_sig_genes[joint_sig_genes$PXS_T2D_sig,]$AMP_T2D_log10P,
             joint_sig_genes[!joint_sig_genes$PXS_T2D_sig,]$AMP_T2D_log10P)
+
+# T2D vs PXS-T2D gencorrs ####
+AMP_T2D_gencorrs <- as_tibble(fread("scratch/AMP/AMP_T2D_gencorr_table.csv"))
+
+gencorr_compare <- tibble(shortname = c("Systolic BP","BMI","Glucose","HbA1c","HDL","Triglycerides"),
+                          AMP_name = c("SBP","BMI","BS","HBA1C","HDL","TG") )  %>%
+  left_join(genCorr_REML_tbl %>% filter(pheno1_term=="PXS_T2D") %>%
+              select(shortname=pheno2_shortname, PXS_T2D_gencorr=gencorr, PXS_T2D_gencorr_se = gencorr_err), by="shortname") %>%
+  left_join(AMP_T2D_gencorrs %>%
+              select(AMP_name = other_phenotype, AMP_T2D_gencorr = rg, AMP_T2D_gencorr_se = stdErr), by="AMP_name") %>%
+  mutate(Z = (abs(PXS_T2D_gencorr) - abs(AMP_T2D_gencorr)) / sqrt(PXS_T2D_gencorr_se^2 + AMP_T2D_gencorr_se^2),
+         #p = 1 - pnorm(abs(Z))
+         p = pnorm(abs(abs(PXS_T2D_gencorr) - abs(AMP_T2D_gencorr)), sd = sqrt(PXS_T2D_gencorr_se^2 + AMP_T2D_gencorr_se^2),lower.tail = FALSE)
+         ) # positive Z denotes PXS-T2D has greater absolute rg
+
+gencorr_compare_plot <- gencorr_compare %>% select(-AMP_name,-Z, -p) %>%
+  pivot_longer(
+    cols = -shortname,
+    names_to = c("trait", ".value"),
+    names_pattern = "(PXS|AMP)_T2D_(.*)"
+  ) %>%
+  mutate(negative = ifelse(gencorr < 0, TRUE, FALSE),
+         gencorr = abs(gencorr),
+         #shortname = ifelse(negative, paste0(shortname,"*"),shortname),
+         trait = ifelse(trait == "PXS","PXS-T2D","T2D"),
+         ymin = gencorr - 2 * gencorr_se,
+         ymax = gencorr + 2 * gencorr_se)
+
+overlap_data <- gencorr_compare_plot %>%
+  select(shortname, trait, ymin, ymax) %>%
+  pivot_wider(names_from = trait, values_from = c(ymin, ymax)) %>%
+  mutate(signif = ifelse(ymin_T2D > `ymax_PXS-T2D` | `ymin_PXS-T2D` > ymax_T2D, "*", ""))
+
+ggplot(gencorr_compare_plot, aes(x = shortname, y = gencorr)) +
+  geom_bar(aes(fill = trait), stat = "identity", position = position_dodge(width = 0.8), width = 0.7) +
+  geom_errorbar(
+    aes(ymin = ymin, ymax = ymax, fill = trait),
+    position = position_dodge(width = 0.8),
+    width = 0.25
+  ) +
+  geom_text(data = overlap_data,
+            aes(y = max(`ymax_PXS-T2D`, ymax_T2D) + 0.05, label = signif),
+            position = position_dodge(width = 0.8), vjust = 0) +
+  scale_y_continuous(expand=c(0,0), limits = c(0, max(gencorr_compare_plot$ymax)+0.1)) +
+  labs(#title = "Comparison of genetic correlation between PXS-T2D and T2D",
+       #subtitle = "Asterisk denotes significantly different genetic correlation (p<0.05) between PXS-T2D and T2D",
+       x = "Clinical Risk Factor", y = "Absolute Genetic Correlation", fill = "Trait") +
+  theme_light() +
+  theme(
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(size=7),
+    plot.subtitle = element_text(size=5),
+    axis.title = element_text(size=6),
+    axis.text = element_text(size=5),
+    legend.key.size = unit(4, "mm"),
+    legend.title = element_text(size=9),
+    legend.text = element_text(size=7),
+    legend.margin = margin(0,-1,0,-2, unit="mm")
+  )
+loc_fig <- "final_results/figures/gencorr_PXS_AMP"
+ggsave(paste0(loc_fig,".png"), width=180, height=120, units="mm", dpi=300)

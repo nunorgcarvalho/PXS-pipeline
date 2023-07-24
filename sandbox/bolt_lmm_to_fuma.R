@@ -15,7 +15,7 @@ PVAL_THRESHOLD <- 0.5
 # opt = getopt(spec)
 
 #file_in <- opt$file_in
-file_in <- "/n/groups/patel/nuno/PXS-pipeline/scratch/T2D/LMM_T2D_all_bgen.txt"
+file_in <- "/n/groups/patel/nuno/PXS-pipeline/scratch/T2D/LMM_PXS_T2D_BMIadj2_bgen.txt"
 #sex_file_in <- opt$sex_file_in
 sex_file_in <- NULL
 #path_out <- opt$path_out

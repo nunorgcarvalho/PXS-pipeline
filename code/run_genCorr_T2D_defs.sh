@@ -113,7 +113,7 @@ echo Submitted genCorr for PXS_T2D and T2D_onset
 #########################################
 echo '#!/bin/sh
 #SBATCH -c 20
-#SBATCH -t 2-11:59
+#SBATCH -t 4-11:59
 #SBATCH -p medium
 #SBATCH --mem=100G
 #SBATCH -o T2D_PXS_BMIadj2_genCorr.out
