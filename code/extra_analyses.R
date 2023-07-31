@@ -74,6 +74,7 @@ mean_log10P <- tibble(FTO_SNP = c(F,T,F),
                       BP_max = c(min(FTO_SNPs$pos)-1, max(FTO_SNPs$pos), max(FTO_SNPs$pos)+window)
                       )
 
+LMM_PXS_T2D_FTO %>% filter(FTO_SNP, P_BOLT_LMM_INF < 1E-5)
 ## mini Manhattan plot ####
 gg <- ggplot(LMM_PXS_T2D_FTO, aes(x=BP, y = -log10(P_BOLT_LMM_INF))) +
   geom_hline(yintercept = -log10(5E-8), color = "red") +
@@ -86,9 +87,10 @@ gg <- ggplot(LMM_PXS_T2D_FTO, aes(x=BP, y = -log10(P_BOLT_LMM_INF))) +
   ylab(bquote(-log[10](P))) +
   scale_x_continuous(expand = c(0,0)) +
   scale_y_continuous(expand = c(0,0), breaks = c(0:8), limits = c(0,8)) +
-  labs(title = "FTO SNPs don't exceed genome-wide threshold in PXS-T2D but have enriched association",
-       subtitle = paste0("50kb region shown on either side of FTO SNPs. Mean -log10(P) bars shown. ",
-                         "t = ", round(tt1$statistic,1), ". p = ", formatC(tt1$p.value,digits=2, format="E")) ) +
+  scale_color_manual(values = c("#93CF1A","#557F00")) +
+  # labs(title = "FTO SNPs don't exceed genome-wide threshold in PXS-T2D but have enriched association",
+  #      subtitle = paste0("50kb region shown on either side of FTO SNPs. Mean -log10(P) bars shown. ",
+  #                        "t = ", round(tt1$statistic,1), ". p = ", formatC(tt1$p.value,digits=2, format="E")) ) +
   theme_light() +
   theme(
     legend.position = "none",

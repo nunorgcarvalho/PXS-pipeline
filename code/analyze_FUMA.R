@@ -289,7 +289,7 @@ for (i in 1:(nrow(jobID_tbl))) {
   }
 }
 # gets T2D gene associations from AMP
-AMP_T2D_genes <- as_tibble(fread("input_data/AMP_T2D_gene_table.csv"))
+AMP_T2D_genes <- as_tibble(fread("scratch/AMP/AMP_T2D_gene_table.csv"))
 # makes joint list of gene associations
 Bonferroni_gene <- 2.5E-6 # 0.05 / 20000
 Genes_PXS <- Genes %>% filter(term=="PXS_T2D") %>%
@@ -325,6 +325,8 @@ Genes_trait <- Genes %>% filter(minGwasP < Bonferroni_gene) %>%
 # saves to system
 loc_out <- paste0(dir_results,"gene_associations_n.txt")
 fwrite(Genes_trait, loc_out, sep="\t")
+
+
 
 # Genomic Loci ####
 for (i in 1:(nrow(jobID_tbl))) {
@@ -379,3 +381,18 @@ GRLoci %>% group_by(shortname) %>% summarize(n = n()) %>% arrange(-n)
 # prints table
 loc_out <- paste0(dir_results,"genomic_risk_loci.txt")
 fwrite(GRLoci, loc_out, sep="\t")
+
+
+
+
+## PXS-T2D Loci ####
+GL_PXS <- Genes %>% filter(term == "PXS_T2D") %>%
+  mutate(GenomicLocus = as.numeric(GenomicLocus)) %>%
+  group_by(GenomicLocus) %>%
+  summarize(n_genes=n(), minGwasP = min(minGwasP),
+            genes = paste(unique(symbol), collapse = ", ")) %>%
+  left_join(GRLoci %>% filter(term == "PXS_T2D") %>% select(GenomicLocus, rsID, chr, pos, p), by="GenomicLocus") %>%
+  mutate(concordant = (minGwasP == p)) %>% arrange(p) %>%
+  select(SNP = rsID, P = p, Genes = genes)
+loc_out <- paste0(dir_results,"GenomicLoci_PXS_T2D.txt")
+fwrite(GL_PXS, loc_out, sep="\t")

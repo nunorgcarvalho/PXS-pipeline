@@ -100,6 +100,7 @@ for (i in 1:nrow(shortnames)) {
 }
 # saves filtered nested list to system (saves time if running again)
 #saveRDS(coloc_datasets, file = "scratch/coloc_datasets.rds")
+coloc_datasets <- readRDS(file = "scratch/coloc_datasets.rds")
 
 # colocalization analysis ####
 coloc_tibble <- tibble(gene = as.character(),
@@ -109,8 +110,9 @@ coloc_tibble <- tibble(gene = as.character(),
 gene_tibble <- tibble(gene = as.character(),
                       term = as.character(),
                       sig_gene = as.logical())
-# loops throug each gene
+# loops through each gene
 for (k in 1:length(genes_of_interest)) {
+  if (k != 3) {next}
   gene <- genes_of_interest[k]
   # loops through each unique combination of 2 traits
   for (i in 1:nrow(shortnames)) {
@@ -146,6 +148,7 @@ coloc_tibble <- coloc_tibble %>%
 # tileplots ####
 # loops through each gene
 for (gene in genes_of_interest) {
+  if (gene != "FTO") {next}
   # gets vector denoting which traits to bold in axes
   boldings <- ( gene_tibble %>% filter(gene == .GlobalEnv$gene) )$sig_gene
   # makes  plot
@@ -170,8 +173,8 @@ for (gene in genes_of_interest) {
       plot.subtitle = element_text(size=5),
       axis.title = element_text(size=6),
     ) +
-    labs(title = paste0("Posterior probability of shared causal variant in ",gene," gene region") ,
-         subtitle = "Axis text that is bolded denotes traits where gene is considered significantly associated (p < 2.5E-6)",
+    labs(#title = paste0("Posterior probability of shared causal variant in ",gene," gene region") ,
+         #subtitle = "Axis text that is bolded denotes traits where gene is considered significantly associated (p < 2.5E-6)",
          fill = "Prob.") +
     xlab("Trait") + ylab("Trait")
   
