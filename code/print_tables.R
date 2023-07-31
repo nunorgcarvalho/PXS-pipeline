@@ -126,18 +126,21 @@ gtsave(tbl_gt, "PXS_coefficients.rtf",dir_tbls)
 # Heritabilities + Lambdas + # of genetic loci ####
 h2_tbl <- as_tibble(fread(paste0(dir_results,"h2_ldsc_REML.txt")))
 Genes_tbl <- as_tibble(fread(paste0(dir_results, "gene_associations_n.txt")))
+Loci_tbl <- as_tibble(fread(paste0(dir_results, "genomic_risk_loci.txt"))) %>%
+  group_by(shortname) %>% summarize(n_sig_loci = n()) %>% arrange(-n_sig_loci)
 GWAS_tbl <- as_tibble(fread(paste0(dir_results,"GWAS_summary_tbl.txt")))
 
 b1 <- qnorm(1 - (0.025 / nrow(h2_tbl)))
 tbl <- h2_tbl %>%
   left_join(Genes_tbl, by="shortname") %>%
+  left_join(Loci_tbl, by="shortname") %>%
   left_join(GWAS_tbl, by="term") %>%
   mutate(REML_h2_low = REML_h2 - b1 * REML_h2_err,
          REML_h2_upp = REML_h2 + b1 * REML_h2_err) %>%
   mutate(REML_h2_CI = paste0("[",sprintf(paste0("%.",rnd_dec,"f"), REML_h2_low),", ",
                              sprintf(paste0("%.",rnd_dec,"f"), REML_h2_upp), "]"),
          shortname = factor(shortname, levels=shortnames$shortname)) %>%
-  select(shortname, REML_h2, REML_h2_CI, lambda_BOLT, n_sig_SNPs, n) %>%
+  select(shortname, REML_h2, REML_h2_CI, lambda_BOLT, n_sig_SNPs, n, n_sig_loci) %>%
   arrange(-REML_h2)#arrange(shortname)
 
 tbl_gt <- gt(tbl) %>%
@@ -149,6 +152,7 @@ tbl_gt <- gt(tbl) %>%
     lambda_BOLT = "Lambda",
     n_sig_SNPs = "Significant SNPs",
     n = "Significant Genes",
+    n_sig_loci = "Significant Loci"
   ) %>%
   fmt_number(columns = c("REML_h2","lambda_BOLT"), decimals = 3) %>%
   cols_width(n ~ px(120)) %>%
@@ -156,3 +160,18 @@ tbl_gt <- gt(tbl) %>%
 tbl_gt
 gtsave(tbl_gt, "behaviors_genetic_profile.png",dir_tbls)
 gtsave(tbl_gt, "behaviors_genetic_profile.rtf",dir_tbls)
+
+# PXS-T2D GenomicLoci ####
+GL_PXS <- as_tibble(fread(paste0(dir_results,"GenomicLoci_PXS_T2D.txt")))
+
+tbl <- GL_PXS
+
+tbl_gt <- gt(tbl) %>%
+  gt_theme() %>%
+  cols_label(
+    P = "GWAS p-value",
+  ) %>%
+  fmt_scientific(columns = "P", decimals = 1) %>%
+  cols_width(genes ~ px(800)) %>%
+  cols_align(align = "left", columns = c("Genes"))
+tbl_gt
