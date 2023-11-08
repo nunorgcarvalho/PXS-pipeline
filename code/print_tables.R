@@ -30,27 +30,31 @@ shortnames <- as_tibble(fread(paste0(dir_script,"../input_data/exposures_shortna
 loc_tbl <- paste0(dir_results, "GWAS_catalog_trait_count.txt")
 tbl_raw <- as_tibble(fread(loc_tbl))
 tbl <- tbl_raw %>% arrange(-n) %>% filter(row_number() <= 25)
+tbl_csv <- tbl %>% rename(`# of SNP replications`=n)
+fwrite(tbl_csv, paste0(dir_tbls,"GWAS_catalog_trait_count.csv"))
 
-tbl_gt <- gt(tbl) %>%
-  gt_theme() %>%
-  cols_label(Trait = "GWAS Catalog Trait", n = "# of SNP replications") %>%
-  cols_align(align = "left", columns = c("Trait"))
-tbl_gt
-gtsave(tbl_gt, "GWAS_catalog_trait_count.png",dir_tbls)
-gtsave(tbl_gt, "GWAS_catalog_trait_count.rtf",dir_tbls)
+# tbl_gt <- gt(tbl) %>%
+#   gt_theme() %>%
+#   cols_label(Trait = "GWAS Catalog Trait", n = "# of SNP replications") %>%
+#   cols_align(align = "left", columns = c("Trait"))
+# tbl_gt
+# gtsave(tbl_gt, "GWAS_catalog_trait_count.png",dir_tbls)
+# gtsave(tbl_gt, "GWAS_catalog_trait_count.rtf",dir_tbls)
 
 ## Group count ####
 loc_tbl <- paste0(dir_results, "GWAS_catalog_group_count.txt")
 tbl_raw <- as_tibble(fread(loc_tbl))
 tbl <- tbl_raw %>% arrange(-n) %>% filter(row_number() <= 25)
+tbl_csv <- tbl %>% rename(`# of SNP replications`=n)
+fwrite(tbl_csv, paste0(dir_tbls,"GWAS_catalog_group_count.csv"))
 
-tbl_gt <- gt(tbl) %>%
-  gt_theme() %>%
-  cols_label(Group = "GWAS Catalog Trait Group", n = "# of SNP replications") %>%
-  cols_align(align = "left", columns = c("Group"))
-tbl_gt
-gtsave(tbl_gt, "GWAS_catalog_group_count.png",dir_tbls)
-gtsave(tbl_gt, "GWAS_catalog_group_count.rtf",dir_tbls)
+# tbl_gt <- gt(tbl) %>%
+#   gt_theme() %>%
+#   cols_label(Group = "GWAS Catalog Trait Group", n = "# of SNP replications") %>%
+#   cols_align(align = "left", columns = c("Group"))
+# tbl_gt
+# gtsave(tbl_gt, "GWAS_catalog_group_count.png",dir_tbls)
+# gtsave(tbl_gt, "GWAS_catalog_group_count.rtf",dir_tbls)
 
 # Fields Table ####
 ## All behavioral traits ####
@@ -62,17 +66,21 @@ tbl <- tbl_raw %>% filter(Exposure_Class=="agency") %>%
   arrange(FieldID) %>%
   left_join(ukb_dict[,c("FieldID","ValueType")], by="FieldID") %>%
   select(FieldID, Field, ValueType)
+tbl_csv <- tbl %>% rename(`UKBB Field ID` = FieldID,
+                          `Field Name` = Field,
+                          `Data Type` = ValueType)
+fwrite(tbl_csv, paste0(dir_tbls,"fields_ALL_behaviors.csv"))
 
-tbl_gt <- gt(tbl) %>%
-  gt_theme() %>%
-  cols_label(
-    FieldID = "UKBB Field ID",
-    Field = "Field Name",
-    ValueType = "Data Type") %>%
-  cols_align(align = "left", columns = c("Field"))
-tbl_gt
-gtsave(tbl_gt, "fields_ALL_behaviors.png",dir_tbls) # maybe just save as .csv?
-gtsave(tbl_gt, "fields_ALL_behaviors.rtf",dir_tbls)
+# tbl_gt <- gt(tbl) %>%
+#   gt_theme() %>%
+#   cols_label(
+#     FieldID = "UKBB Field ID",
+#     Field = "Field Name",
+#     ValueType = "Data Type") %>%
+#   cols_align(align = "left", columns = c("Field"))
+# tbl_gt
+# gtsave(tbl_gt, "fields_ALL_behaviors.png",dir_tbls) # maybe just save as .csv?
+# gtsave(tbl_gt, "fields_ALL_behaviors.rtf",dir_tbls)
 
 ## PXS Coefficients ####
 loc_tbl <- paste0(dir_script,"../input_data/PXS_coefficients.txt")
@@ -103,25 +111,28 @@ tbl <-  tbl %>% filter(use_type=="Behavior") %>% arrange(p.value) %>%
             mutate(shortname = factor(shortname, levels = unname(map_shortname))) %>%
             arrange(shortname)
           )
+tbl_csv <- tbl
+fwrite(tbl_csv, paste0(dir_tbls,"PXS_coefficients.csv"))
 
-tbl_gt <- gt(tbl) %>%
-  gt_theme() %>%
-  cols_label(
-    use_type = "Variable Type",
-    fieldID = "UKBB Field ID",
-    value = "UKBB Value",
-    shortname = "Variable Name",
-    estimate = "Standardized Coefficient",
-    p.value = "XWAS p-value"
-  ) %>%
-  fmt_number(columns = c("estimate"), decimals = 5) %>%
-  fmt_scientific(columns = "p.value") %>%
-  cols_width(fieldID ~ px(80),
-             value ~ px(60),
-             estimate ~ px(100))
-tbl_gt
-gtsave(tbl_gt, "PXS_coefficients.png",dir_tbls) # maybe just save as .csv?
-gtsave(tbl_gt, "PXS_coefficients.rtf",dir_tbls)
+
+# tbl_gt <- gt(tbl) %>%
+#   gt_theme() %>%
+#   cols_label(
+#     use_type = "Variable Type",
+#     fieldID = "UKBB Field ID",
+#     value = "UKBB Value",
+#     shortname = "Variable Name",
+#     estimate = "Standardized Coefficient",
+#     p.value = "XWAS p-value"
+#   ) %>%
+#   fmt_number(columns = c("estimate"), decimals = 5) %>%
+#   fmt_scientific(columns = "p.value") %>%
+#   cols_width(fieldID ~ px(80),
+#              value ~ px(60),
+#              estimate ~ px(100))
+# tbl_gt
+# gtsave(tbl_gt, "PXS_coefficients.png",dir_tbls) # maybe just save as .csv?
+# gtsave(tbl_gt, "PXS_coefficients.rtf",dir_tbls)
 
 # Heritabilities + Lambdas + # of genetic loci ####
 h2_tbl <- as_tibble(fread(paste0(dir_results,"h2_ldsc_REML.txt")))
@@ -172,6 +183,6 @@ tbl_gt <- gt(tbl) %>%
     P = "GWAS p-value",
   ) %>%
   fmt_scientific(columns = "P", decimals = 1) %>%
-  cols_width(genes ~ px(800)) %>%
+  cols_width(Genes ~ px(800)) %>%
   cols_align(align = "left", columns = c("Genes"))
 tbl_gt
