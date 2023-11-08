@@ -75,9 +75,9 @@ fwrite(GTEx_general, loc_out, sep="\t")
 ggplot(GTEx_general, aes(x = tissue_name,
                          y = fct_rev(factor(shortname, levels=expo_order)))) +
   geom_tile(aes(fill=-log10(P_adjusted))) +
-  geom_rect(aes(xmin = -Inf, xmax = Inf,
-                ymin = length(expo_order)-0.5, ymax = length(expo_order)+0.5),
-            color = "black", fill = NA) +
+  # geom_rect(aes(xmin = -Inf, xmax = Inf,
+  #               ymin = length(expo_order)-0.5, ymax = length(expo_order)+0.5),
+  #           color = "black", fill = NA) +
   scale_x_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=30), expand = c(0, 0)) +
   scale_y_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=20), expand = c(0, 0)) +
   scale_fill_gradient2(low="#DE1B1B",mid="white", high="#93CF1A", midpoint = -log10(0.05)) +
@@ -124,9 +124,9 @@ fwrite(GTEx_specific, loc_out, sep="\t")
 ggplot(GTEx_specific, aes(x = tissue_name,
                          y = fct_rev(factor(shortname, levels=expo_order)))) +
   geom_tile(aes(fill=-log10(P_adjusted))) +
-  geom_rect(aes(xmin = -Inf, xmax = Inf,
-                ymin = length(expo_order)-0.5, ymax = length(expo_order)+0.5),
-            color = "black", fill = NA) +
+  # geom_rect(aes(xmin = -Inf, xmax = Inf,
+  #               ymin = length(expo_order)-0.5, ymax = length(expo_order)+0.5),
+  #           color = "black", fill = NA) +
   scale_x_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=25), expand = c(0, 0)) +
   scale_y_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=20), expand = c(0, 0)) +
   scale_fill_gradient2(low="#DE1B1B",mid="white", high="#93CF1A", midpoint = -log10(0.05)) +
@@ -134,6 +134,7 @@ ggplot(GTEx_specific, aes(x = tissue_name,
   labs(#title = "Average gene expression per tissue for each behavior",
        #subtitle = "Using MAGMA with GTEx through FUMA. White: adjusted p = 0.05",
        fill = bquote(-log[10](P)) ) +
+  theme_light() +
   tileplot_theme +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size = 4),
         legend.key.size = unit(4, "mm"),
@@ -146,12 +147,8 @@ ggsave(paste0(loc_fig,".pdf"), width=180, height=120, units="mm", dpi=300)
 
 ## Combined tissue data ####
 # keeps list of tissues with at least one significant GTEx result
-keep_general <- (GTEx_general %>% group_by(tissue_name) %>%
-                   summarize(significant_P_adj = any(significant_P_adj)) %>%
-                   filter(significant_P_adj))$tissue_name %>% unname()
-keep_specific <- (GTEx_specific %>% group_by(tissue_name) %>%
-                    summarize(significant_P_adj = any(significant_P_adj)) %>%
-                    filter(significant_P_adj))$tissue_name %>% unname()
+keep_general <- (GTEx_general %>% filter(term=="PXS_T2D") %>% filter(significant_P_adj))$tissue_name %>% unname()
+keep_specific <- (GTEx_specific %>% filter(term=="PXS_T2D") %>% filter(significant_P_adj))$tissue_name %>% unname()
 # keeps only the general tissue type if its duplicated as a specific tissue
 keep_specific <-  keep_specific[!keep_specific %in% keep_general]
 
@@ -163,12 +160,20 @@ GTEx_combined <- GTEx_general %>% filter(tissue_name %in% keep_general) %>%
 ggplot(GTEx_combined, aes(x = factor(tissue_name, levels = c(keep_general, keep_specific)),
                           y = fct_rev(factor(shortname, levels=expo_order)))) +
   geom_tile(aes(fill=-log10(P_adjusted))) +
-  geom_rect(aes(xmin = -Inf, xmax = Inf,
-                ymin = length(expo_order)-0.5, ymax = length(expo_order)+0.5),
-            color = "black", fill = NA) +
-  geom_rect(aes(xmin = 0.5, xmax = length(keep_general)+0.5),
-                ymin = -Inf, ymax = Inf,
-            color = "black", fill = NA) +
+  # geom_rect(aes(xmin = -Inf, xmax = Inf,
+  #               ymin = length(expo_order)-0.5, ymax = length(expo_order)+0.5),
+  #           color = "black", fill = NA) +
+  # geom_rect(aes(xmin = 0.5, xmax = length(keep_general)+0.5),
+  #               ymin = -Inf, ymax = Inf,
+  #           color = "black", fill = NA) +
+  geom_segment(x = length(keep_general)+0.5, xend=length(keep_general)+0.5,
+               y = -Inf, yend = Inf, color = "white", size=2) +
+  geom_rect(aes(xmin = 0.5, xmax = length(keep_general)+0.4),
+            ymin = -Inf, ymax = Inf,
+            color = "black", fill = NA, size=0.3) +
+  geom_rect(aes(xmin = length(keep_general)+0.6, xmax=Inf),
+            ymin = -Inf, ymax = Inf,
+            color = "black", fill = NA, size=0.3) +
   scale_x_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=15), expand = c(0, 0)) +
   scale_y_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=20), expand = c(0, 0)) +
   scale_fill_gradient2(low="#DE1B1B",mid="white", high="#93CF1A", midpoint = -log10(0.05)) +
@@ -386,6 +391,14 @@ fwrite(GRLoci, loc_out, sep="\t")
 
 
 ## PXS-T2D Loci ####
+# identifies PXS-T2D loci not found in other traits
+GLM_PXS <- GRLoci %>% filter(term=="PXS_T2D")
+GLM_PXS2 <- GRLoci %>% group_by(GLM_ID) %>%
+  summarize(n_behaviors_sig = n() - 1) %>%
+  filter(GLM_ID %in% GLM_PXS$GLM_ID) %>%
+  left_join(GLM_PXS %>% select(GenomicLocus, GLM_ID), by="GLM_ID")
+
+
 GL_PXS <- Genes %>% filter(term == "PXS_T2D") %>%
   mutate(GenomicLocus = as.numeric(GenomicLocus)) %>%
   group_by(GenomicLocus) %>%
@@ -393,6 +406,17 @@ GL_PXS <- Genes %>% filter(term == "PXS_T2D") %>%
             genes = paste(unique(symbol), collapse = ", ")) %>%
   left_join(GRLoci %>% filter(term == "PXS_T2D") %>% select(GenomicLocus, rsID, chr, pos, p), by="GenomicLocus") %>%
   mutate(concordant = (minGwasP == p)) %>% arrange(p) %>%
-  select(SNP = rsID, P = p, Genes = genes)
+  select(-chr, -pos)
+SNPs <- as_tibble(fread("scratch/FUMA_results/FUMA_job228821/snps.txt")) %>%
+  select(rsID, chr, pos, non_effect_allele, effect_allele, MAF, beta, se)
+
+GL_PXS2 <- GL_PXS %>%
+  left_join(SNPs, by="rsID") %>%
+  left_join(GLM_PXS2, by="GenomicLocus") %>%
+  select(SNP=rsID, CHR = chr, BP = pos, A0 = non_effect_allele, A1 = effect_allele,
+         MAF, beta, beta_se = se, p, closest_genes = genes, n_behaviors_sig)
+
 loc_out <- paste0(dir_results,"GenomicLoci_PXS_T2D.txt")
-fwrite(GL_PXS, loc_out, sep="\t")
+fwrite(GL_PXS2, loc_out, sep="\t")
+loc_out <- paste0(dir_results,"GenomicLoci_PXS_T2D.csv")
+fwrite(GL_PXS2, loc_out)

@@ -60,6 +60,7 @@ LMM_PXS_T2D_FTO <- LMM_PXS_T2D %>%
          CHR == median(FTO_SNPs$chr)) %>%
   mutate(FTO_SNP = (BP >= min(FTO_SNPs$pos) & BP <= max(FTO_SNPs$pos)) )
   #mutate(FTO_SNP = SNP %in% FTO_rsIDs )
+LMM_PXS_T2D_FTO %>% arrange(P_BOLT_LMM_INF) %>% select(P_BOLT_LMM_INF, everything()) %>% View()
 mean_log10P <- LMM_PXS_T2D_FTO %>% group_by(FTO_SNP) %>%
   summarize(mean_log10P = mean(-log10(P_BOLT_LMM_INF)))
 tt1 <- t.test(-log10(LMM_PXS_T2D_FTO[LMM_PXS_T2D_FTO$FTO_SNP,"P_BOLT_LMM_INF"]) ,
@@ -146,6 +147,7 @@ wilcox.test(joint_sig_genes[joint_sig_genes$PXS_T2D_sig,]$AMP_T2D_log10P,
             joint_sig_genes[!joint_sig_genes$PXS_T2D_sig,]$AMP_T2D_log10P)
 
 # T2D vs PXS-T2D gencorrs ####
+genCorr_REML_tbl <- as_tibble(fread("scratch/genCorr_REML_results.txt"))
 AMP_T2D_gencorrs <- as_tibble(fread("scratch/AMP/AMP_T2D_gencorr_table.csv"))
 
 gencorr_compare <- tibble(shortname = c("Systolic BP","BMI","Glucose","HbA1c","HDL","Triglycerides"),
@@ -195,10 +197,8 @@ ggplot(gencorr_compare_plot, aes(x = shortname, y = gencorr)) +
   theme(
     panel.grid.major.x = element_blank(),
     panel.grid.minor = element_blank(),
-    plot.title = element_text(size=7),
-    plot.subtitle = element_text(size=5),
-    axis.title = element_text(size=6),
-    axis.text = element_text(size=5),
+    axis.title = element_text(size=9),
+    axis.text = element_text(size=7),
     legend.key.size = unit(4, "mm"),
     legend.title = element_text(size=9),
     legend.text = element_text(size=7),
@@ -206,3 +206,15 @@ ggplot(gencorr_compare_plot, aes(x = shortname, y = gencorr)) +
   )
 loc_fig <- "final_results/figures/gencorr_PXS_AMP"
 ggsave(paste0(loc_fig,".png"), width=180, height=120, units="mm", dpi=300)
+ggsave(paste0(loc_fig,".pdf"), width=180, height=120, units="mm", dpi=300)
+
+# Correlation between HbA1c and glucose ####
+# reads phenotype files
+pheno_all <- as_tibble(fread("scratch/phenoEC_fullT2D.txt"))
+pheno <- as_tibble(fread("scratch/pheno_EC.txt"))
+# filters to full cases of HbA1c and glucose
+pheno_all2 <- pheno_all %>% select(f30740, f30750) %>% drop_na()
+pheno2 <- pheno %>% select(f30740, f30750) %>% drop_na()
+# runs correlation tests
+cor.test(pheno_all2$f30740, pheno_all2$f30750)
+cor.test(pheno2$f30740, pheno2$f30750)
