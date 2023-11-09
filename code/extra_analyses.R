@@ -218,3 +218,66 @@ pheno2 <- pheno %>% select(f30740, f30750) %>% drop_na()
 # runs correlation tests
 cor.test(pheno_all2$f30740, pheno_all2$f30750)
 cor.test(pheno2$f30740, pheno2$f30750)
+
+
+# Giant Correlation Matrix ####
+library(polycor)
+expos <- shortnames$term[-1]
+
+pheno_polycor <- as.data.frame(pheno %>% select(all_of(expos)))
+hetcor_matrix <- hetcor(pheno_polycor, use="pairwise.complete.obs")
+cor_matrix <- hetcor_matrix$correlations
+
+cor_tibble <- as_tibble(as.data.frame(cor_matrix), rownames = "term1") %>%
+  pivot_longer(
+    cols = -term1,
+    names_to = "term2",
+    values_to = "r"
+  ) %>%
+  left_join(
+    as_tibble(as.data.frame(hetcor_matrix$std.errors), rownames = "term1") %>%
+      pivot_longer(
+        cols = -term1,
+        names_to = "term2",
+        values_to = "r_se"
+      ), by = c('term1','term2')
+  ) %>%
+  mutate(z = r / r_se,
+         sig = abs(z) > qnorm(0.05/2, lower.tail = FALSE)) %>%
+  filter(term1 != term2) %>%
+  left_join(shortnames, by=c('term1'='term')) %>% dplyr::rename(shortname1=shortname) %>%
+  left_join(shortnames, by=c('term2'='term')) %>% dplyr::rename(shortname2=shortname)
+
+# shared theme for multiple plots
+tileplot_theme <- theme(
+  legend.key.size = unit(2, "mm"),
+  legend.title = element_text(size=6),
+  legend.text = element_text(size=5),
+  legend.margin = margin(0,-1,0,-2, unit="mm"),
+  legend.text.align = 1,
+  plot.title = element_text(size=7),
+  plot.subtitle = element_text(size=5),
+  axis.title = element_text(size=6),
+  axis.text = element_text(size=5)
+)
+
+scale_max <- max(abs(cor_tibble$r))
+ggplot(cor_tibble, aes(x=shortname1, y=shortname2, fill=r)) +
+  geom_tile() +
+  geom_text(aes(label = sprintf("%.2f", r)), size=1.7) +
+  scale_fill_gradient2(low="#DE1B1B",mid="white", high="#93CF1A",
+                       midpoint = 0, limits = c(-0.5, 0.5)) +
+  scale_x_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=20), expand = c(0, 0)) +
+  scale_y_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=20), expand = c(0, 0)) +
+  xlab('Exposure Behavior') + ylab('Exposure Behavior') +
+  theme_light() +
+  tileplot_theme +
+  theme(
+    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+    panel.grid = element_blank()
+  )
+
+# saves plot to system
+loc_fig <- 'final_results/figures/behavior_cor_matrix'
+ggsave(paste0(loc_fig,".png"), width=180, height=120, units="mm", dpi=300)
+ggsave(paste0(loc_fig,".pdf"), width=180, height=120, units="mm", dpi=300)
