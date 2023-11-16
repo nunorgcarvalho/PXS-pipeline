@@ -407,8 +407,6 @@ GL_PXS <- Genes %>% filter(term == "PXS_T2D") %>%
   left_join(GRLoci %>% filter(term == "PXS_T2D") %>% select(GenomicLocus, rsID, chr, pos, p), by="GenomicLocus") %>%
   mutate(concordant = (minGwasP == p)) %>% arrange(p) %>%
   select(-chr, -pos)
-SNPs <- as_tibble(fread("scratch/FUMA_results/FUMA_job228821/snps.txt")) %>%
-  select(rsID, chr, pos, non_effect_allele, effect_allele, MAF, beta, se)
 
 GL_PXS2 <- GL_PXS %>%
   left_join(SNPs, by="rsID") %>%
@@ -420,3 +418,37 @@ loc_out <- paste0(dir_results,"GenomicLoci_PXS_T2D.txt")
 fwrite(GL_PXS2, loc_out, sep="\t")
 loc_out <- paste0(dir_results,"GenomicLoci_PXS_T2D.csv")
 fwrite(GL_PXS2, loc_out)
+
+## PXS-T2D loci2 ####
+
+# contains allele, MAF, and beta data
+SNPs <- as_tibble(fread("scratch/FUMA_results/FUMA_job228821/snps.txt")) %>%
+  select(rsID, chr, pos, non_effect_allele, effect_allele, MAF, beta, se, nearestGene) %>%
+  mutate(nearestGene = str_replace_all(nearestGene, ':',', '))
+# contains top SNPs
+top_SNPs <- as_tibble(fread('scratch/FUMA_results/FUMA_job228821/IndSigSNPs.txt')) %>%
+  group_by(GenomicLocus) %>%
+  filter(p == min(p)) %>% arrange(p) %>%
+  left_join(SNPs, by=c('rsID','chr','pos'))
+
+PXS_Genes <- as_tibble(fread('scratch/FUMA_results/FUMA_job228821/genes.txt')) %>%
+  select(GenomicLocus, symbol, minGwasP) %>%
+  add_row(
+    top_SNPs %>%
+      select(GenomicLocus, symbol = nearestGene, minGwasP = p) %>%
+      ungroup()
+  ) %>%
+  group_by(GenomicLocus) %>%
+  arrange(minGwasP, symbol) %>%
+  unique() %>%
+  filter(!grepl(', ', symbol)) %>%
+  summarize(genes = paste(unique(symbol), collapse = ", "))
+
+PXS_tableS3 <- top_SNPs %>%
+  ungroup() %>%
+  left_join(PXS_Genes, by='GenomicLocus') %>%
+  select(topSNP = rsID, CHR=chr, BP=pos, A0=non_effect_allele, A1=effect_allele,
+         MAF, beta, se, p, closest_gene = nearestGene, all_locus_genes = genes)
+
+loc_out <- paste0(dir_results,"tables/GenomicLoci_PXS_T2D.csv")
+fwrite(PXS_tableS3, loc_out)

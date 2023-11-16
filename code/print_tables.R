@@ -171,18 +171,3 @@ tbl_gt <- gt(tbl) %>%
 tbl_gt
 gtsave(tbl_gt, "behaviors_genetic_profile.png",dir_tbls)
 gtsave(tbl_gt, "behaviors_genetic_profile.rtf",dir_tbls)
-
-# PXS-T2D GenomicLoci ####
-GL_PXS <- as_tibble(fread(paste0(dir_results,"GenomicLoci_PXS_T2D.txt")))
-
-tbl <- GL_PXS
-
-tbl_gt <- gt(tbl) %>%
-  gt_theme() %>%
-  cols_label(
-    P = "GWAS p-value",
-  ) %>%
-  fmt_scientific(columns = "P", decimals = 1) %>%
-  cols_width(Genes ~ px(800)) %>%
-  cols_align(align = "left", columns = c("Genes"))
-tbl_gt
