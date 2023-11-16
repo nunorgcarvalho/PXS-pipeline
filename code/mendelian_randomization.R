@@ -109,6 +109,11 @@ MRInputObject4 <- mr_input(by = LMM_joint4$PXS_BETA,
 MRAllObject4_all <- mr_allmethods(MRInputObject4, method = "all")
 MRAllObject4_all
 
+save.image('scratch/workspaces/mendelian_randomization.RData')
+
+
+
+
 # PXS_T2D --> Finngen_T2D ####
 library(TwoSampleMR)
 avail <- available_outcomes()

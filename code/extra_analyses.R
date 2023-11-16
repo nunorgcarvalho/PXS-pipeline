@@ -281,3 +281,9 @@ ggplot(cor_tibble, aes(x=shortname1, y=shortname2, fill=r)) +
 loc_fig <- 'final_results/figures/behavior_cor_matrix'
 ggsave(paste0(loc_fig,".png"), width=180, height=120, units="mm", dpi=300)
 ggsave(paste0(loc_fig,".pdf"), width=180, height=120, units="mm", dpi=300)
+
+
+# AUC ####
+library(pROC)
+roc1 <- roc(data = pheno, response = T2D_onset, predictor = PXS_T2D)
+roc1
