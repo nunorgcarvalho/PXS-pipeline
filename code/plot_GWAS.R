@@ -101,10 +101,10 @@ for (i in 1:nrow(LMM_outs)) {
     geom_point(aes(color=as.factor(CHR)), alpha = 0.8, size = 0.6) +
     # geom_text_repel(data=sig_SNPs, aes(label=SNP,x=BP_cum,y=-log10(P_BOLT_LMM_INF)),
     #                 nudge_y = 0.15, seed=1, size = 0.75) +
-    geom_text(data=sig_SNPs, aes(label=SNP,x=BP_cum,y=-log10(P_BOLT_LMM_INF)),
-                    nudge_y = 0.3, size = 1.2) +
+    # geom_text(data=sig_SNPs, aes(label=SNP,x=BP_cum,y=-log10(P_BOLT_LMM_INF)),
+    #                 nudge_y = 0.3, size = 1.2) +
     scale_color_manual(values = rep(colors, 22)) +
-    scale_x_continuous(label = axes_tbl$CHR, breaks = axes_tbl$center_bp, expand = c(0,0)) +
+    scale_x_continuous(label = axes_tbl$CHR, breaks = axes_tbl$center_bp, expand = c(0.01,0.01)) +
     scale_y_continuous(expand = c(0,0), breaks = c(0:max_logP), limits = c(0,max_logP+0.5)) +
     theme_light() +
     xlab("Chromosome") +
@@ -118,11 +118,25 @@ for (i in 1:nrow(LMM_outs)) {
       plot.subtitle = element_text(size=5),
       axis.title = element_text(size=6),
       axis.text = element_text(size=5)
-    ) +
-    labs(title = paste0("Manhattan plot for '", shortname,"'"),
-         subtitle = subtitle,
-         )
+    )
   #gg
+  
+  if (term == 'PXS_T2D') {
+    top_loci <- as_tibble(fread('final_results/tables/GenomicLoci_PXS_T2D.csv')) %>%
+      filter(p < 1E-10) %>%
+      select(SNP=topSNP,CHR,BP,P_BOLT_LMM_INF=p, closest_gene) %>%
+      left_join(manhattan_tbl %>% select(SNP,total_bp, BP_cum), by='SNP') %>%
+      mutate(locus_label = paste0(SNP,'\n',closest_gene),
+             BP_window = round(BP_cum / (1E8))) %>%
+      distinct() %>%
+      group_by(BP_window) %>%
+      filter(P_BOLT_LMM_INF == min(P_BOLT_LMM_INF))
+    
+    gg <- gg +
+      geom_text(data=top_loci, aes(label=locus_label),
+                nudge_y = 0.4, size = 1.2)
+    
+  }
   
   print(paste0(shortname, " :: Saving Manhattan plot"))
   loc_out <- paste0(dir_Manhattan, "Manhattan_",term)
