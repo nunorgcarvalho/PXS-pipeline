@@ -3,6 +3,7 @@
 *.err
 *.Rout
 scratch/*
+scratch_2023/*
 sandbox/scratch/*
 final_results/*.png
 final_results/*.pdf

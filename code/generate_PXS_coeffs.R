@@ -6,7 +6,7 @@ library(callr)
 source('code/paths.R')
 library(PXStools)
 
-loc_pheno_full1 <- "/n/groups/patel/uk_biobank/main_data_34521/ukb34521.tab"
+loc_pheno_full1 <- "/n/no_backup2/patel/uk_biobank/main_data_34521/ukb34521.tab"
 loc_pheno_full2 <- "/n/groups/patel/uk_biobank/project_22881_669542/ukb669542.csv"
 loc_40PCs <- "/n/groups/patel/nuno/key_data/UKB_40PCs_500k.txt"
 # location to modified PXS function as present here:
@@ -17,7 +17,6 @@ loc_PXS_function <- paste0(dir_script,"../../PXStools/R/PXS.R")
 loc_expos <- paste0(dir_script,"../input_data/T2D_XWAS_exposures.txt")
 expos_tbl <- as_tibble(fread(loc_expos))
 expos1 <- (expos_tbl %>% filter(Exposure_Class %in% c("agency")))$FieldID
-expos2 <- (expos_tbl %>% filter(Exposure_Class %in% c("agency","no_agency","household")))$FieldID
 
 # loads list of CRFs
 loc_CFRs_tbl <- paste0(dir_script,"../input_data/CRFs_table.txt")
@@ -26,7 +25,7 @@ CRFs_tbl <- CRFs_tbl %>%
   mutate(fieldID = sapply(str_split(CRFs_tbl$field,"\\."), `[`,2))
 
 # gets date of first assessment
-cols_to_keep1 <- c("f.eid",paste0("f.",c(53,31,34,54,21000,22021,30750,2976, expos2),".0.0"), CRFs_tbl$field_raw) %>% unique()
+cols_to_keep1 <- c("f.eid",paste0("f.",c(53,31,34,54,21000,22021,30750,2976, expos1),".0.0"), CRFs_tbl$field_raw) %>% unique()
 pheno1 <- as_tibble(fread(loc_pheno_full1, select = cols_to_keep1))
 
 # gets date of T2D diagnosis
@@ -92,8 +91,8 @@ T2D_tbl <- T2D_tbl %>%
 sum(T2D_tbl$PHENO)
 
 # makes table formatted for PHESANT to standardize exposures
-tbl_out <- T2D_tbl[,c("userId",paste0("f.",c(expos2,CRFs_tbl$fieldID),".0.0"))]
-colnames(tbl_out) <- c("userId",paste0("x",c(expos2,CRFs_tbl$fieldID),"_0_0"))
+tbl_out <- T2D_tbl[,c("userId",paste0("f.",c(expos1,CRFs_tbl$fieldID),".0.0"))]
+colnames(tbl_out) <- c("userId",paste0("x",c(expos1,CRFs_tbl$fieldID),"_0_0"))
 dir.create(paste0(dir_scratch,'PHESANT_results/'))
 loc_out <- paste0(dir_scratch,"PHESANT_results/T2D_exposures_tbl_raw.txt")
 fwrite(tbl_out, loc_out, sep="\t")
@@ -140,7 +139,6 @@ data_PHESANT <- data_cont %>% left_join(data_catunord2) %>% left_join(data_cator
 PHESANT_fIDs2 <- colnames(data_PHESANT)[2:ncol(data_PHESANT)] %>% str_replace_all("#",".")
 PHESANT_fIDs1 <- PHESANT_fIDs2[sapply(str_split(PHESANT_fIDs2,"\\."), `[`,1) %in% expos1]
 col_expos1 <- paste0("f",PHESANT_fIDs1)
-col_expos2 <- paste0("f",PHESANT_fIDs2[sapply(str_split(PHESANT_fIDs2,"\\."), `[`,1) %in% expos2])
 colnames(data_PHESANT) <- c("userId",paste0("f",PHESANT_fIDs2))
 
 T2D_tbl2 <- T2D_tbl %>%
@@ -214,7 +212,8 @@ fwrite(T2D_definitions_out, loc_out, sep="\t", na="NA", quote=FALSE, logical01=T
 
 # randomly sorts individuals into A, B, and C groups
 set.seed(2016)
-T2D_tbl2$sample_group <- sample(c("A","B","C"), nrow(T2D_tbl2), replace=TRUE)
+T2D_tbl2$sample_group <- sample(c("A","B","C"), nrow(T2D_tbl2), replace=TRUE,
+                                prob = c(0.6, 0.2, 0.2))
 # T2D_tbl2 <- T2D_tbl2_full %>% filter(row_number() %in% sample(1:nrow(T2D_tbl2), 20000))
 # T2D_tbl2 <- T2D_tbl2_full
 IDA <- (T2D_tbl2 %>% filter(sample_group=="A"))$ID
@@ -223,9 +222,8 @@ IDC <- (T2D_tbl2 %>% filter(sample_group=="C"))$ID
 
 
 # runs XWAS for both sets of exposures
-xwas1 <- xwas(T2D_tbl2, X = col_expos1, cov = col_covs[-3], mod="cox", IDA = c(IDA,IDC), adjust="fdr") # <-- use if including AC columns
+xwas1 <- xwas(T2D_tbl2, X = col_expos1, cov = col_covs[-3], mod="cox", IDA = IDA, adjust="fdr") # <-- use if including AC columns
 #xwas1 <- xwas(T2D_tbl2, X = col_expos1, cov = col_covs, mod="cox", IDA = c(IDA,IDC), adjust="fdr")
-#xwas2 <- xwas(T2D_tbl2, X = col_expos2, cov = col_covs[-3], mod="cox", IDA = c(IDA,IDC), adjust="fdr")
 
 xwas1_c <- as_tibble(xwas1) %>%
   mutate(Field = col_expos1,
@@ -235,15 +233,9 @@ xwas1_c <- as_tibble(xwas1) %>%
   left_join(ukb_dict %>% select(FieldID,FieldName=Field, Coding)) %>%
   left_join(ukb_codings, by=c("Coding","Value")) %>%
   arrange(-fdr)
-#col_expos2_IDs <- sapply(str_split(col_expos2,"f"), `[`, 2)
-#xwas2_c <- as_tibble(xwas2) %>%
-#  mutate(Field = col_expos2,
-#         FieldID = as.numeric(sapply(str_split(col_expos2_IDs,"\\."), `[`, 1)),
-#         Value = sapply(str_split(col_expos2_IDs,"\\."), `[`, 2)) %>%
-#  mutate(Value = ifelse(Value==100,-7,Value)) %>%
-#  left_join(ukb_dict %>% select(FieldID,FieldName=Field, Coding)) %>%
-#  left_join(ukb_codings, by=c("Coding","Value")) %>%
-#  arrange(-fdr)
+
+path.out <- 'input_data/xwas_coefficients.txt'
+fwrite(xwas1_c, path.out, sep='\t')
 
 # calculates the PXS
 #sig_expos1 <- (xwas1_c %>% filter(fdr < 0.05))$Field
@@ -254,11 +246,10 @@ sig_expos1_tbl <- (xwas1_c %>%
                                            filter(fdr < 0.05))$FieldID ) )
 sig_expos1 <- sig_expos1_tbl$Field
 sig_expos1_groups <- sig_expos1_tbl$FieldID
-#sig_expos2 <- (xwas2_c %>% filter(fdr < 0.05))$Field
 source(loc_PXS_function)
 PXS1 <- PXS(df = T2D_tbl2, X = sig_expos1, cov = col_covs[-3], mod = "cox",
 #PXS1 <- PXS(df = T2D_tbl2, X = sig_expos1, cov = col_covs, mod = "cox",
-            IDA = c(IDA,IDC), IDB = IDB, IDC = c(), seed = 2016, alph=1)
+            IDA = IDA, IDB = IDB, IDC = c(), seed = 2016, alph=1)
 
 PXS1_coeffs <- as_tibble(PXS1) %>%
   mutate(field = sapply(str_split(term,"f"), `[`, 2)) %>%

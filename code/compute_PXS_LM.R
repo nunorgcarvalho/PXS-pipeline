@@ -90,10 +90,11 @@ fwrite(T2D_definitions_out, loc_fullT2D, sep="\t", na="NA", quote=FALSE)
 print("Done computing PXS")
 
 # makes list of IIDs with missing PXS
-if (col_PXS %in% colnames(pheno)) {
-  pheno <- pheno %>% select(-all_of(col_PXS))
+#if (col_PXS %in% colnames(pheno)) { pheno <- pheno %>% select(-all_of(col_PXS)) }
+if (length(is.na(pheno[[col_PXS]])) == 0) {IIDs_NAs <- pheno[0,c("FID","IID")]
+} else {IIDs_NAs <- pheno[is.na(pheno[[col_PXS]]),c("FID","IID")]
 }
-IIDs_NAs <- pheno[is.na(pheno[[col_PXS]]),c("FID","IID")]
+
 loc_out <- paste0(dir_scratch,disease,"/IIDs_NA_exposures.txt")
 write.table(IIDs_NAs, loc_out, row.names = FALSE, col.names = FALSE, quote = FALSE)
 

@@ -1,11 +1,11 @@
 FieldID	Field	Exposure_Class
 120	Birth weight known	no_agency
-670	Type of accommodation lived in	agency
-680	Own or rent accommodation lived in	agency
-699	Length of time at current address	agency
+670	Type of accommodation lived in	SES
+680	Own or rent accommodation lived in	SES
+699	Length of time at current address	SES
 709	Number in household	household
 728	Number of vehicles in household	household
-738	Average total household income before tax	household
+738	Average total household income before tax	SES
 864	Number of days/week walked 10+ minutes	agency
 874	Duration of walks	agency
 884	Number of days/week of moderate physical activity 10+ minutes	agency
@@ -53,7 +53,7 @@ FieldID	Field	Exposure_Class
 1498	Coffee intake	agency
 1518	Hot drink temperature	agency
 1528	Water intake	agency
-1538	Major dietary changes in the last 5 years	agency
+1538	Major dietary changes in the last 5 years	no_agency
 1548	Variation in diet	agency
 1558	Alcohol intake frequency.	agency
 1628	Alcohol intake versus 10 years previously	agency
@@ -73,15 +73,15 @@ FieldID	Field	Exposure_Class
 2129	Answered sexual history questions	agency
 2139	Age first had sexual intercourse	agency
 2149	Lifetime number of sexual partners	agency
-2159	Ever had same-sex intercourse	agency
+2159	Ever had same-sex intercourse	no_agency
 2237	Plays computer games	agency
 2267	Use of sun/uv protection	agency
 2277	Frequency of solarium/sunlamp use	agency
-6138	Qualifications	agency
+6138	Qualifications	SES
 6139	Gas or solid-fuel cooking/heating	agency
-6142	Current employment status	agency
+6142	Current employment status	SES
 6144	"Never eat eggs, dairy"	agency
-6146	Attendance/disability/mobility allowance	agency
+6146	Attendance/disability/mobility allowance	no_agency
 6162	Types of transport used (excluding work)	agency
 6164	Types of physical activity in last 4 weeks	agency
 20116	Smoking status	agency
