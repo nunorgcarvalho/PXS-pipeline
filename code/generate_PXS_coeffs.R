@@ -5,6 +5,7 @@ library(data.table)
 library(callr)
 source('code/paths.R')
 library(PXStools)
+library(missMDA)
 
 loc_pheno_full1 <- "/n/no_backup2/patel/uk_biobank/main_data_34521/ukb34521.tab"
 loc_pheno_full2 <- "/n/groups/patel/uk_biobank/project_22881_669542/ukb669542.csv"
@@ -141,22 +142,6 @@ PHESANT_fIDs1 <- PHESANT_fIDs2[sapply(str_split(PHESANT_fIDs2,"\\."), `[`,1) %in
 col_expos1 <- paste0("f",PHESANT_fIDs1)
 colnames(data_PHESANT) <- c("userId",paste0("f",PHESANT_fIDs2))
 
-T2D_tbl2 <- T2D_tbl %>%
-  select(userId, PHENO, TIME, sex, age, assessment_center, starts_with("pc")) %>%
-  left_join(data_PHESANT) %>%
-  rename(ID = userId)
-
-####
-# Makes a column for each assessment_center
-# Currently skipping, does not significantly impact results
-
-# ACs <- T2D_tbl2$assessment_center %>% unique()
-# for (AC in ACs) {
-#   col_AC <- paste0("assessment_center.",AC)
-#   T2D_tbl2[,col_AC] <- as.numeric(T2D_tbl2$assessment_center == AC)
-# }
-####
-
 col_covs <- c("sex", "age", "assessment_center", paste0("pc",1:40))
 #col_covs <- c("sex", "age", paste0("assessment_center.",ACs), paste0("pc",1:40)) # <-- use if including AC columns
 #fields <- tibble(term = colnames(T2D_tbl2)[-c(1:3,6)]) %>% # <-- use if including AC columns
@@ -179,6 +164,51 @@ fields <- tibble(term = colnames(T2D_tbl2)[-c(1:3)]) %>%
 
 loc_out <- paste0(dir_scratch,"fields_tbl.txt")
 fwrite(fields, loc_out, sep="\t")
+
+#
+# impute behavior data ####
+data_FAMD <- data_PHESANT %>% select(all_of(col_expos1))
+FAMD_impute_agency <- missMDA::imputeFAMD(data_FAMD, ncp=4, seed=1) # took about 15-20mins with ncp=4
+FAMD_imputed <- FAMD_impute_agency$completeObs
+
+## sets upper and lower limits of imputed data ####
+fields$PHESANT_min <- NA_real_
+fields$PHESANT_max <- NA_real_
+for (term in col_expos1) {
+  PHESANT_min <- min(data_PHESANT[[term]], na.rm=TRUE)
+  PHESANT_max <- max(data_PHESANT[[term]], na.rm=TRUE)
+  fields$PHESANT_min[which(fields$term==term)] <- PHESANT_min
+  fields$PHESANT_max[which(fields$term==term)] <- PHESANT_max
+  
+  n_under <- sum(FAMD_imputed[[term]] < PHESANT_min)
+  if (n_under>0) {print(paste(n_under,'observations under min:',term))}
+  FAMD_imputed[FAMD_imputed[[term]] < PHESANT_min, term] <- PHESANT_min
+  
+  n_over <- sum(FAMD_imputed[[term]] > PHESANT_max)
+  if (n_over>0) {print(paste(n_over,'observations over max',term))}
+  FAMD_imputed[FAMD_imputed[[term]] > PHESANT_max, term] <- PHESANT_max
+}
+
+#
+
+
+T2D_tbl2 <- T2D_tbl %>%
+  select(ID=userId, PHENO, TIME, sex, age, assessment_center, starts_with("pc")) %>%
+  add_column(FAMD_imputed) %>%
+  add_column(data_PHESANT %>% select(all_of(fields$term[fields$use_type=='CRF'])))
+
+####
+# Makes a column for each assessment_center
+# Currently skipping, does not significantly impact results
+
+# ACs <- T2D_tbl2$assessment_center %>% unique()
+# for (AC in ACs) {
+#   col_AC <- paste0("assessment_center.",AC)
+#   T2D_tbl2[,col_AC] <- as.numeric(T2D_tbl2$assessment_center == AC)
+# }
+####
+
+#
 
 tbl_out <- as_tibble(cbind(FID = T2D_tbl2$ID,IID = T2D_tbl2$ID,
                            T2D_tbl2[c(4:ncol(T2D_tbl2),2,3)])) %>%
