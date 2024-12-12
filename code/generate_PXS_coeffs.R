@@ -143,8 +143,6 @@ col_expos1 <- paste0("f",PHESANT_fIDs1)
 colnames(data_PHESANT) <- c("userId",paste0("f",PHESANT_fIDs2))
 
 col_covs <- c("sex", "age", "assessment_center", paste0("pc",1:40))
-#col_covs <- c("sex", "age", paste0("assessment_center.",ACs), paste0("pc",1:40)) # <-- use if including AC columns
-#fields <- tibble(term = colnames(T2D_tbl2)[-c(1:3,6)]) %>% # <-- use if including AC columns
 fields <- tibble(term = colnames(T2D_tbl2)[-c(1:3)]) %>%
   mutate(field = c(col_covs,PHESANT_fIDs2)) %>%
   mutate(use_type = ifelse(field %in% col_covs, "covar",
@@ -165,7 +163,6 @@ fields <- tibble(term = colnames(T2D_tbl2)[-c(1:3)]) %>%
 loc_out <- paste0(dir_scratch,"fields_tbl.txt")
 fwrite(fields, loc_out, sep="\t")
 
-#
 # impute behavior data ####
 data_FAMD <- data_PHESANT %>% select(all_of(col_expos1))
 FAMD_impute_agency <- missMDA::imputeFAMD(data_FAMD, ncp=4, seed=1) # took about 15-20mins with ncp=4
@@ -191,22 +188,10 @@ for (term in col_expos1) {
 
 #
 
-
 T2D_tbl2 <- T2D_tbl %>%
   select(ID=userId, PHENO, TIME, sex, age, assessment_center, starts_with("pc")) %>%
   add_column(FAMD_imputed) %>%
   add_column(data_PHESANT %>% select(all_of(fields$term[fields$use_type=='CRF'])))
-
-####
-# Makes a column for each assessment_center
-# Currently skipping, does not significantly impact results
-
-# ACs <- T2D_tbl2$assessment_center %>% unique()
-# for (AC in ACs) {
-#   col_AC <- paste0("assessment_center.",AC)
-#   T2D_tbl2[,col_AC] <- as.numeric(T2D_tbl2$assessment_center == AC)
-# }
-####
 
 #
 
@@ -214,7 +199,6 @@ tbl_out <- as_tibble(cbind(FID = T2D_tbl2$ID,IID = T2D_tbl2$ID,
                            T2D_tbl2[c(4:ncol(T2D_tbl2),2,3)])) %>%
   rename(T2D_onset = PHENO, T2D_onset_days = TIME) %>%
   mutate(T2D_onset = as.numeric(T2D_onset))
-#loc_out <- paste0(dir_scratch,"pheno_EC.txt")
 # loc_phenoEC comes from paths.R
 fwrite(tbl_out, loc_phenoEC, sep="\t", na="NA", quote=FALSE)
 
@@ -244,8 +228,6 @@ fwrite(T2D_definitions_out, loc_out, sep="\t", na="NA", quote=FALSE, logical01=T
 set.seed(2016)
 T2D_tbl2$sample_group <- sample(c("A","B","C"), nrow(T2D_tbl2), replace=TRUE,
                                 prob = c(0.6, 0.2, 0.2))
-# T2D_tbl2 <- T2D_tbl2_full %>% filter(row_number() %in% sample(1:nrow(T2D_tbl2), 20000))
-# T2D_tbl2 <- T2D_tbl2_full
 IDA <- (T2D_tbl2 %>% filter(sample_group=="A"))$ID
 IDB <- (T2D_tbl2 %>% filter(sample_group=="B"))$ID
 IDC <- (T2D_tbl2 %>% filter(sample_group=="C"))$ID
@@ -253,7 +235,6 @@ IDC <- (T2D_tbl2 %>% filter(sample_group=="C"))$ID
 
 # runs XWAS for both sets of exposures
 xwas1 <- xwas(T2D_tbl2, X = col_expos1, cov = col_covs[-3], mod="cox", IDA = IDA, adjust="fdr") # <-- use if including AC columns
-#xwas1 <- xwas(T2D_tbl2, X = col_expos1, cov = col_covs, mod="cox", IDA = c(IDA,IDC), adjust="fdr")
 
 xwas1_c <- as_tibble(xwas1) %>%
   mutate(Field = col_expos1,
@@ -268,7 +249,6 @@ path.out <- 'input_data/xwas_coefficients.txt'
 fwrite(xwas1_c, path.out, sep='\t')
 
 # calculates the PXS
-#sig_expos1 <- (xwas1_c %>% filter(fdr < 0.05))$Field
 sig_expos1_tbl <- (xwas1_c %>%
                     filter(FieldID %in% (xwas1_c %>% 
                                            group_by(FieldID) %>% 
@@ -278,7 +258,6 @@ sig_expos1 <- sig_expos1_tbl$Field
 sig_expos1_groups <- sig_expos1_tbl$FieldID
 source(loc_PXS_function)
 PXS1 <- PXS(df = T2D_tbl2, X = sig_expos1, cov = col_covs[-3], mod = "cox",
-#PXS1 <- PXS(df = T2D_tbl2, X = sig_expos1, cov = col_covs, mod = "cox",
             IDA = IDA, IDB = IDB, IDC = c(), seed = 2016, alph=1)
 
 PXS1_coeffs <- as_tibble(PXS1) %>%
