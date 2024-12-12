@@ -106,6 +106,12 @@ for (pheno in pheno_list) {
       add_row(path=loc_genCorr,term1=paste0(pheno,"_all"),term2=CRF)
   }
 }
+
+## temporary
+gencorr_logs <- gencorr_logs %>%
+  filter(!(term1 %in% c('T2D','T2D_all')))
+##
+
 genCorr_REML_tbl <- tibble(
   pheno1_term = as.character(),
   h2g1 = as.numeric(),

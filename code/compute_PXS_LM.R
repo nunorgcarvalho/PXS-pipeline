@@ -60,7 +60,7 @@ for (i in 1:nrow(pheno_wide)) {
   PXS <- (coeffs_vec %*% iid_pheno_vec)[1]
   PXSs <- c(PXSs,PXS)
   
-  if (i %% 5000 == 0) {
+  if (i %% 1000 == 0) {
     print(paste0("Computed PXS for ",i/1000,"k individuals"))
   }
 }

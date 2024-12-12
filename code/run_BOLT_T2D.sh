@@ -27,9 +27,9 @@ echo '#!/bin/sh
 
 ~/bolt \
 --numThreads 20 \
---bed /n/groups/patel/uk_biobank/main_data_9512/ukb_cal_chr{1:22}_v2.bed \
---bim /n/groups/patel/uk_biobank/main_data_9512/ukb_snp_chr{1:22}_v2.bim \
---fam /n/groups/patel/uk_biobank/main_data_9512/ukb_bolt_lmm.fam \
+--bed /n/no_backup2/patel/uk_biobank/main_data_9512/ukb_cal_chr{1:22}_v2.bed \
+--bim /n/no_backup2/patel/uk_biobank/main_data_9512/ukb_snp_chr{1:22}_v2.bim \
+--fam /n/no_backup2/patel/uk_biobank/main_data_9512/ukb_bolt_lmm.fam \
 --LDscoresFile /n/groups/patel/bin/BOLT-LMM_v2.3.2/tables/LDSCORE.1000G_EUR.tab.gz \
 --remove '${subfolder}'/IIDs_NA_exposures.txt \
 --remove '${dir_script}'../input_data/bolt.in_plink_but_not_imputed.FID_IID.978.txt \
@@ -44,14 +44,14 @@ echo '#!/bin/sh
 --lmm \
 --verboseStats \
 --statsFile '${subfolder}'/LMM_PXS_'${disease}'.txt \
---bgenFile /n/no_backup2/patel/ukb_imp_chr{1:22}_v3.bgen \
+--bgenFile /n/no_backup2/patel/uk_biobank/ukb_genetics/22881/ukb_imp_chr{1:22}_v3.bgen \
 --bgenMinMAF 1e-3 \
 --bgenMinINFO 0.3 \
---sampleFile /n/no_backup2/patel/ukb22881_imp_chr1_v3_s487324.sample \
+--sampleFile /n/no_backup2/patel/uk_biobank/ukb_genetics/22881/ukb22881_imp_chr1_v3_s487324.sample \
 --statsFileBgenSnps '${subfolder}'/LMM_PXS_'${disease}'_bgen.txt
 
 ' > ${subfolder}/${disease}_PXS_BOLTLMM.sh
-#sbatch ${subfolder}/${disease}_PXS_BOLTLMM.sh
+sbatch ${subfolder}/${disease}_PXS_BOLTLMM.sh
 echo 'Submitted BOLT-LMM for PXS_'${disease}
 
 ### PXS_T2D BMI-adj1 ###
@@ -68,9 +68,9 @@ echo '#!/bin/sh
 
 ~/bolt \
 --numThreads 20 \
---bed /n/groups/patel/uk_biobank/main_data_9512/ukb_cal_chr{1:22}_v2.bed \
---bim /n/groups/patel/uk_biobank/main_data_9512/ukb_snp_chr{1:22}_v2.bim \
---fam /n/groups/patel/uk_biobank/main_data_9512/ukb_bolt_lmm.fam \
+--bed /n/no_backup2/patel/uk_biobank/main_data_9512/ukb_cal_chr{1:22}_v2.bed \
+--bim /n/no_backup2/patel/uk_biobank/main_data_9512/ukb_snp_chr{1:22}_v2.bim \
+--fam /n/no_backup2/patel/uk_biobank/main_data_9512/ukb_bolt_lmm.fam \
 --LDscoresFile /n/groups/patel/bin/BOLT-LMM_v2.3.2/tables/LDSCORE.1000G_EUR.tab.gz \
 --remove '${subfolder}'/IIDs_NA_exposures.txt \
 --remove '${dir_script}'../input_data/bolt.in_plink_but_not_imputed.FID_IID.978.txt \
@@ -86,14 +86,14 @@ echo '#!/bin/sh
 --lmm \
 --verboseStats \
 --statsFile '${subfolder}'/LMM_PXS_'${disease}'_BMIadj.txt \
---bgenFile /n/no_backup2/patel/ukb_imp_chr{1:22}_v3.bgen \
+--bgenFile /n/no_backup2/patel/uk_biobank/ukb_genetics/22881/ukb_imp_chr{1:22}_v3.bgen \
 --bgenMinMAF 1e-3 \
 --bgenMinINFO 0.3 \
---sampleFile /n/no_backup2/patel/ukb22881_imp_chr1_v3_s487324.sample \
+--sampleFile /n/no_backup2/patel/uk_biobank/ukb_genetics/22881/ukb22881_imp_chr1_v3_s487324.sample \
 --statsFileBgenSnps '${subfolder}'/LMM_PXS_'${disease}'_BMIadj_bgen.txt
 
 ' > ${subfolder}/${disease}_PXS_BMIadj_BOLTLMM.sh
-#sbatch ${subfolder}/${disease}_PXS_BMIadj_BOLTLMM.sh
+sbatch ${subfolder}/${disease}_PXS_BMIadj_BOLTLMM.sh
 echo 'Submitted BOLT-LMM for PXS_'${disease} 'BMI-adj'
 
 ### PXS_T2D BMI-adj2 ###
@@ -110,9 +110,9 @@ echo '#!/bin/sh
 
 ~/bolt \
 --numThreads 20 \
---bed /n/groups/patel/uk_biobank/main_data_9512/ukb_cal_chr{1:22}_v2.bed \
---bim /n/groups/patel/uk_biobank/main_data_9512/ukb_snp_chr{1:22}_v2.bim \
---fam /n/groups/patel/uk_biobank/main_data_9512/ukb_bolt_lmm.fam \
+--bed /n/no_backup2/patel/uk_biobank/main_data_9512/ukb_cal_chr{1:22}_v2.bed \
+--bim /n/no_backup2/patel/uk_biobank/main_data_9512/ukb_snp_chr{1:22}_v2.bim \
+--fam /n/no_backup2/patel/uk_biobank/main_data_9512/ukb_bolt_lmm.fam \
 --LDscoresFile /n/groups/patel/bin/BOLT-LMM_v2.3.2/tables/LDSCORE.1000G_EUR.tab.gz \
 --remove '${subfolder}'/IIDs_NA_exposures.txt \
 --remove '${dir_script}'../input_data/bolt.in_plink_but_not_imputed.FID_IID.978.txt \
@@ -127,15 +127,15 @@ echo '#!/bin/sh
 --lmm \
 --verboseStats \
 --statsFile '${subfolder}'/LMM_PXS_'${disease}'_BMIadj2.txt \
---bgenFile /n/no_backup2/patel/ukb_imp_chr{1:22}_v3.bgen \
+--bgenFile /n/no_backup2/patel/uk_biobank/ukb_genetics/22881/ukb_imp_chr{1:22}_v3.bgen \
 --bgenMinMAF 1e-3 \
 --bgenMinINFO 0.3 \
---sampleFile /n/no_backup2/patel/ukb22881_imp_chr1_v3_s487324.sample \
+--sampleFile /n/no_backup2/patel/uk_biobank/ukb_genetics/22881/ukb22881_imp_chr1_v3_s487324.sample \
 --statsFileBgenSnps '${subfolder}'/LMM_PXS_'${disease}'_BMIadj2_bgen.txt
 
 ' > ${subfolder}/${disease}_PXS_BMIadj2_BOLTLMM.sh
-sbatch ${subfolder}/${disease}_PXS_BMIadj2_BOLTLMM.sh
-echo 'Submitted BOLT-LMM for PXS_'${disease} 'BMI-adj2'
+#sbatch ${subfolder}/${disease}_PXS_BMIadj2_BOLTLMM.sh
+#echo 'Submitted BOLT-LMM for PXS_'${disease} 'BMI-adj2'
 
 ### T2D_all ###
 ########################################
@@ -151,9 +151,9 @@ echo '#!/bin/sh
 
 ~/bolt \
 --numThreads 20 \
---bed /n/groups/patel/uk_biobank/main_data_9512/ukb_cal_chr{1:22}_v2.bed \
---bim /n/groups/patel/uk_biobank/main_data_9512/ukb_snp_chr{1:22}_v2.bim \
---fam /n/groups/patel/uk_biobank/main_data_9512/ukb_bolt_lmm.fam \
+--bed /n/no_backup2/patel/uk_biobank/main_data_9512/ukb_cal_chr{1:22}_v2.bed \
+--bim /n/no_backup2/patel/uk_biobank/main_data_9512/ukb_snp_chr{1:22}_v2.bim \
+--fam /n/no_backup2/patel/uk_biobank/main_data_9512/ukb_bolt_lmm.fam \
 --LDscoresFile /n/groups/patel/bin/BOLT-LMM_v2.3.2/tables/LDSCORE.1000G_EUR.tab.gz \
 --remove '${subfolder}'/IIDs_NA_exposures.txt \
 --remove '${dir_script}'../input_data/bolt.in_plink_but_not_imputed.FID_IID.978.txt \
@@ -168,14 +168,14 @@ echo '#!/bin/sh
 --lmm \
 --verboseStats \
 --statsFile '${subfolder}'/LMM_'${disease}'_all.txt \
---bgenFile /n/no_backup2/patel/ukb_imp_chr{1:22}_v3.bgen \
+--bgenFile /n/no_backup2/patel/uk_biobank/ukb_genetics/22881/ukb_imp_chr{1:22}_v3.bgen \
 --bgenMinMAF 1e-3 \
 --bgenMinINFO 0.3 \
---sampleFile /n/no_backup2/patel/ukb22881_imp_chr1_v3_s487324.sample \
+--sampleFile /n/no_backup2/patel/uk_biobank/ukb_genetics/22881/ukb22881_imp_chr1_v3_s487324.sample \
 --statsFileBgenSnps '${subfolder}'/LMM_'${disease}'_all_bgen.txt
 
 ' > ${subfolder}/${disease}_all_BOLTLMM.sh
-#sbatch ${subfolder}/${disease}_all_BOLTLMM.sh
+sbatch ${subfolder}/${disease}_all_BOLTLMM.sh
 echo 'Submitted BOLT-LMM for '${disease}'_all'
 
 ### T2D_onset ###
@@ -192,9 +192,9 @@ echo '#!/bin/sh
 
 ~/bolt \
 --numThreads 20 \
---bed /n/groups/patel/uk_biobank/main_data_9512/ukb_cal_chr{1:22}_v2.bed \
---bim /n/groups/patel/uk_biobank/main_data_9512/ukb_snp_chr{1:22}_v2.bim \
---fam /n/groups/patel/uk_biobank/main_data_9512/ukb_bolt_lmm.fam \
+--bed /n/no_backup2/patel/uk_biobank/main_data_9512/ukb_cal_chr{1:22}_v2.bed \
+--bim /n/no_backup2/patel/uk_biobank/main_data_9512/ukb_snp_chr{1:22}_v2.bim \
+--fam /n/no_backup2/patel/uk_biobank/main_data_9512/ukb_bolt_lmm.fam \
 --LDscoresFile /n/groups/patel/bin/BOLT-LMM_v2.3.2/tables/LDSCORE.1000G_EUR.tab.gz \
 --remove '${subfolder}'/IIDs_NA_exposures.txt \
 --remove '${dir_script}'../input_data/bolt.in_plink_but_not_imputed.FID_IID.978.txt \
@@ -209,14 +209,14 @@ echo '#!/bin/sh
 --lmm \
 --verboseStats \
 --statsFile '${subfolder}'/LMM_'${disease}'_onset.txt \
---bgenFile /n/no_backup2/patel/ukb_imp_chr{1:22}_v3.bgen \
+--bgenFile /n/no_backup2/patel/uk_biobank/ukb_genetics/22881/ukb_imp_chr{1:22}_v3.bgen \
 --bgenMinMAF 1e-3 \
 --bgenMinINFO 0.3 \
---sampleFile /n/no_backup2/patel/ukb22881_imp_chr1_v3_s487324.sample \
+--sampleFile /n/no_backup2/patel/uk_biobank/ukb_genetics/22881/ukb22881_imp_chr1_v3_s487324.sample \
 --statsFileBgenSnps '${subfolder}'/LMM_'${disease}'_onset_bgen.txt
 
 ' > ${subfolder}/${disease}_onset_BOLTLMM.sh
-#sbatch ${subfolder}/${disease}_onset_BOLTLMM.sh
+sbatch ${subfolder}/${disease}_onset_BOLTLMM.sh
 echo 'Submitted BOLT-LMM for '${disease}'_onset'
 
 done
