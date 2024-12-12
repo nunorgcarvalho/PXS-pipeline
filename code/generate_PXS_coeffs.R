@@ -190,8 +190,25 @@ for (term in col_expos1) {
 
 T2D_tbl2 <- T2D_tbl %>%
   select(ID=userId, PHENO, TIME, sex, age, assessment_center, starts_with("pc")) %>%
+  arrange(ID) %>% # PHESANT sorts by ID for some reason
   add_column(FAMD_imputed) %>%
   add_column(data_PHESANT %>% select(all_of(fields$term[fields$use_type=='CRF'])))
+
+
+# defines normal and overweight (0 and 1 respectively) groups
+overweight_BMI <- 25
+IDs_BMI0 <- T2D_tbl$userId[T2D_tbl$f.21001.0.0 <= overweight_BMI]
+IDs_BMI1 <- T2D_tbl$userId[T2D_tbl$f.21001.0.0 > overweight_BMI]
+tmp <- T2D_tbl2 %>% mutate(overweight = ifelse(ID %in% IDs_BMI0, 0,
+                                  ifelse(ID %in% IDs_BMI1, 1, NA)))
+ggplot(tmp, aes(x=`f21001`, fill=as.factor(overweight))) +
+  geom_histogram() +
+  #facet_wrap(~overweight) +
+  theme_bw()
+tmp %>% select(ID, f21001, overweight) %>%,
+  group_by(overweight) %>%
+  summarize(min_BMI = min(f21001),
+            max_BMI = max(f21001))
 
 #
 
@@ -220,6 +237,9 @@ for (col in colnames(T2D_definitions)) {
 }
 loc_out <- paste0(dir_scratch, "phenoEC_fullT2D.txt")
 fwrite(T2D_definitions_out, loc_out, sep="\t", na="NA", quote=FALSE, logical01=TRUE)
+
+
+
 
 # some of the following code is commented out because we are opting to use the
 # exposures in group 1, not group 2
