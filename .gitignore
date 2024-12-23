@@ -4,6 +4,7 @@
 *.Rout
 scratch/*
 scratch_2023/*
+scratch_2024/*
 sandbox/scratch/*
 final_results/*.png
 final_results/*.pdf

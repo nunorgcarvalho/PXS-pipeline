@@ -4,7 +4,7 @@ library(tidyverse)
 library(data.table)
 library(callr)
 source('code/paths.R')
-library(PXStools)
+#library(PXStools)
 library(missMDA)
 
 loc_pheno_full1 <- "/n/no_backup2/patel/uk_biobank/main_data_34521/ukb34521.tab"
@@ -143,25 +143,6 @@ col_expos1 <- paste0("f",PHESANT_fIDs1)
 colnames(data_PHESANT) <- c("userId",paste0("f",PHESANT_fIDs2))
 
 col_covs <- c("sex", "age", "assessment_center", paste0("pc",1:40))
-fields <- tibble(term = colnames(T2D_tbl2)[-c(1:3)]) %>%
-  mutate(field = c(col_covs,PHESANT_fIDs2)) %>%
-  mutate(use_type = ifelse(field %in% col_covs, "covar",
-                           ifelse(field %in% CRFs_tbl$fieldID, "CRF","exposure")),
-         data_type = ifelse(str_replace(field,"\\.","#") %in% colnames(data_binary2), "binary",
-                     ifelse(str_replace(field,"\\.","#") %in% colnames(data_catord), "catord",
-                     ifelse(str_replace(field,"\\.","#") %in% colnames(data_catunord2), "catunord",
-                     ifelse(str_replace(field,"\\.","#") %in% colnames(data_cont), "continuous",as.character(NA))))),
-         fieldID = sapply(str_split(field,"\\."), `[`, 1),
-         value = sapply(str_split(field,"\\."), `[`, 2)) %>%
-  mutate(fieldID = as.numeric(ifelse(use_type=="covar",NA,fieldID)),
-         value = ifelse(value==100,-7,value)) %>%
-  left_join(ukb_dict %>% select(fieldID=FieldID,fieldname=Field, coding=Coding)) %>%
-  left_join(ukb_codings, by=c("coding"="Coding","value"="Value")) %>%
-  mutate(traitname = ifelse(is.na(Meaning),fieldname,
-                            paste0(fieldname,": ",Meaning)))
-
-loc_out <- paste0(dir_scratch,"fields_tbl.txt")
-fwrite(fields, loc_out, sep="\t")
 
 # impute behavior data ####
 data_FAMD <- data_PHESANT %>% select(all_of(col_expos1))
@@ -169,13 +150,9 @@ FAMD_impute_agency <- missMDA::imputeFAMD(data_FAMD, ncp=4, seed=1) # took about
 FAMD_imputed <- FAMD_impute_agency$completeObs
 
 ## sets upper and lower limits of imputed data ####
-fields$PHESANT_min <- NA_real_
-fields$PHESANT_max <- NA_real_
 for (term in col_expos1) {
   PHESANT_min <- min(data_PHESANT[[term]], na.rm=TRUE)
   PHESANT_max <- max(data_PHESANT[[term]], na.rm=TRUE)
-  fields$PHESANT_min[which(fields$term==term)] <- PHESANT_min
-  fields$PHESANT_max[which(fields$term==term)] <- PHESANT_max
   
   n_under <- sum(FAMD_imputed[[term]] < PHESANT_min)
   if (n_under>0) {print(paste(n_under,'observations under min:',term))}
@@ -188,6 +165,26 @@ for (term in col_expos1) {
 
 #
 
+fields <- tibble(term = c(col_covs,colnames(data_PHESANT[-1]))) %>%
+  mutate(field = c(col_covs,PHESANT_fIDs2)) %>%
+  mutate(use_type = ifelse(field %in% col_covs, "covar",
+                           ifelse(field %in% CRFs_tbl$fieldID, "CRF","exposure")),
+         data_type = ifelse(str_replace(field,"\\.","#") %in% colnames(data_binary2), "binary",
+                            ifelse(str_replace(field,"\\.","#") %in% colnames(data_catord), "catord",
+                                   ifelse(str_replace(field,"\\.","#") %in% colnames(data_catunord2), "catunord",
+                                          ifelse(str_replace(field,"\\.","#") %in% colnames(data_cont), "continuous",as.character(NA))))),
+         fieldID = sapply(str_split(field,"\\."), `[`, 1),
+         value = sapply(str_split(field,"\\."), `[`, 2)) %>%
+  mutate(fieldID = as.numeric(ifelse(use_type=="covar",NA,fieldID)),
+         value = ifelse(value==100,-7,value)) %>%
+  left_join(ukb_dict %>% select(fieldID=FieldID,fieldname=Field, coding=Coding)) %>%
+  left_join(ukb_codings, by=c("coding"="Coding","value"="Value")) %>%
+  mutate(traitname = ifelse(is.na(Meaning),fieldname,
+                            paste0(fieldname,": ",Meaning)))
+
+loc_out <- paste0(dir_scratch,"fields_tbl.txt")
+fwrite(fields, loc_out, sep="\t")
+
 T2D_tbl2 <- T2D_tbl %>%
   select(ID=userId, PHENO, TIME, sex, age, assessment_center, starts_with("pc")) %>%
   arrange(ID) %>% # PHESANT sorts by ID for some reason
@@ -199,16 +196,9 @@ T2D_tbl2 <- T2D_tbl %>%
 overweight_BMI <- 25
 IDs_BMI0 <- T2D_tbl$userId[T2D_tbl$f.21001.0.0 <= overweight_BMI]
 IDs_BMI1 <- T2D_tbl$userId[T2D_tbl$f.21001.0.0 > overweight_BMI]
-tmp <- T2D_tbl2 %>% mutate(overweight = ifelse(ID %in% IDs_BMI0, 0,
-                                  ifelse(ID %in% IDs_BMI1, 1, NA)))
-ggplot(tmp, aes(x=`f21001`, fill=as.factor(overweight))) +
-  geom_histogram() +
-  #facet_wrap(~overweight) +
-  theme_bw()
-tmp %>% select(ID, f21001, overweight) %>%,
-  group_by(overweight) %>%
-  summarize(min_BMI = min(f21001),
-            max_BMI = max(f21001))
+T2D_tbl2 <- T2D_tbl2 %>%
+  mutate(overweight = ifelse(ID %in% IDs_BMI0, 0,
+                      ifelse(ID %in% IDs_BMI1, 1, NA)))
 
 #
 
@@ -239,58 +229,142 @@ loc_out <- paste0(dir_scratch, "phenoEC_fullT2D.txt")
 fwrite(T2D_definitions_out, loc_out, sep="\t", na="NA", quote=FALSE, logical01=TRUE)
 
 
+# reads T2D_tbl2 back into R ####
+# T2D_tbl2 <- as_tibble(fread(loc_phenoEC)) %>%
+#   rename(PHENO = T2D_onset, TIME = T2D_onset_days) %>%
+#   select(FID, IID, PHENO, TIME, everything())
+
+# cross validation cox ridge regression ####
+set.seed(2024)
+T2D_tbl2$sample_group <- sample(c("A","B"), nrow(T2D_tbl2), replace=TRUE,
+                                prob = c(0.8, 0.2))
+
+training_tbl <- T2D_tbl2 %>% filter(sample_group=='A')
+# assigns equal-sized folds to individuals
+K <- 10
+N <- nrow(training_tbl)
+training_tbl$fold <- ( ceiling( (1:N) / (N/K) ) )[ sample(1:N) ]
+#lambdas <- c(0,ncol(T2D_tbl2))
+lambdas <- c(1000,10000,100000)
+lambda_iterations <- 10
+
+CV_table <- tibble(lambda=0,k=0,C_stat=0, C_stat_se=0)[0,]
+mean_lambda_Cs <- c()
+
+for (i in 1:3) {
+  lambda <- lambdas[i]
+  
+  for (k in 1:K) {
+    training_folds <- training_tbl %>% filter(fold!=k)
+    testing_fold <- training_tbl %>% filter(fold==k)
+    
+    training_matrix <- as.matrix( training_folds %>% select(all_of(col_covs[-3]), all_of(col_expos1)) )
+    testing_matrix <- as.matrix( testing_fold %>% select(all_of(col_covs[-3]), all_of(col_expos1)) )
+    
+    # prepping data entry into coxph function
+    ridge.formula <- as.formula(
+      paste0("survival::Surv(TIME,PHENO) ~ survival::ridge(training_matrix,theta=",2*lambda,")")
+      )
+    coxph1 <- survival::coxph(ridge.formula, data = training_folds)
+    testing_fold$pred <- scale( testing_matrix %*% coef(coxph1) )[,1]
+    
+    sc1 <- survival::concordance(survival::Surv(TIME, PHENO) ~ pred, data=testing_fold,
+                                 reverse=TRUE)
+    
+    CV_table <- CV_table %>% add_row(k=k,lambda=lambda,
+                                     C_stat = sc1$concordance, C_stat_se = sqrt(sc1$var))
+    
+    print(paste('lambda =',lambda,':: k =',k,':: C = ', sc1$concordance))
+  }
+  # mean_lambda_C <- mean( CV_table$C_stat[CV_table$lambda == lambda] )
+  # mean_lambda_Cs <- c(mean_lambda_Cs, mean_lambda_C)
+  # 
+  # if (i==1) {next}
+  # 
+  # top_lambdas <- lambdas[ order(mean_lambda_Cs, decreasing=TRUE)[1:2] ]
+  # next_lambda <- mean(top_lambdas)
+  # 
+  # if (next_lambda %in% lambdas) {
+  #   random_top_lambdas <- lambdas[ order(mean_lambda_Cs, decreasing=TRUE)[1:i] ]
+  #   top_lambdas <- sample(random_top_lambdas, 2)
+  #   next_lambda <- mean(top_lambdas)
+  # }
+  # 
+  # lambdas <- c(lambdas, next_lambda)
+  
+}
+
+ggplot(CV_table %>% group_by(lambda) %>%
+         summarize(C_stat = mean(C_stat)),
+       aes(x=log10(lambda), y=C_stat)) +
+  geom_point() +
+  # geom_errorbar(aes(ymin=C_stat - C_stat_se,
+  #                   ymax=C_stat + C_stat_se)) +
+  theme_bw()
 
 
-# some of the following code is commented out because we are opting to use the
-# exposures in group 1, not group 2
-
-# randomly sorts individuals into A, B, and C groups
-set.seed(2016)
-T2D_tbl2$sample_group <- sample(c("A","B","C"), nrow(T2D_tbl2), replace=TRUE,
-                                prob = c(0.6, 0.2, 0.2))
-IDA <- (T2D_tbl2 %>% filter(sample_group=="A"))$ID
-IDB <- (T2D_tbl2 %>% filter(sample_group=="B"))$ID
-IDC <- (T2D_tbl2 %>% filter(sample_group=="C"))$ID
+loc_CV_table <- 'sandbox/scratch/2024-12_work/CV_table_v1.tsv'
+#fwrite(CV_table, loc_CV_table,sep='\t')
+#CV_table <- as_tibble(fread(loc_CV_table))
 
 
-# runs XWAS for both sets of exposures
-xwas1 <- xwas(T2D_tbl2, X = col_expos1, cov = col_covs[-3], mod="cox", IDA = IDA, adjust="fdr") # <-- use if including AC columns
 
-xwas1_c <- as_tibble(xwas1) %>%
-  mutate(Field = col_expos1,
-         FieldID = as.numeric(sapply(str_split(PHESANT_fIDs1,"\\."), `[`, 1)),
-         Value = sapply(str_split(PHESANT_fIDs1,"\\."), `[`, 2)) %>%
-  mutate(Value = ifelse(Value==100,-7,Value)) %>%
-  left_join(ukb_dict %>% select(FieldID,FieldName=Field, Coding)) %>%
-  left_join(ukb_codings, by=c("Coding","Value")) %>%
-  arrange(-fdr)
 
-path.out <- 'input_data/xwas_coefficients.txt'
-fwrite(xwas1_c, path.out, sep='\t')
 
-# calculates the PXS
-sig_expos1_tbl <- (xwas1_c %>%
-                    filter(FieldID %in% (xwas1_c %>% 
-                                           group_by(FieldID) %>% 
-                                           summarize(fdr = min(fdr)) %>%
-                                           filter(fdr < 0.05))$FieldID ) )
-sig_expos1 <- sig_expos1_tbl$Field
-sig_expos1_groups <- sig_expos1_tbl$FieldID
-source(loc_PXS_function)
-PXS1 <- PXS(df = T2D_tbl2, X = sig_expos1, cov = col_covs[-3], mod = "cox",
-            IDA = IDA, IDB = IDB, IDC = c(), seed = 2016, alph=1)
 
-PXS1_coeffs <- as_tibble(PXS1) %>%
-  mutate(field = sapply(str_split(term,"f"), `[`, 2)) %>%
-  mutate(fieldID = as.numeric(sapply(str_split(field,"\\."), `[`, 1)),
-         value = sapply(str_split(field,"\\."), `[`, 2)) %>%
-  mutate(value = ifelse(value==100,-7,value)) %>%
-  left_join(ukb_dict %>% select(fieldID=FieldID,fieldname=Field, coding=Coding)) %>%
-  left_join(ukb_codings, by=c("coding"="Coding","value"="Value")) %>%
-  mutate(field = ifelse(is.na(field),term,field),
-         disease = "T2D") %>%
-  select(-std.error,-statistic) %>%
-  arrange(p.value)
 
-loc_out <- paste0(dir_script,"../input_data/PXS_coefficients.txt")
-fwrite(PXS1_coeffs, loc_out, sep="\t")
+
+
+
+# OLD XWAS + PXS CODE ####
+
+# # randomly sorts individuals into A, B, and C groups
+# set.seed(2016)
+# T2D_tbl2$sample_group <- sample(c("A","B","C"), nrow(T2D_tbl2), replace=TRUE,
+#                                 prob = c(0.6, 0.2, 0.2))
+# IDA <- (T2D_tbl2 %>% filter(sample_group=="A"))$ID
+# IDB <- (T2D_tbl2 %>% filter(sample_group=="B"))$ID
+# IDC <- (T2D_tbl2 %>% filter(sample_group=="C"))$ID
+# 
+# 
+# # runs XWAS for both sets of exposures
+# xwas1 <- xwas(T2D_tbl2, X = col_expos1, cov = col_covs[-3], mod="cox", IDA = IDA, adjust="fdr") # <-- use if including AC columns
+# 
+# xwas1_c <- as_tibble(xwas1) %>%
+#   mutate(Field = col_expos1,
+#          FieldID = as.numeric(sapply(str_split(PHESANT_fIDs1,"\\."), `[`, 1)),
+#          Value = sapply(str_split(PHESANT_fIDs1,"\\."), `[`, 2)) %>%
+#   mutate(Value = ifelse(Value==100,-7,Value)) %>%
+#   left_join(ukb_dict %>% select(FieldID,FieldName=Field, Coding)) %>%
+#   left_join(ukb_codings, by=c("Coding","Value")) %>%
+#   arrange(-fdr)
+# 
+# path.out <- 'input_data/xwas_coefficients.txt'
+# fwrite(xwas1_c, path.out, sep='\t')
+# 
+# # calculates the PXS
+# sig_expos1_tbl <- (xwas1_c %>%
+#                     filter(FieldID %in% (xwas1_c %>% 
+#                                            group_by(FieldID) %>% 
+#                                            summarize(fdr = min(fdr)) %>%
+#                                            filter(fdr < 0.05))$FieldID ) )
+# sig_expos1 <- sig_expos1_tbl$Field
+# sig_expos1_groups <- sig_expos1_tbl$FieldID
+# source(loc_PXS_function)
+# PXS1 <- PXS(df = T2D_tbl2, X = sig_expos1, cov = col_covs[-3], mod = "cox",
+#             IDA = IDA, IDB = IDB, IDC = c(), seed = 2016, alph=1)
+# 
+# PXS1_coeffs <- as_tibble(PXS1) %>%
+#   mutate(field = sapply(str_split(term,"f"), `[`, 2)) %>%
+#   mutate(fieldID = as.numeric(sapply(str_split(field,"\\."), `[`, 1)),
+#          value = sapply(str_split(field,"\\."), `[`, 2)) %>%
+#   mutate(value = ifelse(value==100,-7,value)) %>%
+#   left_join(ukb_dict %>% select(fieldID=FieldID,fieldname=Field, coding=Coding)) %>%
+#   left_join(ukb_codings, by=c("coding"="Coding","value"="Value")) %>%
+#   mutate(field = ifelse(is.na(field),term,field),
+#          disease = "T2D") %>%
+#   select(-std.error,-statistic) %>%
+#   arrange(p.value)
+# 
+# loc_out <- paste0(dir_script,"../input_data/PXS_coefficients.txt")
+# fwrite(PXS1_coeffs, loc_out, sep="\t")
