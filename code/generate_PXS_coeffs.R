@@ -12,7 +12,7 @@ loc_40PCs <- "/n/groups/patel/nuno/key_data/UKB_40PCs_500k.txt"
 
 # gets list of exposures
 loc_expos <- paste0(dir_script,"../input_data/T2D_XWAS_exposures.txt")
-expos_tbl <- as_tibble(fread(locexpos))
+expos_tbl <- as_tibble(fread(loc_expos))
 expos1 <- (expos_tbl %>% filter(Exposure_Class %in% c("agency")))$FieldID
 
 # loads list of CRFs
@@ -231,133 +231,25 @@ fwrite(T2D_definitions_out, loc_out, sep="\t", na="NA", quote=FALSE, logical01=T
 
 # cross validation cox ridge regression ####
 
-
 training_tbl <- pheno_EC %>% filter(sample_group=='A')
-# assigns equal-sized folds to individuals
-K <- 10
-N <- nrow(training_tbl)
-training_tbl$fold <- ( ceiling( (1:N) / (N/K) ) )[ sample(1:N) ]
-#lambdas <- c(0,ncol(pheno_EC))
-lambdas <- c(1000,10000,100000)
-lambda_iterations <- 10
 
-CV_table <- tibble(lambda=0,k=0,C_stat=0, C_stat_se=0)[0,]
-mean_lambda_Cs <- c()
-
-for (i in 1:3) {
-  lambda <- lambdas[i]
+get_cvglm_obj <- function(training_tbl) {
   
-  for (k in 1:K) {
-    training_folds <- training_tbl %>% filter(fold!=k)
-    testing_fold <- training_tbl %>% filter(fold==k)
-    
-    training_matrix <- as.matrix( training_folds %>% select(all_of(col_covs[-3]), all_of(col_expos)) )
-    testing_matrix <- as.matrix( testing_fold %>% select(all_of(col_covs[-3]), all_of(col_expos)) )
-    
-    # prepping data entry into coxph function
-    ridge.formula <- as.formula(
-      paste0("survival::Surv(TIME,PHENO) ~ survival::ridge(training_matrix,theta=",2*lambda,")")
-      )
-    coxph1 <- survival::coxph(ridge.formula, data = training_folds)
-    testing_fold$pred <- scale( testing_matrix %*% coef(coxph1) )[,1]
-    
-    sc1 <- survival::concordance(survival::Surv(TIME, PHENO) ~ pred, data=testing_fold,
-                                 reverse=TRUE)
-    
-    CV_table <- CV_table %>% add_row(k=k,lambda=lambda,
-                                     C_stat = sc1$concordance, C_stat_se = sqrt(sc1$var))
-    
-    print(paste('lambda =',lambda,':: k =',k,':: C = ', sc1$concordance))
-  }
-  # mean_lambda_C <- mean( CV_table$C_stat[CV_table$lambda == lambda] )
-  # mean_lambda_Cs <- c(mean_lambda_Cs, mean_lambda_C)
-  # 
-  # if (i==1) {next}
-  # 
-  # top_lambdas <- lambdas[ order(mean_lambda_Cs, decreasing=TRUE)[1:2] ]
-  # next_lambda <- mean(top_lambdas)
-  # 
-  # if (next_lambda %in% lambdas) {
-  #   random_top_lambdas <- lambdas[ order(mean_lambda_Cs, decreasing=TRUE)[1:i] ]
-  #   top_lambdas <- sample(random_top_lambdas, 2)
-  #   next_lambda <- mean(top_lambdas)
-  # }
-  # 
-  # lambdas <- c(lambdas, next_lambda)
+  glm_y <- survival::Surv(training_tbl$T2D_onset_days,training_tbl$T2D_onset)
+  glm_x <- as.matrix( training_tbl[,c(col_covs[-3],col_expos)] )
+  
+  cv_glm1 <- glmnet::cv.glmnet(glm_x, glm_y, family='cox', alpha=1, nfolds=10,
+                                  type.measure = 'C')
+  
+  return(cv_glm1)
   
 }
 
-ggplot(CV_table %>% group_by(lambda) %>%
-         summarize(C_stat = mean(C_stat)),
-       aes(x=log10(lambda), y=C_stat)) +
-  geom_point() +
-  # geom_errorbar(aes(ymin=C_stat - C_stat_se,
-  #                   ymax=C_stat + C_stat_se)) +
-  theme_bw()
+cv_glm_BMI0 <- get_cvglm_obj(pheno_EC %>% filter(sample_group=='A', overweight==0))
+cv_glm_BMI1 <- get_cvglm_obj(pheno_EC %>% filter(sample_group=='A', overweight==1))
+cv_glm_BMI_all <- get_cvglm_obj(pheno_EC %>% filter(sample_group=='A'))
+
+# dir.create('sandbox/cv_glm/')
+# save(cv_glm_BMI_all, file='sandbox/cv_glm/cv_glm_BMI_all.RData')
 
 
-loc_CV_table <- 'sandbox/scratch/2024-12_work/CV_table_v1.tsv'
-#fwrite(CV_table, loc_CV_table,sep='\t')
-#CV_table <- as_tibble(fread(loc_CV_table))
-
-
-
-
-
-
-
-
-
-
-# OLD XWAS + PXS CODE ####
-
-# # randomly sorts individuals into A, B, and C groups
-# set.seed(2016)
-# pheno_EC$sample_group <- sample(c("A","B","C"), nrow(pheno_EC), replace=TRUE,
-#                                 prob = c(0.6, 0.2, 0.2))
-# IDA <- (pheno_EC %>% filter(sample_group=="A"))$ID
-# IDB <- (pheno_EC %>% filter(sample_group=="B"))$ID
-# IDC <- (pheno_EC %>% filter(sample_group=="C"))$ID
-# 
-# 
-# # runs XWAS for both sets of exposures
-# xwas1 <- xwas(pheno_EC, X = col_expos, cov = col_covs[-3], mod="cox", IDA = IDA, adjust="fdr") # <-- use if including AC columns
-# 
-# xwas1_c <- as_tibble(xwas1) %>%
-#   mutate(Field = col_expos,
-#          FieldID = as.numeric(sapply(str_split(fIDs_expos,"\\."), `[`, 1)),
-#          Value = sapply(str_split(fIDs_expos,"\\."), `[`, 2)) %>%
-#   mutate(Value = ifelse(Value==100,-7,Value)) %>%
-#   left_join(ukb_dict %>% select(FieldID,FieldName=Field, Coding)) %>%
-#   left_join(ukb_codings, by=c("Coding","Value")) %>%
-#   arrange(-fdr)
-# 
-# path.out <- 'input_data/xwas_coefficients.txt'
-# fwrite(xwas1_c, path.out, sep='\t')
-# 
-# # calculates the PXS
-# sig_expos1_tbl <- (xwas1_c %>%
-#                     filter(FieldID %in% (xwas1_c %>% 
-#                                            group_by(FieldID) %>% 
-#                                            summarize(fdr = min(fdr)) %>%
-#                                            filter(fdr < 0.05))$FieldID ) )
-# sig_expos1 <- sig_expos1_tbl$Field
-# sig_expos1_groups <- sig_expos1_tbl$FieldID
-# source(loc_PXS_function)
-# PXS1 <- PXS(df = pheno_EC, X = sig_expos1, cov = col_covs[-3], mod = "cox",
-#             IDA = IDA, IDB = IDB, IDC = c(), seed = 2016, alph=1)
-# 
-# PXS1_coeffs <- as_tibble(PXS1) %>%
-#   mutate(field = sapply(str_split(term,"f"), `[`, 2)) %>%
-#   mutate(fieldID = as.numeric(sapply(str_split(field,"\\."), `[`, 1)),
-#          value = sapply(str_split(field,"\\."), `[`, 2)) %>%
-#   mutate(value = ifelse(value==100,-7,value)) %>%
-#   left_join(ukb_dict %>% select(fieldID=FieldID,fieldname=Field, coding=Coding)) %>%
-#   left_join(ukb_codings, by=c("coding"="Coding","value"="Value")) %>%
-#   mutate(field = ifelse(is.na(field),term,field),
-#          disease = "T2D") %>%
-#   select(-std.error,-statistic) %>%
-#   arrange(p.value)
-# 
-# loc_out <- paste0(dir_script,"../input_data/PXS_coefficients.txt")
-# fwrite(PXS1_coeffs, loc_out, sep="\t")
