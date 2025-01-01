@@ -3,7 +3,7 @@
 # No need to run independently
 # Load by using source('paths.R')
 
-
+dir_repo <- '/n/groups/patel/nuno/PXS-pipeline/'
 dir_script <- "~/group_nuno/PXS-pipeline/code/"
 dir_scratch <- "~/group_nuno/PXS-pipeline/scratch/"
 dir_results <- paste0(dir_script,"../final_results/")

@@ -5,7 +5,7 @@
 library(tidyverse)
 library(data.table)
 library(callr)
-source('code/paths.R')
+source('code/00_paths.R')
 library(missMDA)
 
 loc_pheno_full1 <- "/n/no_backup2/patel/uk_biobank/main_data_34521/ukb34521.tab"

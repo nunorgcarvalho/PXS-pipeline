@@ -3,7 +3,7 @@
 ## Libraries and directories ##
 library(tidyverse)
 library(data.table)
-source('code/paths.R')
+source('code/00_paths.R')
 
 fields <- as_tibble(fread('scratch/fields_tbl.txt'))
 col_covs <- fields$term[fields$use_type == 'covar']
@@ -55,7 +55,7 @@ for (i in 1:length(cohorts)) {
 }
 
 dir.create('scratch/BRS_models', showWarnings = FALSE)
-save(models, file='scratch/BRS_models/cv_glm_models.RData')
+#save(models, file='scratch/BRS_models/cv_glm_models.RData')
 #load('scratch/BRS_models/cv_glm_models.RData')
 
 # computes each BRS for all individuals ####
@@ -143,7 +143,7 @@ for (j in 1:length(cohorts)) {
   cohort_tbl <- cohorts[[j]]
   
   loc_out <- paste0('scratch/cohorts/BRS_cohort_',cohort_name,'.txt')
-  fwrite(cohort_tbl, file=loc_out, sep='\t')
+  fwrite(cohort_tbl, file=loc_out, sep='\t', na="NA", quote=FALSE)
 }
 
 ## visualizing C-stat ####
@@ -160,3 +160,34 @@ ggplot(tbl_Cstat, aes(x = testing_cohort , y=C_stat,
   facet_wrap(~model_label, nrow=1) +
   theme(legend.position = 'top')
 
+
+# visualizing BRSs ####
+data <- cohorts[['ALL']]
+data2 <- data %>%
+  mutate(across( starts_with('BRS-cov'),
+                ~ qnorm( rank(.x)/ (length(.x)+1) ) ))
+
+cor.test(data$`BRS-cov_BMI`, data$`BRS-cov_BMI_bvr`)
+cor.test(data2$`BRS-cov_BMI`, data2$`BRS-cov_BMI_bvr`)
+
+ggplot(data2, aes(x=`BRS-cov_BMI`,y=`BRS-cov_BMI_bvr`,
+                 color = as.factor(overweight))) +
+  geom_point(shape=1, alpha = 0.025, size=0.5) +
+  geom_smooth(method='lm') +
+  theme_bw() +
+  theme(legend.position = 'top')
+
+# visualizing coeffs ####
+BRS_coeff_table$traitname[nchar(BRS_coeff_table$traitname)==0] <- BRS_coeff_table$term[nchar(BRS_coeff_table$traitname)==0]
+library(ggrepel)
+ggplot(BRS_coeff_table, aes(x=`beta-BRS-normal_BMI-cov`,
+                            y=`beta-BRS-high_BMI-cov`)) +
+  geom_hline(linetype='dashed', yintercept = 0) +
+  geom_vline(linetype='dashed', xintercept = 0) +
+  geom_point() +
+  geom_abline(slope=1) +
+  geom_label_repel(data = BRS_coeff_table %>% filter(
+    `beta-BRS-normal_BMI-cov` != 0,
+    `beta-BRS-high_BMI-cov` != 0,
+  ), aes(label=traitname,)) +
+  theme_bw()
