@@ -64,6 +64,7 @@ dir.create('scratch/BRS_models', showWarnings = FALSE)
 BRS_coeffs <- tibble(term='')[0,]
 tbl_Cstat <- tibble(training_cohort='', model_factors='',testing_cohort='',
                     model_name='',model_label='', C_stat=0,C_stat_se=0)[0,]
+joint_models <- c()
 for (i in 1:length(models)) {
   cv_glm <- models[[i]]
   col_BRS <- paste0('BRS-',names(models)[i])
@@ -91,6 +92,7 @@ for (i in 1:length(models)) {
   print(model_name)
   model_settings <- str_split(model_name,'-')[[1]]
   new_col_BRS <- paste0('BRS-',model_settings[2])
+  joint_models <- unique(c(joint_models, new_col_BRS))
   
   col_BRS <- paste0('BRS-',model_name)
   col_beta <- paste0('beta-',col_BRS)
@@ -129,6 +131,24 @@ for (i in 1:length(models)) {
     
   }
 }
+
+# computes C-statistics for joint BRSs
+for (col_BRS in joint_models) {
+  
+  formula <- as.formula(paste0(
+    'survival::Surv(T2D_onset_days, T2D_onset) ~ `',col_BRS,'`') )
+  sc1 <- survival::concordance(formula, reverse=TRUE,
+                               data=cohorts[['ALL']] %>% filter(sample_group=='B'))
+  
+  tbl_Cstat <- tbl_Cstat %>% add_row(
+    training_cohort = 'joint',
+    model_factors = str_split(col_BRS,'-')[[1]][2],
+    testing_cohort = 'ALL', 
+    model_name = col_BRS,
+    model_label = str_replace_all(model_factors, '_',' + '),
+    C_stat = sc1$concordance, C_stat_se = sqrt(sc1$var) )
+}
+
 BRS_coeff_table <- fields %>%
   select(term,traitname) %>%
   filter(term %in% BRS_coeffs$term) %>%
