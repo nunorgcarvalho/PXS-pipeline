@@ -9,7 +9,8 @@ source('code/00_paths.R')
 dir_gencorrs <- paste0(dir_scratch, 'gencorrs/')
 rg_files_out <- list.files(dir_gencorrs, pattern='*.out')
 
-gencorr_REML <- tibble(file='',trait1='',trait2='',
+gencorr_REML <- tibble(file='', h2_cohort='',
+                       trait1='',trait2='',
                        trait1_h2g=0, trait1_h2g_err=0,
                        trait2_h2g=0, trait2_h2g_err=0,
                        rg=0, rg_err=0, elapsed_hours=0)[0,]
@@ -45,7 +46,8 @@ for (rg_file in rg_files_out) {
   
   
   gencorr_REML <- gencorr_REML %>% add_row(
-    file=rg_file, trait1=file_split[2], trait2=file_split[3],
+    file=rg_file, h2_cohort=file_split[2],
+    trait1=file_split[3], trait2=file_split[4],
     trait1_h2g=h2g1, trait1_h2g_err=h2g1_err,
     trait2_h2g=h2g2, trait2_h2g_err=h2g2_err,
     rg=gencorr, rg_err=gencorr_err, elapsed_hours=elapsed_hours
@@ -58,19 +60,42 @@ Cstats <- as_tibble(fread('scratch/BRS_models/BRS_Cstats.txt'))
 
 ## h2 ####
 h2_table <- bind_rows(
-  gencorr_REML %>% select(trait=trait1, h2g=trait1_h2g, h2g_err=trait1_h2g_err),
-  gencorr_REML %>% select(trait=trait2, h2g=trait2_h2g, h2g_err=trait2_h2g_err)
-) %>% drop_na() %>%
-  mutate(model_name = substring(trait, 5)) %>%
-  left_join(Cstats %>% filter(training_cohort == testing_cohort), by='model_name') %>%
-  mutate(h2_cohort = training_cohort) %>%
-  select(model_name, model_label, training_cohort, h2_cohort, h2g, h2g_err)
+  gencorr_REML %>% select(h2_cohort, trait=trait1, h2g=trait1_h2g, h2g_err=trait1_h2g_err),
+  gencorr_REML %>% select(h2_cohort, trait=trait2, h2g=trait2_h2g, h2g_err=trait2_h2g_err)
+) %>% #drop_na() %>%
+  mutate(training_cohort = sapply(str_split(trait, "-"), `[`, 2),
+         model_factors = sapply(str_split(trait, "-"), `[`, 3)) %>%
+  left_join(Cstats %>% select(training_cohort, model_factors, model_label) %>% distinct(),
+            by=c('training_cohort','model_factors')) %>%
+  select(h2_cohort, training_cohort, model_label, h2g, h2g_err) %>%
+  group_by(h2_cohort, training_cohort, model_label) %>%
+  summarize(h2g = mean(h2g), h2g_err = mean(h2g_err))
+
+ggplot(h2_table, aes(x=model_label, color=training_cohort)) +
+  geom_point(aes(y=h2g), position = position_dodge(width = 0.5)) +
+  geom_errorbar(aes(ymin = h2g - 2*h2g_err, ymax = h2g + 2*h2g_err),
+                position = position_dodge(width = 0.5), width=0.5) +
+  facet_wrap(~ h2_cohort, nrow=1) +
+  theme_bw() +
+  theme(legend.position = 'top') +
+  labs(x = 'Model Factors',
+       y = 'h2 (95% CI)',
+       color = 'BRS trained in:',
+       subtitle = 'Panels denote the cohort that h2 was estimated from')
+
+
 
 ## gencorr ####
 rg_table <- gencorr_REML %>%
-  select(trait1, trait2, rg, rg_err) %>%
-  drop_na() %>%
-  mutate(training_h2_cohort = map_chr(str_split(trait1, "-"), 2),
-         model1 = map_chr(str_split(trait1, "-"), 3),
-         model2 = map_chr(str_split(trait2, "-"), 3)) %>%
-  select(training_h2_cohort, model1, model2, rg, rg_err)
+  mutate(training_cohort = sapply(str_split(trait1, "-"), `[`, 2),
+         trait1_model_factors = sapply(str_split(trait1, "-"), `[`, 3),
+         trait2_model_factors = sapply(str_split(trait2, "-"), `[`, 3)) %>%
+  left_join(Cstats %>%
+              select(training_cohort, trait1_model_factors = model_factors,
+                     trait1_model_label = model_label) %>% distinct(),
+            by=c('training_cohort','trait1_model_factors')) %>%
+  left_join(Cstats %>%
+              select(training_cohort, trait2_model_factors = model_factors,
+                     trait2_model_label = model_label) %>% distinct(),
+            by=c('training_cohort','trait2_model_factors')) %>%
+  select(h2_cohort, training_cohort, trait1_model_label, trait2_model_label, rg, rg_err)

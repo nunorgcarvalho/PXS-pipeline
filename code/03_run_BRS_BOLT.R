@@ -3,43 +3,30 @@ library(tidyverse)
 library(data.table)
 source('code/00_paths.R')
 
-tbl_Cstat <- as_tibble(fread('scratch/BRS_models/BRS_Cstats.txt'))
-set_model_factors <- tbl_Cstat$model_factors %>% unique()
-set_model_factors <- set_model_factors[c(2,4)] # removes cov and cov_BMI
-cohorts <- tbl_Cstat$training_cohort %>% unique()
+# manual table I made w/ analyses I want to run
+BOLT_tbl <- as_tibble(fread('input_data/BOLT_tbl.csv')) %>%
+  mutate(BRS1 = paste0('BRS-',training_cohort,'-',factors1),
+         BRS2 = paste0('BRS-',training_cohort,'-',factors2))
+BOLT_tbl$BRS2[BOLT_tbl$factors2==''] <- NA
+
 dir_pheno <- paste0(dir_repo,'scratch/cohorts/')
-#loc_pheno_ALL <- paste0(dir_repo,'scratch/cohorts/BRS_cohort_ALL.txt')
 
 dir.create('scratch/gencorrs/', showWarnings = FALSE)
 dir.create('scratch/LMM/', showWarnings = FALSE)
 
-BOLT_tbl <- tibble(cohort='',BRS1='',BRS2='')[0,]
-for (cohort in cohorts) {
-  for (i in 1:length(set_model_factors)) {
-    for (j in i:length(set_model_factors)) {
-      BOLT_tbl <- BOLT_tbl %>% add_row(
-          cohort = cohort,
-          BRS1 = paste0('BRS-',cohort,'-',set_model_factors[i]),
-          BRS2 = paste0('BRS-',cohort,'-',set_model_factors[j]),
-        )
-    }
-  }
-}
-BOLT_tbl <- BOLT_tbl %>% mutate( type=ifelse(BRS1==BRS2,'LMM','REML') )
-
 for (i in 1:nrow(BOLT_tbl)) {
   slice <- BOLT_tbl[i,]
-  loc_pheno <- paste0(dir_pheno, 'BRS_cohort_',slice$cohort,'.txt')
+  loc_pheno <- paste0(dir_pheno, 'BRS_cohort_',slice$h2_cohort,'.txt')
   
-  if (slice$BRS1 != slice$BRS2) {
+  if (slice$type == 'REML') {
     phenoCol_tag <- paste0('--phenoCol ',slice$BRS1, ' --phenoCol ',slice$BRS2)
     type_tag <- '--reml --remlNoRefine'
-    sbatch_oe <- paste0(slice$type,'.',slice$BRS1,'.',slice$BRS2)
+    sbatch_oe <- paste0(slice$type,'.',slice$h2_cohort,'.',slice$BRS1,'.',slice$BRS2)
     loc_script <- paste0(dir_repo,'scratch/gencorrs/',sbatch_oe,'.sh')
-  } else {
+  } else if (slice$type == 'LMM') {
     phenoCol_tag <- paste0('--phenoCol ',slice$BRS1)
-    type_tag <- paste0('--lmm --verboseStats --statsFile ',dir_repo,'scratch/LMM/LMM_',slice$BRS1,'.txt')
-    sbatch_oe <- paste0(slice$type,'.',slice$BRS1)
+    type_tag <- paste0('--lmm --verboseStats --statsFile ',dir_repo,'scratch/LMM/LMM.',slice$h2_cohort,'.',slice$BRS1,'.txt')
+    sbatch_oe <- paste0(slice$type,'.',slice$h2_cohort,'.',slice$BRS1)
     loc_script <- paste0(dir_repo,'scratch/LMM/',sbatch_oe,'.sh')
   }
   
@@ -72,7 +59,7 @@ for (i in 1:nrow(BOLT_tbl)) {
 --bgenMinMAF 1e-3 \\
 --bgenMinINFO 0.3 \\
 --sampleFile /n/no_backup2/patel/uk_biobank/ukb_genetics/22881/ukb22881_imp_chr1_v3_s487324.sample \\
---statsFileBgenSnps ',paste0(dir_repo,'scratch/LMM/LMM_',slice$BRS1,'.bgen.txt'),' 
+--statsFileBgenSnps ',paste0(dir_repo,'scratch/LMM/LMM.',slice$h2_cohort,'.',slice$BRS1,'.bgen.txt'),' 
 ',sep='', file=loc_script)
   
 }
