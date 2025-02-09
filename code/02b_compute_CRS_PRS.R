@@ -56,12 +56,10 @@ compute_score <- function(betas) {
 loc_cohort <- paste0(dir_scratch,'cohorts/BRS_cohort_ALL.txt')
 cohort_tbl <- as_tibble(fread(loc_cohort))
 
-# computes CRS and saves it, excludes covariate scores
+# computes CRS, also excludes covariate scores
 cohort_tbl$`CRS-ALL_nocov` <- compute_score(betas)
 betas[names(betas) %in% col_covs] <- 0
 cohort_tbl$`CRS-ALL_nocov` <- compute_score(betas)
-
-fwrite(cohort_tbl, file=loc_cohort, sep='\t', na="NA", quote=FALSE)
 
 # # computes C-statistic
 # data_testing <- cohort_tbl %>% filter(sample_group=='B') %>%
@@ -70,3 +68,18 @@ fwrite(cohort_tbl, file=loc_cohort, sep='\t', na="NA", quote=FALSE)
 #   'survival::Surv(T2D_onset_days, T2D_onset) ~ `CRS+BRS`') )
 # sc1 <- survival::concordance(formula, data=data_testing, reverse=TRUE)
 # sc1
+
+
+# adds PRS for T2D ####
+
+# path to UKBB phenotype file with field 26285
+loc_pheno3 <- "/n/groups/patel/uk_biobank/project_22881_671028/ukb671028.csv"
+
+# extract PRS-T2D column
+cols_keep <- c("eid","26285-0.0")
+pheno3 <- as_tibble(fread(loc_pheno3, select=cols_keep)) %>%
+  rename(IID=eid, PRS_T2D = `26285-0.0`)
+
+cohort_tbl <- cohort_tbl %>% left_join(pheno3, by="IID")
+
+fwrite(cohort_tbl, file=loc_cohort, sep='\t', na="NA", quote=FALSE)
