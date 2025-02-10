@@ -61,15 +61,6 @@ cohort_tbl$`CRS-ALL_nocov` <- compute_score(betas)
 betas[names(betas) %in% col_covs] <- 0
 cohort_tbl$`CRS-ALL_nocov` <- compute_score(betas)
 
-# # computes C-statistic
-# data_testing <- cohort_tbl %>% filter(sample_group=='B') %>%
-#   mutate(`CRS+BRS` = `CRS-ALL_nocov` + `BRS-ALL-cov_bvr`)
-# formula <- as.formula(paste0(
-#   'survival::Surv(T2D_onset_days, T2D_onset) ~ `CRS+BRS`') )
-# sc1 <- survival::concordance(formula, data=data_testing, reverse=TRUE)
-# sc1
-
-
 # adds PRS for T2D ####
 
 # path to UKBB phenotype file with field 26285
