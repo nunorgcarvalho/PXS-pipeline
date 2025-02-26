@@ -1,4 +1,4 @@
-# creates and submits scripts that compute genetic correlation
+# creates and submits scripts that compute genetic correlation for BRS models
 library(tidyverse)
 library(data.table)
 source('code/00_paths.R')

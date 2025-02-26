@@ -18,7 +18,7 @@ expos_tbl <- as_tibble(fread(loc_expos))
 expos1 <- (expos_tbl %>% filter(Exposure_Class %in% c("agency")))$FieldID
 
 # loads list of CRFs
-loc_CFRs_tbl <- paste0(dir_script,"../input_data/CRFs_table.txt")
+loc_CFRs_tbl <- paste0(dir_repo,"input_data/CRFs_table.txt")
 CRFs_tbl <- as_tibble(fread(loc_CFRs_tbl))
 CRFs_tbl <- CRFs_tbl %>%
   mutate(fieldID = sapply(str_split(CRFs_tbl$field,"\\."), `[`,2))
