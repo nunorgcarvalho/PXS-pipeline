@@ -5,7 +5,7 @@ library(tidyverse)
 library(data.table)
 source('code/00_paths.R')
 
-fields <- as_tibble(fread('scratch/fields_tbl.txt'))
+fields <- as_tibble(fread(paste0(dir_scratch,'fields_tbl.txt')))
 col_covs <- fields$term[fields$use_type == 'covar']
 col_behaviors <- fields$term[fields$use_type == 'behavior']
 
@@ -49,8 +49,21 @@ for (i in 1:length(cohorts)) {
     
     model_name <- paste0(cohort,'-',factor_set)
     print(paste(i, j, model_name))
-    models[[model_name]] <- get_cvglm_obj(training_tbl_j, lasso_factors[[j]])
+    #models[[model_name]] <- get_cvglm_obj(training_tbl_j, lasso_factors[[j]])
     print(paste(i, j, model_name,models[[model_name]]$cvm[models[[1]]$index[2]]))
+    
+    # makes BMI-adjusted cov-bvr models
+    if (factor_set == 'cov_BMI_bvr') {
+      # BMIadj1: removes direct effect of BMI on T2D
+      # by setting model coefficient to 0
+      full_model <- models[[model_name]]
+      BMI_index <- which(full_model$glmnet.fit$beta@Dimnames[[1]] == 'f21001')
+      full_model$glmnet.fit$beta[BMI_index,] <- 0
+      
+      model_name <- paste0(cohort,'-',str_replace(factor_set,'_BMI',''), '_BMIadj1')
+      print(paste(i, j, model_name))
+      models[[model_name]] <- full_model
+    }
   }
 }
 
@@ -102,7 +115,7 @@ for (i in 1:length(models)) {
   
   for (j in 1:length(cohorts)) {
     testing_group_name <- names(cohorts)[j]
-    print(paste(i,j))
+    print(paste(i,j, testing_group_name))
     factors_matrix <- as.matrix( cohorts[[j]][,names(betas)] )
     BRS_raw <- (factors_matrix %*% betas)[,1]
     BRS_vec <- scale(BRS_raw)[,1]
@@ -129,25 +142,56 @@ for (i in 1:length(models)) {
       model_label = str_replace_all(model_factors, '_',' + '),
       C_stat = sc1$concordance, C_stat_se = sqrt(sc1$var) )
     
+    # makes BMIadj version of cov_bvr model
+    if (model_settings[2] == 'cov_BMI_bvr') {
+      # BMIadj2: removes all association of BMI on T2D
+      # by regressing the cov_BMI_bvr score on BMI, and taking the resid
+      BMIadj2_formula <- as.formula(paste0('`',col_BRS, '` ~ f21001') )
+      # BMI-adjustment learned in testing cohort to guarantee independence during
+      # C-statistic calculation later
+      lm1_BRS_BMI <- lm(BMIadj2_formula, data=data_testing) 
+      BRS_BMI_pred <- predict(lm1_BRS_BMI, newdata=cohorts[[j]])
+      adj2_BRS_raw <- cohorts[[j]][[col_BRS]] - BRS_BMI_pred
+      adj2_BRS_vec <- scale(adj2_BRS_raw)[,1]
+      
+      adj2_col_BRS <- paste0(str_replace(col_BRS,'_BMI',''), '_BMIadj2')
+      cohorts[[j]][[adj2_col_BRS]] <- adj2_BRS_vec
+      
+      data_testing <- cohorts[[j]] %>% filter(sample_group=='B')
+      adj2_formula <- as.formula(paste0(
+        'survival::Surv(T2D_onset_days, T2D_onset) ~ `',adj2_col_BRS,'`') )
+      sc2 <- survival::concordance(adj2_formula, data=data_testing, reverse=TRUE)
+      
+      tbl_Cstat <- tbl_Cstat %>% add_row(
+        training_cohort = model_settings[1],
+        model_factors = paste0(str_replace(model_settings[2],'_BMI',''), '_BMIadj2'),
+        testing_cohort = testing_group_name, 
+        model_name = paste0(str_replace(model_name,'cov_BMI','cov_'), '_BMIadj2'),
+        model_label = str_replace_all(model_factors, '_',' + '),
+        C_stat = sc2$concordance, C_stat_se = sqrt(sc2$var) )
+    }
+    
   }
 }
+tbl_Cstat$model_label <- str_replace(tbl_Cstat$model_label,'\\+ BMIadj1','(BMI-adj1)')
+tbl_Cstat$model_label <- str_replace(tbl_Cstat$model_label,'\\+ BMIadj2','(BMI-adj2)')
 
-# computes C-statistics for joint BRSs
-for (col_BRS in joint_models) {
-  
-  formula <- as.formula(paste0(
-    'survival::Surv(T2D_onset_days, T2D_onset) ~ `',col_BRS,'`') )
-  sc1 <- survival::concordance(formula, reverse=TRUE,
-                               data=cohorts[['ALL']] %>% filter(sample_group=='B'))
-  
-  tbl_Cstat <- tbl_Cstat %>% add_row(
-    training_cohort = 'joint',
-    model_factors = str_split(col_BRS,'-')[[1]][2],
-    testing_cohort = 'ALL', 
-    model_name = col_BRS,
-    model_label = str_replace_all(model_factors, '_',' + '),
-    C_stat = sc1$concordance, C_stat_se = sqrt(sc1$var) )
-}
+# # computes C-statistics for joint BRSs
+# for (col_BRS in joint_models) {
+#   
+#   formula <- as.formula(paste0(
+#     'survival::Surv(T2D_onset_days, T2D_onset) ~ `',col_BRS,'`') )
+#   sc1 <- survival::concordance(formula, reverse=TRUE,
+#                                data=cohorts[['ALL']] %>% filter(sample_group=='B'))
+#   
+#   tbl_Cstat <- tbl_Cstat %>% add_row(
+#     training_cohort = 'joint',
+#     model_factors = str_split(col_BRS,'-')[[1]][2],
+#     testing_cohort = 'ALL', 
+#     model_name = col_BRS,
+#     model_label = str_replace_all(model_factors, '_',' + '),
+#     C_stat = sc1$concordance, C_stat_se = sqrt(sc1$var) )
+# }
 
 BRS_coeff_table <- fields %>%
   select(term,traitname) %>%
