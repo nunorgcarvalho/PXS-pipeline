@@ -58,7 +58,7 @@ for (rg_file in rg_files_out) {
   )
 }
 
-# BRS vs CRFs comparisons
+# genetic correlation BRS vs CRFs comparisons ####
 col_BRS <- 'BRS-ALL-cov_bvr' # main BRS term
 
 
@@ -93,6 +93,38 @@ ggplot(gc1, aes(x=factor(traitname, levels=traitname), y=abs(rg))) +
   theme(legend.position = 'top')
   
 
+# genetic correlation of CRS ####
+gc2 <- gencorr_REML %>%
+  filter(trait1 == 'CRS-ALL') %>%
+  add_row(gencorr_REML %>% filter(trait2 == 'CRS-ALL') %>%
+            mutate(trait2 = trait1, trait1 = 'CRS-ALL')) %>%
+  mutate(term = ifelse(trait2 == col_BRS, trait2,
+                       str_replace_all(trait2,'_','\\.'))) %>%
+  left_join(fields %>% filter(use_type=='behavior') %>%
+              mutate(traitname = str_remove(traitname, "\\s*\\([^)]*\\)")) %>%
+              add_row(term = col_BRS, traitname = 'Behavioral Risk Score (BRS)') %>%
+              select(term, traitname), by='term') %>%
+  arrange(-abs(rg)) %>%
+  mutate(rg_low = rg - CI95_z*rg_err,
+         rg_upp = rg + CI95_z*rg_err,
+         sign = ifelse(rg>0,'Positive','Negative'),
+         traitname = factor(traitname))
+
+ggplot(gc2, aes(x=factor(traitname, levels=traitname), y=abs(rg))) +
+  geom_col(aes(fill = sign)) +
+  geom_errorbar(aes(ymin=abs(rg_low), ymax=abs(rg_upp)),
+                width=0.5) +
+  coord_flip() +
+  scale_x_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=40)) +
+  scale_y_continuous(expand=c(0,0,0.1,0)) +
+  labs(x = 'Behaviors and BRS',
+       y = 'Absolute genetic correlation (95% CI) with Clinical Risk Score (CRS)',
+       fill = 'Sign') +
+  theme_bw() +
+  theme(legend.position = 'top',
+        axis.text.y = element_text(size=5))
+
+
 # Heritability of behaviors and score ####
 col_bvrs <- fields$term[fields$use_type == 'behavior']
 col_bvrs_ <- str_replace_all(col_bvrs,'\\.','_')
@@ -102,17 +134,14 @@ hg1 <- gencorr_REML %>%
   summarize(h2 = mean(trait2_h2g),
             h2_err = mean(trait2_h2g_err)) %>%
   mutate(term = ifelse(trait2 == col_BRS, trait2,
-                       str_replace_all(trait2,'_','\\.'))) %>%
+                       str_replace_all(trait2,'_','\\.')),
+         h2_low = h2 - CI95_z*h2_err,
+         h2_upp = h2 + CI95_z*h2_err) %>%
   arrange(-h2) %>%
   left_join(fields %>% filter(use_type=='behavior') %>%
               mutate(traitname = str_remove(traitname, "\\s*\\([^)]*\\)")) %>%
               add_row(term = col_BRS, traitname = 'Behavioral Risk Score (BRS)') %>%
               select(term, traitname), by='term')
-# temporary, for missing data
-hg1$h2[is.na(hg1$h2)] <- 0.005
-hg1$h2_err[is.na(hg1$h2_err)] <- 0.0025
-hg1 <- hg1 %>% mutate(h2_low = h2 - CI95_z*h2_err,
-                      h2_upp = h2 + CI95_z*h2_err)
 
 
 ggplot(hg1, aes(x=factor(traitname, levels=traitname), y=h2)) +
@@ -135,7 +164,7 @@ ggplot(hg1, aes(x=factor(traitname, levels=traitname), y=h2)) +
 # clean table ####
 Cstats <- as_tibble(fread('scratch/BRS_models/BRS_Cstats.txt'))
 
-## h2 ####
+## h2 of different BRSs####
 h2_table <- bind_rows(
   gencorr_REML %>% select(h2_cohort, trait=trait1, h2g=trait1_h2g, h2g_err=trait1_h2g_err),
   gencorr_REML %>% select(h2_cohort, trait=trait2, h2g=trait2_h2g, h2g_err=trait2_h2g_err)
