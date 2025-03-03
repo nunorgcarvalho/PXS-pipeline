@@ -10,15 +10,7 @@ fields <- as_tibble(fread('scratch/fields_tbl.txt'))
 col_covs <- fields$term[fields$use_type == 'covar']
 col_CRFs <- fields$term[fields$use_type == 'CRF']
 
-pheno <- as_tibble(fread('scratch/pheno.txt')) #%>%
-  # rename(
-  #   'SBP' = 'f4080',
-  #   'BMI' = 'f21001',
-  #   'Glucose' = 'f30740',
-  #   'HbA1c' = 'f30750',
-  #   'HDL' = 'f30760',
-  #   'Triglycerides' = 'f30870'
-  # )
+pheno <- as_tibble(fread('scratch/pheno.txt'))
 
 # loads list of CRFs
 loc_CFRs_tbl <- paste0(dir_script,"../input_data/CRFs_table.txt")
@@ -57,7 +49,7 @@ loc_cohort <- paste0(dir_scratch,'cohorts/BRS_cohort_ALL.txt')
 cohort_tbl <- as_tibble(fread(loc_cohort))
 
 # computes CRS, also excludes covariate scores
-cohort_tbl$`CRS-ALL_nocov` <- compute_score(betas)
+cohort_tbl$`CRS-ALL` <- compute_score(betas)
 betas[names(betas) %in% col_covs] <- 0
 cohort_tbl$`CRS-ALL_nocov` <- compute_score(betas)
 

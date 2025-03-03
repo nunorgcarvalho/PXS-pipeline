@@ -19,7 +19,7 @@ BOLT_tbl <- tibble(
   mutate(type = ifelse(is.na(term2),'LMM','REML'),
          term1_ = str_replace(term1, '\\.','_'),
          term2_ = str_replace(term2, '\\.','_'),
-         loc_script=NA)
+         loc_script=NA, file=NA)
 
 # loops through each job, writes and saves script
 for (i in 1:nrow(BOLT_tbl)) {
@@ -29,21 +29,24 @@ for (i in 1:nrow(BOLT_tbl)) {
     phenoCol_tag <- paste0('--phenoCol ',slice$term1, ' --phenoCol ',slice$term2)
     type_tag <- '--reml --remlNoRefine'
     sbatch_oe <- paste0(slice$type,'.',slice$term1_,'.',slice$term2_)
-    loc_script <- paste0(dir_repo,'scratch/gencorrs/',sbatch_oe,'.sh')
+    filename <- paste0(sbatch_oe,'.sh')
+    loc_script <- paste0(dir_repo,'scratch/gencorrs/',filename)
   } else if (slice$type == 'LMM') {
     phenoCol_tag <- paste0('--phenoCol ',slice$term1)
     type_tag <- paste0('--lmm --verboseStats --statsFile ',dir_repo,'scratch/LMM/LMM.',slice$term1_,'.txt')
     sbatch_oe <- paste0(slice$type,'.',slice$term1_)
-    loc_script <- paste0(dir_repo,'scratch/LMM/',sbatch_oe,'.sh')
+    filename <- paste0(sbatch_oe,'.sh')
+    loc_script <- paste0(dir_repo,'scratch/LMM/',filename)
   }
   
   loc_statsFileBgenSnps <- paste0(dir_scratch,'LMM/LMM.',slice$term1_,'.bgen.txt')
   
+  BOLT_tbl$file[i] <- filename
   BOLT_tbl$loc_script[i] <- loc_script
   
   script <- cat('#!/bin/sh
 #SBATCH -c 20
-#SBATCH -t 4-23:59
+#SBATCH -t 1-23:59
 #SBATCH -p medium
 #SBATCH --mem=125G
 #SBATCH -o ',sbatch_oe,'.out
@@ -72,9 +75,9 @@ for (i in 1:nrow(BOLT_tbl)) {
 ',sep='', file=loc_script)
   
 }
-
 # then run inside each script directory:
 # for file in *.sh; do sbatch "$file";done
 # or, run the following:
 
-cat('for file in ',paste0(BOLT_tbl$loc_script, collapse=' '),'; do sbatch "$file";done')
+cat('for file in ',paste0(BOLT_tbl$file[BOLT_tbl$type=='LMM'], collapse=' '),'; do sbatch "$file";done')
+cat('for file in ',paste0(BOLT_tbl$file[BOLT_tbl$type=='REML'], collapse=' '),'; do sbatch "$file";done')
