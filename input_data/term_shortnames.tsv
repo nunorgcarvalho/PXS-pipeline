@@ -1,0 +1,59 @@
+term	traitname	shortname
+f1438	Bread intake	Bread intake
+f1488	Tea intake	Tea intake
+f2139	Age first had sexual intercourse	Age first had sex
+f1418.1	Milk type used: Full cream	Milk used: Full cream
+f1428.3	Spread type: Other type of spread/margarine	Spread used: Other
+f1428.0	Spread type: Never/rarely use spread	Spread used: Never
+f1428.2	Spread type: Flora Pro-Active/Benecol	Spread used: Lower cholesterol
+f1448.3	Bread type: Wholemeal or wholegrain	Bread used: Wholegrain
+f1448.1	Bread type: White	Bread used: White
+f20116.0	Smoking status: Never	Never smoked
+f884	Number of days/week of moderate physical activity 10+ minutes	Moderate physical activity freq.
+f904	Number of days/week of vigorous physical activity 10+ minutes	Vigorous physical activity freq.
+f924	Usual walking pace	Usual walking pace
+f943	Frequency of stair climbing in last 4 weeks	Stair climbing frequency
+f1050	Time spend outdoors in summer	Outdoor time (summer)
+f1060	Time spent outdoors in winter	Outdoor time (winter)
+f1070	Time spent watching television (TV)	TV consumption
+f1110	Length of mobile phone use	Mobile phone consumption
+f1160	Sleep duration	Sleep duration
+f1190	Nap during day	Nap during day
+f1239	Current tobacco smoking	Current tobacco smoking
+f1249	Past tobacco smoking	Past tobacco smoking
+f1289	Cooked vegetable intake	Cooked vegetable intake
+f1319	Dried fruit intake	Dried fruit intake
+f1329	Oily fish intake	Oily fish intake
+f1349	Processed meat intake	Processed meat intake
+f1359	Poultry intake	Poultry intake
+f1369	Beef intake	Beef intake
+f1389	Pork intake	Pork intake
+f1408	Cheese intake	Cheese intake
+f1458	Cereal intake	Cereal intake
+f1478	Salt added to food	Salt added to food
+f1498	Coffee intake	Coffee intake
+f1518	Hot drink temperature	Hot drink temperature
+f1528	Water intake	Water intake
+f1548	Variation in diet	Variation in diet
+f1558	Alcohol intake frequency.	Alcohol intake
+f1628	Alcohol intake versus 10 years previously	Alcohol intake change
+f2237	Plays computer games	Plays computer games
+f2267	Use of sun/uv protection	Use of sun/UV protection
+f6144.5	"Never eat eggs, dairy, wheat, sugar: I eat all of the above"	"Eat eggs, dairy, wheat, sugar"
+f6144.4	"Never eat eggs, dairy, wheat, sugar: Sugar or foods/drinks containing sugar"	Never eat: Sugar 
+f6162.3	Types of transport used (excluding work): Public transport	Transport: Public transit
+f6162.4	Types of transport used (excluding work): Cycle	Transport: Cycling
+f6164.1	Types of physical activity in last 4 weeks: Walking for pleasure (not as a means of transport)	Physical activity: Walking
+f6164.5	"Types of physical activity in last 4 weeks: Heavy DIY (eg: weeding, lawn mowing, carpentry, digging)"	Physical activity: Heavy DIY
+f6164.4	"Types of physical activity in last 4 weeks: Light DIY (eg: pruning, watering the lawn)"	Physical activity: Light DIY
+f6164.100	Types of physical activity in last 4 weeks: None of the above	Physical activity: None
+BRS-ALL-cov_bvr	Behavioral Risk Score (BRS)	Behavioral Risk Score (BRS)
+CRS-ALL	Clinical Risk Score (CRS)	Clinical Risk Score (CRS)
+PRS_T2D	Polygenic Risk Score (PRS) for Type 2 Diabetes	Polygenic Risk Score (PRS)
+f4080	"Systolic blood pressure, automated reading"	Blood Pressure
+f21001	Body Mass Index (BMI)	BMI
+f30740	Glucose - Blood Biochemistry	Glucose
+f30750	Glycated haemoglobin (HbA1c)	HbA1c
+f30760	HDL cholesterol - Blood Biochemistry	HDL
+f30870	Triglycerides - Blood Biochemistry	Triglycerides
+T2D	Type 2 Diabetes	T2D

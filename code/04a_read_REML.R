@@ -8,6 +8,7 @@ source('code/00_paths.R')
 # REML gencorrs ####
 dir_gencorrs <- paste0(dir_scratch, 'gencorrs/')
 rg_files_out <- list.files(dir_gencorrs, pattern='^REML.*\\.out$')
+shortnames <- as_tibble(fread('input_data/term_shortnames.tsv'))
 
 gencorr_REML <- tibble(file='', h2_cohort='',
                        trait1='',trait2='',
@@ -62,29 +63,26 @@ for (rg_file in rg_files_out) {
 col_BRS <- 'BRS-ALL-cov_bvr' # main BRS term
 
 
-fields <- as_tibble(fread('scratch/fields_tbl.txt')) %>%
-  add_row(term='CRS-ALL', use_type='CRF',
-          traitname = 'Clinical Risk Score (CRS)')
+fields <- as_tibble(fread('scratch/fields_tbl.txt'))
 col_CRFs <- fields$term[fields$use_type == 'CRF']
 
 CI95_z <- qnorm(0.975)
 gc1 <- gencorr_REML %>%
   filter(trait1 == col_BRS,
          trait2 %in% col_CRFs) %>%
-  left_join(fields %>% filter(use_type=='CRF') %>%
-              select(trait2=term, traitname), by='trait2') %>%
+  left_join(shortnames %>% select(trait2=term, shortname), by='trait2') %>%
   arrange(-abs(rg)) %>%
   mutate(rg_low = rg - CI95_z*rg_err,
          rg_upp = rg + CI95_z*rg_err,
          sign = ifelse(rg>0,'Positive','Negative'),
-         traitname = factor(traitname))
+         shortname = factor(shortname))
 
-ggplot(gc1, aes(x=factor(traitname, levels=traitname), y=abs(rg))) +
+ggplot(gc1, aes(x=factor(shortname, levels=shortname), y=abs(rg))) +
   geom_col(aes(fill = sign)) +
   geom_errorbar(aes(ymin=abs(rg_low), ymax=abs(rg_upp)),
                 width=0.5) +
   coord_flip() +
-  scale_x_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=20)) +
+  scale_x_discrete(labels = function(x) str_wrap(x, width=20)) +
   scale_y_continuous(expand=c(0,0,0.1,0)) +
   labs(x = 'Clinical Risk Factors and Score',
        y = 'Absolute genetic correlation (95% CI) with Behavioral Risk Score (BRS)',
@@ -100,22 +98,21 @@ gc2 <- gencorr_REML %>%
             mutate(trait2 = trait1, trait1 = 'CRS-ALL')) %>%
   mutate(term = ifelse(trait2 == col_BRS, trait2,
                        str_replace_all(trait2,'_','\\.'))) %>%
-  left_join(fields %>% filter(use_type=='behavior') %>%
-              mutate(traitname = str_remove(traitname, "\\s*\\([^)]*\\)")) %>%
-              add_row(term = col_BRS, traitname = 'Behavioral Risk Score (BRS)') %>%
-              select(term, traitname), by='term') %>%
+  left_join(shortnames %>% select(term, shortname), by='term') %>%
   arrange(-abs(rg)) %>%
   mutate(rg_low = rg - CI95_z*rg_err,
          rg_upp = rg + CI95_z*rg_err,
          sign = ifelse(rg>0,'Positive','Negative'),
-         traitname = factor(traitname))
+         shortname = factor(shortname),
+         rg_low_abs = ifelse(rg_low < 0 & rg>0, -Inf,abs(rg_low)),
+         rg_upp_abs = ifelse(rg_upp > 0 & rg<0, -Inf,abs(rg_upp)))
 
-ggplot(gc2, aes(x=factor(traitname, levels=traitname), y=abs(rg))) +
+ggplot(gc2, aes(x=factor(shortname, levels=shortname), y=abs(rg))) +
   geom_col(aes(fill = sign)) +
-  geom_errorbar(aes(ymin=abs(rg_low), ymax=abs(rg_upp)),
+  geom_errorbar(aes(ymin=rg_low_abs, ymax=rg_upp_abs),
                 width=0.5) +
   coord_flip() +
-  scale_x_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=40)) +
+  scale_x_discrete(labels = function(x) str_wrap(x, width=40)) +
   scale_y_continuous(expand=c(0,0,0.1,0)) +
   labs(x = 'Behaviors and BRS',
        y = 'Absolute genetic correlation (95% CI) with Clinical Risk Score (CRS)',
@@ -138,18 +135,15 @@ hg1 <- gencorr_REML %>%
          h2_low = h2 - CI95_z*h2_err,
          h2_upp = h2 + CI95_z*h2_err) %>%
   arrange(-h2) %>%
-  left_join(fields %>% filter(use_type=='behavior') %>%
-              mutate(traitname = str_remove(traitname, "\\s*\\([^)]*\\)")) %>%
-              add_row(term = col_BRS, traitname = 'Behavioral Risk Score (BRS)') %>%
-              select(term, traitname), by='term')
+  left_join(shortnames %>% select(term, shortname), by='term')
 
 
-ggplot(hg1, aes(x=factor(traitname, levels=traitname), y=h2)) +
+ggplot(hg1, aes(x=factor(shortname, levels=shortname), y=h2)) +
   geom_col(aes(fill = term==col_BRS)) +
   geom_errorbar(aes(ymin=abs(h2_low), ymax=abs(h2_upp)),
                 width=0.5) +
   coord_flip() +
-  scale_x_discrete(labels = function(x) str_wrap(str_replace_all(x, "foo" , " "), width=40)) +
+  scale_x_discrete(labels = function(x) str_wrap(x, width=40)) +
   scale_y_continuous(expand=c(0,0,0.1,0),
                      breaks = seq(0,1,5/100),
                      minor_breaks = seq(0,1,1/100)) +
@@ -157,7 +151,14 @@ ggplot(hg1, aes(x=factor(traitname, levels=traitname), y=h2)) +
        y = 'Heritability (h2)') +
   theme_bw() +
   theme(legend.position = 'none',
-        axis.text.y = element_text(size=5))
+        axis.text.y = element_text(size=6))
+
+
+# coefficients ####
+BRS_coeffs <- as_tibble(fread('scratch/BRS_models/BRS_coefficients.txt'))
+load('scratch/BRS_models/cv_glm_models.RData')
+
+
 
 
 #############################################################
