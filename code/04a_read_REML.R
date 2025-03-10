@@ -5,10 +5,19 @@ library(tidyverse)
 library(data.table)
 source('code/00_paths.R')
 
+# general files and variables ####
+shortnames <- as_tibble(fread('input_data/term_shortnames.tsv'))
+fields <- as_tibble(fread('scratch/fields_tbl.txt'))
+col_CRFs <- fields$term[fields$use_type == 'CRF']
+col_bvrs <- fields$term[fields$use_type == 'behavior']
+col_bvrs_ <- str_replace_all(col_bvrs,'\\.','_')
+col_BRS <- 'BRS-ALL-cov_bvr' # main BRS term
+CI95_z <- qnorm(1 - (1 - 0.95)/2)
+
 # REML gencorrs ####
 dir_gencorrs <- paste0(dir_scratch, 'gencorrs/')
 rg_files_out <- list.files(dir_gencorrs, pattern='^REML.*\\.out$')
-shortnames <- as_tibble(fread('input_data/term_shortnames.tsv'))
+
 
 gencorr_REML <- tibble(file='', h2_cohort='',
                        trait1='',trait2='',
@@ -59,14 +68,38 @@ for (rg_file in rg_files_out) {
   )
 }
 
+# behavior summary table ####
+
+# extracts significant behaviors for BRS-ALL-cov_bvr
+
+## coefficients of terms for BRS ####
+load('scratch/BRS_models/cv_glm_models.RData')
+BRS_cvglm <- models[[str_remove(col_BRS, 'BRS-')]]
+BRS_coeffs <- as_tibble(fread('scratch/BRS_models/BRS_coefficients.txt')) %>%
+  select(term, traitname, beta = all_of(paste0('beta-',col_BRS))) %>%
+  drop_na() %>% 
+  mutate(factor_SD = BRS_cvglm$factor_SDs,
+         beta_norm = beta * factor_SD,
+         beta_norm_abs = abs(beta_norm),
+         effect_sign = sign(beta_norm)) %>%
+  filter(beta != 0)
+
+
+bvr_sumtbl <- tibble(term = col_bvrs[col_bvrs %in% BRS_coeffs$term]) %>%
+  left_join(shortnames, by='term') %>%
+  left_join(fields %>% select(term, data_type), by='term') %>%
+  left_join(BRS_coeffs %>% select(term, beta, beta_norm), by='term') %>%
+  left_join(gencorr_REML %>% 
+              mutate(term = str_replace_all(trait2,'_','\\.')) %>%
+              filter(term %in% BRS_coeffs$term, trait1 == 'CRS-ALL') %>%
+              select(term, h2=trait2_h2g, h2_err = trait2_h2g_err,
+                     rg_CRS = rg, rg_err_CRS = rg_err))
+
+dir.create('scratch/general_results/', showWarnings = FALSE)
+fwrite(bvr_sumtbl, 'scratch/general_results/bvr_sumtbl.txt', sep='\t')
+
+
 # genetic correlation BRS vs CRFs comparisons ####
-col_BRS <- 'BRS-ALL-cov_bvr' # main BRS term
-
-
-fields <- as_tibble(fread('scratch/fields_tbl.txt'))
-col_CRFs <- fields$term[fields$use_type == 'CRF']
-
-CI95_z <- qnorm(0.975)
 gc1 <- gencorr_REML %>%
   filter(trait1 == col_BRS,
          trait2 %in% col_CRFs) %>%
@@ -91,24 +124,27 @@ ggplot(gc1, aes(x=factor(shortname, levels=shortname), y=abs(rg))) +
   theme(legend.position = 'top')
   
 
-# genetic correlation of CRS ####
-gc2 <- gencorr_REML %>%
-  filter(trait1 == 'CRS-ALL') %>%
-  add_row(gencorr_REML %>% filter(trait2 == 'CRS-ALL') %>%
-            mutate(trait2 = trait1, trait1 = 'CRS-ALL')) %>%
-  mutate(term = ifelse(trait2 == col_BRS, trait2,
-                       str_replace_all(trait2,'_','\\.'))) %>%
-  left_join(shortnames %>% select(term, shortname), by='term') %>%
+# genetic correlation with CRS ####
+gc2 <- bvr_sumtbl %>%
+  select(term, shortname, rg=rg_CRS, rg_err=rg_err_CRS, beta) %>%
+  add_row(gencorr_REML %>% filter(trait2=='CRS-ALL') %>%
+            select(term=trait1, rg, rg_err) %>%
+            mutate(beta=1) %>%
+            left_join(shortnames %>% select(-traitname), by='term')) %>%
   arrange(-abs(rg)) %>%
   mutate(rg_low = rg - CI95_z*rg_err,
          rg_upp = rg + CI95_z*rg_err,
          sign = ifelse(rg>0,'Positive','Negative'),
          shortname = factor(shortname),
          rg_low_abs = ifelse(rg_low < 0 & rg>0, -Inf,abs(rg_low)),
-         rg_upp_abs = ifelse(rg_upp > 0 & rg<0, -Inf,abs(rg_upp)))
+         rg_upp_abs = ifelse(rg_upp > 0 & rg<0, -Inf,abs(rg_upp)),
+         concordant = sign(rg) == sign(beta))
+
+# vector denoting which traitnames to bold
+boldings <- gc2$term == col_BRS
 
 ggplot(gc2, aes(x=factor(shortname, levels=shortname), y=abs(rg))) +
-  geom_col(aes(fill = sign)) +
+  geom_col(aes(fill = concordant)) +
   geom_errorbar(aes(ymin=rg_low_abs, ymax=rg_upp_abs),
                 width=0.5) +
   coord_flip() +
@@ -116,30 +152,28 @@ ggplot(gc2, aes(x=factor(shortname, levels=shortname), y=abs(rg))) +
   scale_y_continuous(expand=c(0,0,0.1,0)) +
   labs(x = 'Behaviors and BRS',
        y = 'Absolute genetic correlation (95% CI) with Clinical Risk Score (CRS)',
-       fill = 'Sign') +
+       fill = 'Genetic correlation concordant with BRS effect') +
   theme_bw() +
   theme(legend.position = 'top',
-        axis.text.y = element_text(size=5))
+        axis.text.y = element_text(size=6,
+                                   face = ifelse(boldings, 'bold','plain')))
 
 
 # Heritability of behaviors and score ####
-col_bvrs <- fields$term[fields$use_type == 'behavior']
-col_bvrs_ <- str_replace_all(col_bvrs,'\\.','_')
-hg1 <- gencorr_REML %>%
-  filter(trait2 %in% c(col_bvrs_,col_BRS)) %>%
-  group_by(trait2) %>%
-  summarize(h2 = mean(trait2_h2g),
-            h2_err = mean(trait2_h2g_err)) %>%
-  mutate(term = ifelse(trait2 == col_BRS, trait2,
-                       str_replace_all(trait2,'_','\\.')),
-         h2_low = h2 - CI95_z*h2_err,
-         h2_upp = h2 + CI95_z*h2_err) %>%
-  arrange(-h2) %>%
-  left_join(shortnames %>% select(term, shortname), by='term')
 
+hg1 <- bvr_sumtbl %>%
+  select(term, shortname, h2, h2_err) %>%
+  add_row(gencorr_REML %>% filter(trait2==col_BRS) %>%
+            rename(term=trait2) %>% group_by(term) %>%
+            summarize(h2 = mean(trait2_h2g),
+                      h2_err = mean(trait2_h2g_err)) %>%
+            left_join(shortnames %>% select(-traitname), by='term')) %>%
+  mutate(h2_low = h2 - CI95_z*h2_err,
+         h2_upp = h2 + CI95_z*h2_err) %>%
+  arrange(-h2)
 
 ggplot(hg1, aes(x=factor(shortname, levels=shortname), y=h2)) +
-  geom_col(aes(fill = term==col_BRS)) +
+  geom_col() +
   geom_errorbar(aes(ymin=abs(h2_low), ymax=abs(h2_upp)),
                 width=0.5) +
   coord_flip() +
@@ -151,13 +185,57 @@ ggplot(hg1, aes(x=factor(shortname, levels=shortname), y=h2)) +
        y = 'Heritability (h2)') +
   theme_bw() +
   theme(legend.position = 'none',
-        axis.text.y = element_text(size=6))
-
+        axis.text.y = element_text(size=6,
+                                   face = ifelse(boldings, 'bold','plain')))
 
 # coefficients ####
-BRS_coeffs <- as_tibble(fread('scratch/BRS_models/BRS_coefficients.txt'))
-load('scratch/BRS_models/cv_glm_models.RData')
+library(ggrepel)
 
+gc3 <- bvr_sumtbl %>%
+  rename(rg=rg_CRS, rg_err=rg_err_CRS) %>%
+  mutate(rg_low = rg - CI95_z*rg_err,
+         rg_upp = rg + CI95_z*rg_err)
+
+gc3_cor <- cor.test(gc3$rg, gc3$beta_norm)
+ggplot(gc3, aes(x=beta_norm, y=rg)) +
+  geom_hline(yintercept = 0, linetype='dashed') +
+  geom_vline(xintercept = 0, linetype='dashed') +
+  #geom_smooth(method='lm', se=FALSE) +
+  geom_point() +
+  geom_errorbar(aes(ymin = rg_low, ymax = rg_upp), alpha=0.5) +
+  geom_text_repel(aes(label = shortname), size=2) +
+  theme_bw() +
+  labs(x = 'Effect on BRS (normalized)',
+       y = 'Genetic correlation (95%) w/ Clinical Risk Score (CRS)',
+       subtitle = paste0('r = ', round(gc3_cor$estimate,3),
+                         ' :: p = ', formatC(gc3_cor$p.value,3)))
+
+#
+hg2 <- bvr_sumtbl %>%
+  mutate(h2_low = h2 - CI95_z*h2_err,
+         h2_upp = h2 + CI95_z*h2_err)
+
+hg2_cor <- cor.test(hg2$h2, abs(hg2$beta_norm))
+ggplot(hg2, aes(x=abs(beta_norm), y=h2)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = h2_low, ymax = h2_upp), alpha=0.5) +
+  geom_text_repel(aes(label = shortname), size=2) +
+  theme_bw() +
+  labs(x = 'Absolute effect on BRS (normalized)',
+       y = 'Heritability (95%) w/',
+       subtitle = paste0('r = ', round(hg2_cor$estimate,3),
+                         ' :: p = ', formatC(hg2_cor$p.value,3)))
+
+hg2b_cor <- cor.test(hg2$h2, log10(abs(hg2$beta_norm)) )
+ggplot(hg2, aes(x=log10(abs(beta_norm)), y=h2)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = h2_low, ymax = h2_upp), alpha=0.5) +
+  geom_text_repel(aes(label = shortname), size=2) +
+  theme_bw() +
+  labs(x = 'Log10 of Absolute effect on BRS (normalized)',
+       y = 'Heritability (95%) w/',
+       subtitle = paste0('r = ', round(hg2b_cor$estimate,3),
+                         ' :: p = ', formatC(hg2b_cor$p.value,3)))
 
 
 

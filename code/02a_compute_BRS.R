@@ -46,11 +46,13 @@ for (i in 1:length(cohorts)) {
              all_of(lasso_factors[[j]])) %>%
       drop_na()
     factor_set <- names(lasso_factors)[j]
-    
     model_name <- paste0(cohort,'-',factor_set)
     print(paste(i, j, model_name))
-    #models[[model_name]] <- get_cvglm_obj(training_tbl_j, lasso_factors[[j]])
+    models[[model_name]] <- get_cvglm_obj(training_tbl_j, lasso_factors[[j]])
     print(paste(i, j, model_name,models[[model_name]]$cvm[models[[1]]$index[2]]))
+    
+    # gets standard deviations of factors, for later rescaling if desired
+    models[[model_name]]$factor_SDs <- sapply(training_tbl_j[,-c(1,2)], sd)
     
     # makes BMI-adjusted cov-bvr models
     if (factor_set == 'cov_BMI_bvr') {
