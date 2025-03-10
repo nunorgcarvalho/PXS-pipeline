@@ -130,7 +130,7 @@ ggplot(hg2, aes(x=abs(beta_norm), y=h2)) +
   geom_text_repel(aes(label = shortname), size=2) +
   theme_bw() +
   labs(x = 'Absolute effect on BRS (normalized)',
-       y = 'Heritability (95%) w/',
+       y = 'Heritability (95%)',
        subtitle = paste0('r = ', round(hg2_cor$estimate,3),
                          ' :: p = ', formatC(hg2_cor$p.value,3)))
 
@@ -142,9 +142,37 @@ ggplot(hg2, aes(x=log10(abs(beta_norm)), y=h2)) +
   geom_text_repel(aes(label = shortname), size=2) +
   theme_bw() +
   labs(x = 'Log10 of Absolute effect on BRS (normalized)',
-       y = 'Heritability (95%) w/',
+       y = 'Heritability (95%)',
        subtitle = paste0('r = ', round(hg2b_cor$estimate,3),
                          ' :: p = ', formatC(hg2b_cor$p.value,3)))
+
+
+# AUC vs Effect Size
+auc1 <- sumtbl %>%
+  filter(term != col_BRS)
+ROC_tbl <- as_tibble(fread('scratch/general_results/ROC_tbl.tsv')) %>%
+  filter(term %in% c('cov','BRS'))
+
+auc1_cor <- cor.test(auc1$AUC, abs(auc1$beta_norm))
+ggplot(auc1, aes(x=abs(beta_norm), y=AUC)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = AUC_low, ymax = AUC_upp), alpha=0.5) +
+  geom_hline(yintercept=ROC_tbl$AUC[1], linetype='dashed') + # cov-only
+  geom_hline(yintercept=ROC_tbl$AUC[2], linetype='dashed') + # BRS
+  geom_text_repel(aes(label = shortname), size=2) +
+  annotate('text', x=Inf, y=ROC_tbl$AUC[1], vjust=-0.5, hjust=1.05, size=3,
+           label='AUC for covariate-only model') +
+  annotate('text', x=Inf, y=ROC_tbl$AUC[2], vjust=1.5, hjust=1.05, size=3,
+           label='AUC for BRS model') +
+  theme_bw() +
+  labs(x = 'Absolute effect on BRS (normalized)',
+       y = 'AUC for Type 2 Diabetes',
+       subtitle = paste0('r = ', round(auc1_cor$estimate,3),
+                         ' :: p = ', formatC(auc1_cor$p.value,3)))
+
+
+
+
 
 
 

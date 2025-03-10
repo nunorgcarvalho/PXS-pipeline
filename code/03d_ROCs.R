@@ -146,7 +146,7 @@ ggplot(ROC_long_bvr, aes(x = 1 - specificity, y = sensitivity,
          'Youden point for each ROC is marked',
          '\nIndividual behaviors in gray. Behavioral Risk Score (BRS) in red. Covariate-only model in black.'))
 
-# View
+# View 
 shortnames$term[shortnames$term == col_BRS] <- 'BRS'
 ROC_tbl %>% filter(term %in% c(col_bvrs, 'BRS') ) %>% arrange(-AUC) %>%
   left_join(shortnames, by='term') %>%
