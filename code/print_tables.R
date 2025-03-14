@@ -58,7 +58,7 @@ fwrite(tbl_csv, paste0(dir_tbls,"GWAS_catalog_group_count.csv"))
 
 # Fields Table ####
 ## All behavioral traits ####
-loc_tbl <- paste0(dir_script,"../input_data/T2D_XWAS_exposures.txt")
+loc_tbl <- paste0(dir_script,"../input_data/UKBB_behaviors.txt")
 tbl_raw <- as_tibble(fread(loc_tbl))
 ukb_dict <- as_tibble(fread(paste0(dir_data_showcase,"Data_Dictionary_Showcase.tsv")))
 
