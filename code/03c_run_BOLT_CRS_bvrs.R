@@ -13,13 +13,18 @@ BRS_coeffs <- as_tibble(fread(paste0(dir_scratch,'BRS_models/BRS_coefficients.tx
 # makes table of scripts to run
 BOLT_tbl <- tibble(
     term1 = 'BRS-ALL-cov_bvr',term2 = c(CRFs, 'CRS-ALL')
-  ) %>% add_row(
-    term1 = 'CRS-ALL', term2 = BRS_coeffs$term) %>%
+  ) %>% add_row( term1 = 'CRS-ALL', term2 = BRS_coeffs$term) %>%
   add_row(term1 = c('CRS-ALL', CRFs) ) %>%
+  add_row(term1 = c(BRS_coeffs$term) ) %>%
   mutate(type = ifelse(is.na(term2),'LMM','REML'),
          term1_ = str_replace(term1, '\\.','_'),
          term2_ = str_replace(term2, '\\.','_'),
          loc_script=NA, file=NA)
+
+###
+# use this to filter BOLT_tbl to the actual scripts you need to currently run
+BOLT_tbl <- BOLT_tbl %>% filter(term1 %in% BRS_coeffs$term, type=='LMM')
+###
 
 # loops through each job, writes and saves script
 for (i in 1:nrow(BOLT_tbl)) {
@@ -30,13 +35,13 @@ for (i in 1:nrow(BOLT_tbl)) {
     type_tag <- '--reml --remlNoRefine'
     sbatch_oe <- paste0(slice$type,'.',slice$term1_,'.',slice$term2_)
     filename <- paste0(sbatch_oe,'.sh')
-    loc_script <- paste0(dir_repo,'scratch/gencorrs/',filename)
+    loc_script <- paste0(dir_scratch,'gencorrs/',filename)
   } else if (slice$type == 'LMM') {
     phenoCol_tag <- paste0('--phenoCol ',slice$term1)
-    type_tag <- paste0('--lmm --verboseStats --statsFile ',dir_repo,'scratch/LMM/LMM.',slice$term1_,'.txt')
+    type_tag <- paste0('--lmm --verboseStats --statsFile ',dir_scratch,'LMM/LMM.',slice$term1_,'.txt')
     sbatch_oe <- paste0(slice$type,'.',slice$term1_)
     filename <- paste0(sbatch_oe,'.sh')
-    loc_script <- paste0(dir_repo,'scratch/LMM/',filename)
+    loc_script <- paste0(dir_scratch,'LMM/',filename)
   }
   
   loc_statsFileBgenSnps <- paste0(dir_scratch,'LMM/LMM.',slice$term1_,'.bgen.txt')
@@ -48,7 +53,7 @@ for (i in 1:nrow(BOLT_tbl)) {
 #SBATCH -c 20
 #SBATCH -t 1-23:59
 #SBATCH -p medium
-#SBATCH --mem=125G
+#SBATCH --mem=100G
 #SBATCH -o ',sbatch_oe,'.out
 #SBATCH -e ',sbatch_oe,'.err
 
@@ -77,7 +82,7 @@ for (i in 1:nrow(BOLT_tbl)) {
 }
 # then run inside each script directory:
 # for file in *.sh; do sbatch "$file";done
-# or, run the following:
+# or, run the following in the respective directory for gencorrs vs LMM
 
-cat('for file in ',paste0(BOLT_tbl$file[BOLT_tbl$type=='LMM'], collapse=' '),'; do sbatch "$file";done')
-cat('for file in ',paste0(BOLT_tbl$file[BOLT_tbl$type=='REML'], collapse=' '),'; do sbatch "$file";done')
+cat('for file in',paste0(BOLT_tbl$file[BOLT_tbl$type=='LMM'], collapse=' '),'; do sbatch "$file";done')
+cat('for file in',paste0(BOLT_tbl$file[BOLT_tbl$type=='REML'], collapse=' '),'; do sbatch "$file";done')
