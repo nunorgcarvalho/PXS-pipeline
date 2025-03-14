@@ -1,4 +1,4 @@
-# PXS Pipeline
+# Behavioral Risk Score (BRS) for Type 2 Diabetes
 
 ## Input files:
 
@@ -31,4 +31,8 @@ Define your specific project and data paths inside of `code/00_paths.R`
 
 ## Order of scripts to run (inside `code/`)
 
-Scripts are named in the order that they should be run. For example, a script whose name begins with '03' needs to be run after '02'. Scripts with the same number in the name can be run in parallel/random order, e.g. '03a' and '03b'.
+Scripts are named in the order that they should be run. For example, a script whose name begins with '03' needs to be run after at least one of the scripts named '02'. Scripts with the same number in the name can be run in parallel/random order, e.g. '03a' and '03b'.
+
+## Other
+
+Why is this repository named PXS-pipeline? In previous iterations of this project, we used the name "exposure" to refer to a broader set of environmental factors, including behaviors. Thus, we named our risk score the "PolyeXposure Score". We've since chosen to just focus on behaviors.

@@ -15,3 +15,4 @@ final_results/figures/*
 final_results/poster/*
 .Rproj.user
 input_data/AMP_*
+input_data/bolt*

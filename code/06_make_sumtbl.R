@@ -6,18 +6,18 @@ library(data.table)
 source('code/00_paths.R')
 
 # relevant files/variables
-gencorr_REML <- as_tibble(fread('scratch/general_results/gencorr_REML.tsv'))
-ROC_tbl <- as_tibble(fread('scratch/general_results/ROC_tbl.tsv'))
-shortnames <- as_tibble(fread('input_data/term_shortnames.tsv'))
-fields <- as_tibble(fread('scratch/fields_tbl.txt'))
+gencorr_REML <- as_tibble(fread(paste0(dir_scratch,'general_results/gencorr_REML.tsv')))
+ROC_tbl <- as_tibble(fread(paste0(dir_scratch,'general_results/ROC_tbl.tsv')))
+shortnames <- as_tibble(fread(paste0(dir_repo,'input_data/term_shortnames.tsv')))
+fields <- as_tibble(fread(paste0(dir_scratch,'fields_tbl.txt')))
 col_bvrs <- fields$term[fields$use_type == 'behavior']
 col_BRS <- 'BRS-ALL-cov_bvr' # main BRS term
 ROC_tbl$term[ROC_tbl$term == 'BRS'] <- col_BRS
 
 # loads original cvglm BRS model and coefficients
-load('scratch/BRS_models/cv_glm_models.RData')
+load(paste0(dir_scratch,'BRS_models/cv_glm_models.RData'))
 BRS_cvglm <- models[[str_remove(col_BRS, 'BRS-')]]
-BRS_coeffs <- as_tibble(fread('scratch/BRS_models/BRS_coefficients.txt')) %>%
+BRS_coeffs <- as_tibble(fread(paste0(dir_scratch,'BRS_models/BRS_coefficients.txt'))) %>%
   select(term, traitname, beta = all_of(paste0('beta-',col_BRS))) %>%
   drop_na() %>% 
   mutate(factor_SD = BRS_cvglm$factor_SDs,
@@ -48,4 +48,4 @@ sumtbl <- tibble(term = c(col_BRS, col_bvrs[col_bvrs %in% BRS_coeffs$term])) %>%
               select(term, h2, h2_err, rg_CRS = rg, rg_err_CRS = rg_err), by='term')
 
 # writes to folder
-fwrite(sumtbl, 'scratch/general_results/sumtbl.tsv', sep='\t')
+fwrite(sumtbl, paste0(paste0(dir_scratch,'general_results/sumtbl.tsv'), sep='\t'))
