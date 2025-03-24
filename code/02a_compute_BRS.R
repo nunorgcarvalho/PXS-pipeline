@@ -195,11 +195,14 @@ for (j in 1:length(cohorts)) {
 
 ## visualizing C-stat ####
 ci95_z <- -1* qnorm((1 - 0.95)/2)
+tbl_Cstat <- tbl_Cstat %>%
+  mutate(C_stat_low = C_stat - ci95_z * C_stat_se,
+         C_stat_upp = C_stat + ci95_z * C_stat_se)
 ggplot(tbl_Cstat, aes(x = testing_cohort , y=C_stat,
                       color = training_cohort)) +
   geom_point(position = position_dodge(width = 0.5)) +
-  geom_errorbar(aes(ymin = C_stat - ci95_z * C_stat_se,
-                    ymax = C_stat + ci95_z * C_stat_se),
+  geom_errorbar(aes(ymin = C_stat_low,
+                    ymax = C_stat_upp),
                 width= 0.5, position = position_dodge(width = 0.5)) +
   scale_y_continuous(breaks = seq(0,1,1/100),
                      minor_breaks = seq(0,1,1/400)) +
