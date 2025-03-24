@@ -7,8 +7,10 @@ source('code/00_paths.R')
 
 # relevant files/variables
 gencorr_REML <- as_tibble(fread(paste0(dir_scratch,'general_results/gencorr_REML.tsv')))
+GWAS_summary_tbl <- as_tibble(fread(paste0(dir_scratch,'general_results/GWAS_summary_tbl.txt')))
 ROC_tbl <- as_tibble(fread(paste0(dir_scratch,'general_results/ROC_tbl.tsv')))
 shortnames <- as_tibble(fread(paste0(dir_repo,'input_data/term_shortnames.tsv')))
+
 fields <- as_tibble(fread(paste0(dir_scratch,'fields_tbl.txt')))
 col_bvrs <- fields$term[fields$use_type == 'behavior']
 col_BRS <- 'BRS-ALL-cov_bvr' # main BRS term
@@ -23,7 +25,8 @@ BRS_coeffs <- as_tibble(fread(paste0(dir_scratch,'BRS_models/BRS_coefficients.tx
   mutate(factor_SD = BRS_cvglm$factor_SDs,
          beta_norm = beta * factor_SD,
          beta_norm_abs = abs(beta_norm),
-         effect_sign = sign(beta_norm)) %>%
+         effect_sign = sign(beta_norm),
+         hazard_ratio = exp(beta_norm)) %>%
   filter(beta != 0)
 
 # constructs summary table (behaviors + BRS)
@@ -45,7 +48,11 @@ sumtbl <- tibble(term = c(col_BRS, col_bvrs[col_bvrs %in% BRS_coeffs$term])) %>%
               add_row(
                 gencorr_REML %>% filter(trait1==col_BRS, trait2=='CRS-ALL') %>%
                   mutate(term=trait1, h2=trait1_h2g, h2_err = trait1_h2g_err)) %>%
-              select(term, h2, h2_err, rg_CRS = rg, rg_err_CRS = rg_err), by='term')
+              select(term, h2, h2_err, rg_CRS = rg, rg_err_CRS = rg_err), by='term') %>%
+  # adds GWAS summary data
+  left_join(GWAS_summary_tbl %>%
+              mutate(term = ifelse(trait == 'ALL.BRS-ALL-cov_bvr', col_BRS, trait)) %>%
+              select(-trait), by='term')
 
 # writes to folder
-fwrite(sumtbl, paste0(paste0(dir_scratch,'general_results/sumtbl.tsv'), sep='\t'))
+fwrite(sumtbl, paste0(dir_scratch,'general_results/sumtbl.tsv'), sep='\t')

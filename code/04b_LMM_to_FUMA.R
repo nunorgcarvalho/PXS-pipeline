@@ -11,11 +11,16 @@ dir_LMM <- paste0(dir_scratch, 'LMM/')
 dir_out <- paste0(dir_LMM,'FUMA_format/')
 dir.create(dir_out, showWarnings = FALSE)
 
-LMM_files <- list.files(paste0(dir_LMM), pattern='*.bgen.txt')
+# set here the regex pattern of files to look for in the LMM/ directory
+#regex_pattern = "LMM\\.f.*\\.bgen\\.txt"
+regex_pattern <- '.*f.*\\.bgen\\.txt'
+LMM_files <- list.files(dir_LMM, pattern=regex_pattern)
+LMM_files
 
 # loops through each file ####
-for (file in LMM_files) {
-  print(file)
+for (i in 1:length(LMM_files)) {
+  file <- LMM_files[i]
+  print(paste(i,file))
   raw <- as_tibble(fread(paste0(dir_LMM, file)))
   
   LMM_out <- raw %>%

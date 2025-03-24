@@ -150,7 +150,7 @@ ggplot(hg2, aes(x=log10(abs(beta_norm)), y=h2)) +
 # AUC vs Effect Size
 auc1 <- sumtbl %>%
   filter(term != col_BRS)
-ROC_tbl <- as_tibble(fread('scratch/general_results/ROC_tbl.tsv')) %>%
+ROC_tbl <- as_tibble(fread(paste0(dir_scratch,'general_results/ROC_tbl.tsv'))) %>%
   filter(term %in% c('cov','BRS'))
 
 auc1_cor <- cor.test(auc1$AUC, abs(auc1$beta_norm))
