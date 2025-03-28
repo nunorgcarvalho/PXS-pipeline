@@ -28,7 +28,7 @@ for (LMM_file in LMM_files) {
   
   script <- cat('#!/bin/sh
 #SBATCH -c 4
-#SBATCH -t 0-00:30
+#SBATCH -t 0-00:10
 #SBATCH -p short
 #SBATCH --mem=4G
 #SBATCH -o ',sbatch_oe,'.out
