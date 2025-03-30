@@ -3,10 +3,10 @@
 *.err
 *.Rout
 scratch/*
-scratch_2023/*
-scratch_2024/*
+sandbox/scratch_2023/*
+sandbox/scratch_2024/*
 sandbox/scratch/*
-final_results_2024/*
+sandbox/final_results_2024/*
 final_results/*.png
 final_results/*.pdf
 final_results/*.rtf
