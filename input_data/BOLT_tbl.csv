@@ -20,3 +20,4 @@ ALL,normal_BMI,cov_bvr,,LMM
 ALL,ALL,cov_BMI_bvr,,LMM
 ALL,high_BMI,cov_BMI_bvr,,LMM
 ALL,normal_BMI,cov_BMI_bvr,,LMM
+ALL,ALL_train,cov_bvr,,LMM

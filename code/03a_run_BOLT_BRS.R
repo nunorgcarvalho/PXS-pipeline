@@ -31,7 +31,6 @@ if (!file.exists(loc_out)) {
 BOLT_tbl <- BOLT_tbl %>% filter(h2_cohort == 'ALL_train', type=='LMM')
 ###
 
-
 # loops through each job and writes script for it
 for (i in 1:nrow(BOLT_tbl)) {
   slice <- BOLT_tbl[i,]
