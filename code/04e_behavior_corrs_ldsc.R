@@ -65,17 +65,29 @@ fwrite(cor_tibble, file=loc_out, sep='\t')
 
 
 # ldsc prep LMM files ####
+
+## behaviors + BRS ####
 ldsc_files <- tibble(
   term = bvrs,
   term_ = str_replace_all(term, '\\.','_'),
-  filepath = paste0(dir_scratch,'LMM/LMM.',term_,'.bgen.txt'),
-  sbatch_oe = paste0('ldsc.',term_),
-  file_sh = paste0(sbatch_oe, '.sh'),
-  loc_script = paste0(dir_ldsc_bvrs, file_sh),
-  loc_out_stem = paste0(dir_ldsc_bvrs,'ldsc.',term_),
-  loc_LMM.out = str_replace( filepath, '.bgen.txt','.out'),
-  N = as.numeric(NA)) 
+  filepath = paste0(dir_scratch,'LMM/LMM.',term_,'.bgen.txt')
+) %>% add_row( # manually insert BRS in there
+  term = 'BRS', term_='BRS',
+  filepath = paste0(dir_scratch,'LMM/LMM.ALL.BRS-ALL-cov_bvr.bgen.txt')
+) %>%
+  mutate(
+    sbatch_oe = paste0('ldsc.',term_),
+    file_sh = paste0(sbatch_oe, '.sh'),
+    loc_script = paste0(dir_ldsc_bvrs, file_sh),
+    loc_out_stem = paste0(dir_ldsc_bvrs,'ldsc.',term_),
+    loc_LMM.out = str_replace( filepath, '.bgen.txt','.out'),
+    N = as.numeric(NA)
+  ) 
 
+###
+# use this to filter the table to the actual scripts you need to currently run
+#ldsc_files <- ldsc_files %>% filter(term == 'BRS')
+###
 
 for (i in 1:nrow(ldsc_files)) {
   slice <- ldsc_files[i,]
@@ -115,18 +127,88 @@ echo "Formatting summary file for ldsc"
 ', sep='', file=slice$loc_script)
 }
 
+
+
 # then run the following bash command inside script directory:
 cat('for file in',paste0(ldsc_files$file_sh, collapse=' '),'; do sbatch "$file";done')
 
 
+## T2D ####
+
+### prep summstats ####
+# ok I'm breaking my whole rule about only having to run lower-numbered
+# scripts, but I need you to run the bash code:
+# 04f_downloading_T2DGWAS.sh
+dir_T2DGWAS <- paste0(dir_scratch,'T2D/')
+T2DGWAS_raw <- as_tibble(fread(paste0(dir_T2DGWAS,'All_Metal_LDSC-CORR_Neff.v2.txt')))
+hg19_bed <- as_tibble(fread(paste0(dir_T2DGWAS,'rsID_coordinates_hg19.bed'))) %>%
+  select(Chromsome=V1, Position=V3,SNP=V4) %>%
+  mutate(Chromsome = str_replace(Chromsome,'chr','') %>% as.numeric())
+# need an example of hg38 LMM
+hg38_LMM <- as_tibble(fread(paste0(dir_scratch,'LMM/LMM.ALL.BRS-ALL-cov_bvr.bgen.txt'))) %>%
+  select(Position_hg38=BP, SNP)
+
+T2DGWAS_hg38 <- T2DGWAS_raw %>%
+  left_join(hg19_bed, by=c('Chromsome','Position')) %>%
+  left_join(hg38_LMM, by='SNP')
+
+T2DGWAS <- T2DGWAS_hg38 %>%
+  filter(!is.na(SNP)) %>%
+  select(SNP, A1 = EffectAllele, A2 = NonEffectAllele,
+         SIGNED_SUMSTATS = Beta, P=Pval, N_CAS_COL = Ncases, N_CON_COL = Ncontrols) %>%
+  mutate(P = as.numeric(P))
+
+# write hg38 T2DGWAS file to system (ready for ldsc's munge_sumstats)
+loc_T2DGWAS <- paste0(dir_T2DGWAS,'T2DGWAS.txt')
+fwrite(T2DGWAS, loc_T2DGWAS, sep='\t') 
+
+### ldsc munge ####
+
+# writes ldsc munge_sumstats script
+script <- cat('#!/bin/sh
+#SBATCH -c 4
+#SBATCH -t 0-00:10
+#SBATCH -p short
+#SBATCH --mem=4G
+#SBATCH -o ldsc.T2D.out
+#SBATCH -e ldsc.T2D.err
+
+cd ',dir_ldsc_bvrs,'
+
+module load miniconda3
+conda env create --file ',dir_ldsc,'environment.yml
+source activate ldsc
+
+echo "Formatting summary file for ldsc"
+',dir_ldsc,'munge_sumstats.py \\
+--sumstats ',loc_T2DGWAS,' \\
+--N-cas-col N_CAS_COL \\
+--N-con-col N_CON_COL \\
+--snp SNP \\
+--a1 A1 \\
+--a2 A2 \\
+--signed-sumstats SIGNED_SUMSTATS,0 \\
+--p P \\
+--merge-alleles ',paste0(dir_ldsc_bvrs,'ldsc.BRS.sumstats.gz'),' \\
+--chunksize 1000000 \\
+--out ',paste0(dir_ldsc_bvrs,'ldsc.T2D'),'
+
+', sep='', file=paste0(dir_ldsc_bvrs,'ldsc.T2D.sh'))
+
+# and submit that job from inside dir_ldsc_bvrs: sbatch ldsc.T2D.sh
+
+
 # ldsc gencorrs ####
+
+## behaviors x behaviors ####
 
 # makes table of all gencorr jobs
 # each gencorr computation takes very little time (~60 seconds)
 # but there are a lot of them: K*(K-1)/2 computations (for K behaviors)
 # so I split the jobs across K-1 jobs, so each job is performing K/2 computations
-K <- length(bvrs)
-ldsc_rgs <- combn(str_replace_all(bvrs,'\\.','_'), 2) %>%
+bvrs2 <- c('T2D','BRS',bvrs)
+K <- length(bvrs2)
+ldsc_rgs <- combn(str_replace_all(bvrs2,'\\.','_'), 2) %>%
   t() %>% as_tibble() %>% rename(term1_=V1, term2_=V2) %>% mutate(
     filepath1 = paste0(dir_ldsc_bvrs,'ldsc.',term1_,'.sumstats.gz'),
     filepath2 = paste0(dir_ldsc_bvrs,'ldsc.',term2_,'.sumstats.gz'),
@@ -145,6 +227,7 @@ ldsc_jobs <- tibble(
   computations = table( ldsc_rgs$k ) %>% c(),
   compute_mins = round(computations * max_mins_per_rg) # keep under 60
   )
+
 
 for (k in 1:(K-1)) {
   print(k)
@@ -181,3 +264,43 @@ echo ',slice_i$term1_,',',slice_i$term2_,'
 
 # then run the following bash command inside script directory:
 cat('for file in',paste0(ldsc_jobs$file_sh, collapse=' '),'; do sbatch "$file";done')
+
+
+
+
+
+
+## T2D x behaviors ####
+
+# gencorr between T2D and behaviors (+BRS)
+script <- cat('#!/bin/sh
+#SBATCH -c 4
+#SBATCH -t 0-00:',K*max_mins_per_rg,'
+#SBATCH -p short
+#SBATCH --mem=4G
+#SBATCH -o ',slice_k$sbatch_oe,'.out
+#SBATCH -e ',slice_k$sbatch_oe,'.err
+
+cd ',dir_ldsc_pairs,'
+
+module load miniconda3
+conda env create --file ',dir_ldsc,'environment.yml
+source activate ldsc
+', sep='', file=slice_k$loc_script)
+
+for (i in slice_k$job_i_start:slice_k$job_i_stop) {
+  slice_i <- ldsc_rgs[i,]
+  script_rg <- cat('
+echo "Running LDscore genetic correlation"
+echo ',slice_i$term1_,',',slice_i$term2_,'
+',dir_ldsc,'ldsc.py \\
+--rg ',slice_i$filepath1,',',slice_i$filepath2,' \\
+--ref-ld-chr ',dir_LDscore,'LDscore. \\
+--w-ld-chr ',dir_LDscore,'LDscore. \\
+--out ',slice_i$loc_out_stem,'
+', sep='', file=slice_k$loc_script, append=TRUE)
+}
+
+for (i in 1:nrow(ldsc_files)) {
+  term2_ <- ldsc_files$term_[i]
+}

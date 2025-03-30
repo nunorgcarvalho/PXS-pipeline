@@ -8,7 +8,7 @@ Software needed (and specific version used; other versions may work too):
 
 -   `BOLT-LMM v2.3.2`
 
--   `LDsc v1.0.1`
+-   `LDsc v1.0.1`. We used [European LD scores from 1000 Genomes](https://alkesgroup.broadinstitute.org/LDSCORE/). They may also be obtained from the [PanUKBB](https://pan-dev.ukbb.broadinstitute.org/docs/ld).
 
 -   `PHESANT`: <https://github.com/MRCIEU/PHESANT>
 
@@ -29,9 +29,13 @@ Inside of `input_data/`:
 Define your specific project and data paths inside of `code/00_paths.R`
 
 
+
+
 ## Order of scripts to run (inside `code/`)
 
 Scripts are named in the order that they should be run. For example, a script whose name begins with '03' needs to be run after at least one of the scripts named '02'. Scripts with the same number in the name can be run in parallel/random order, e.g. '03a' and '03b'.
+
+Scripts are meant to be run inside RStudio, guided by the comments left interspersed throughout. Some modifications of the scripts are likely needed to work with your case.
 
 ## Other
 
