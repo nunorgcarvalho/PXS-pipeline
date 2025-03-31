@@ -18,9 +18,10 @@ loc_CFRs_tbl <- paste0(dir_repo,"input_data/CRFs_table.txt")
 CRFs_tbl <- as_tibble(fread(loc_CFRs_tbl))
 CRFs_tbl <- CRFs_tbl %>%
   mutate(fieldID = sapply(str_split(CRFs_tbl$field,"\\."), `[`,2))
+fID_SES <- 738
 
 # gets date of first assessment
-cols_to_keep1 <- c("f.eid",paste0("f.",c(53,31,34,54,21000,22021,30750,2976, expos1),".0.0"), CRFs_tbl$field_raw) %>% unique()
+cols_to_keep1 <- c("f.eid",paste0("f.",c(53,31,34,54,21000,22021,30750,2976,fID_SES, expos1),".0.0"), CRFs_tbl$field_raw) %>% unique()
 pheno1 <- as_tibble(fread(loc_pheno_full1, select = cols_to_keep1))
 
 # gets date of T2D diagnosis
@@ -83,12 +84,12 @@ T2D_tbl <- T2D_tbl %>%
   rename(userId = IID, PHENO = T2D_onset, TIME = T2D_onset_days)
 
 # number of cases
-sum(T2D_tbl$PHENO)
+sum(T2D_tbl$PHENO) # 14294
 
 # makes table formatted for PHESANT to standardize exposures
-tbl_out <- T2D_tbl[,c("userId",paste0("f.",c(expos1,CRFs_tbl$fieldID),".0.0"))]
-colnames(tbl_out) <- c("userId",paste0("x",c(expos1,CRFs_tbl$fieldID),"_0_0"))
-dir.create(paste0(dir_scratch,'PHESANT_results/'))
+tbl_out <- T2D_tbl[,c("userId",paste0("f.",c(expos1,CRFs_tbl$fieldID,fID_SES),".0.0"))]
+colnames(tbl_out) <- c("userId",paste0("x",c(expos1,CRFs_tbl$fieldID,fID_SES),"_0_0"))
+dir.create(paste0(dir_scratch,'PHESANT_results/'), showWarnings = FALSE)
 loc_out <- paste0(dir_scratch,"PHESANT_results/T2D_exposures_tbl_raw.txt")
 fwrite(tbl_out, loc_out, sep="\t")
 
@@ -142,7 +143,8 @@ col_covs <- c("sex", "age", "assessment_center", paste0("pc",1:40))
 data_FAMD <- data_PHESANT %>% select(all_of(col_expos))
 FAMD_impute_agency <- missMDA::imputeFAMD(data_FAMD, ncp=4, seed=1) # took about 15-20mins with ncp=4
 FAMD_imputed <- FAMD_impute_agency$completeObs
-save(FAMD_impute_agency, file='scratch/PHESANT_results/T2D_exposures_FAMD_imputed.RData')
+save(FAMD_impute_agency, file=paste0(dir_scratch,'PHESANT_results/T2D_exposures_FAMD_imputed.RData'))
+# load(paste0(dir_scratch,'PHESANT_results/T2D_exposures_FAMD_imputed.RData'))
 
 ## sets upper and lower limits of imputed data ####
 for (term in col_expos) {
@@ -175,6 +177,7 @@ fields <- tibble(term = c(col_covs,colnames(data_PHESANT[-1]))) %>%
   left_join(ukb_codings, by=c("coding"="Coding","value"="Value")) %>%
   mutate(traitname = ifelse(is.na(Meaning),fieldname,
                             paste0(fieldname,": ",Meaning)))
+fields$use_type[fields$field == fID_SES] <- 'SES'
 
 loc_out <- paste0(dir_scratch,"fields_tbl.txt")
 fwrite(fields, loc_out, sep="\t")
@@ -185,7 +188,8 @@ pheno <- T2D_tbl %>%
          sex, age, assessment_center, starts_with("pc")) %>%
   arrange(IID) %>% # PHESANT sorts by ID for some reason
   add_column(FAMD_imputed) %>%
-  add_column(data_PHESANT %>% select(all_of(fields$term[fields$use_type=='CRF']))) %>%
+  add_column(data_PHESANT %>% select(all_of(c(fields$term[fields$use_type=='CRF'],
+                                              fields$term[fields$use_type=='SES'])))) %>%
   mutate(T2D_onset = as.numeric(T2D_onset))
 
 # defines normal and overweight (0 and 1 respectively) groups
@@ -196,13 +200,20 @@ pheno <- pheno %>%
   mutate(overweight = ifelse(IID %in% IDs_BMI0, 0,
                       ifelse(IID %in% IDs_BMI1, 1, NA)))
 
+# defines early vs late T2D diagnosis
+median_onset <- median((pheno %>% filter(T2D_onset==1))$T2D_onset_days)
+pheno <- pheno %>%
+  mutate(T2D_onset_cat = ifelse(
+    T2D_onset == 0, 'control',
+    ifelse(T2D_onset_days >= median_onset, 'late', 'early')))
+
 # assigns testing/training group
 set.seed(2024)
 pheno$sample_group <- sample(c("A","B"), nrow(pheno), replace=TRUE,
                                 prob = c(0.8, 0.2))
 
 # saves pheno to scratch
-fwrite(pheno, 'scratch/pheno.txt', sep="\t", na="NA", quote=FALSE)
+fwrite(pheno, paste0(dir_scratch,'pheno.txt'), sep="\t", na="NA", quote=FALSE)
 
 # saves the phenotype data with the T2D definitions
 CRFs_tbl <- CRFs_tbl %>% mutate(term = paste0("f",fieldID))
