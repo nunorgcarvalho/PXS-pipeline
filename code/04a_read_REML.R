@@ -58,5 +58,6 @@ for (rg_file in rg_files_out) {
     rg=gencorr, rg_err=gencorr_err, elapsed_hours=elapsed_hours
   )
 }
-dir.create('scratch/general_results/', showWarnings = FALSE)
-fwrite(gencorr_REML, 'scratch/general_results/gencorr_REML.tsv', sep='\t')
+dir_general_results <- paste0(dir_scratch,'general_results/')
+dir.create(dir_general_results, showWarnings = FALSE)
+fwrite(gencorr_REML, paste0(dir_general_results,'gencorr_REML.tsv'), sep='\t')

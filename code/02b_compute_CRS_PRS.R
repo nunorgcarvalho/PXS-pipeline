@@ -6,14 +6,14 @@ library(tidyverse)
 library(data.table)
 source('code/00_paths.R')
 
-fields <- as_tibble(fread('scratch/fields_tbl.txt'))
+fields <- as_tibble(fread(paste0(dir_scratch,'fields_tbl.txt')))
 col_covs <- fields$term[fields$use_type == 'covar']
 col_CRFs <- fields$term[fields$use_type == 'CRF']
 
-pheno <- as_tibble(fread('scratch/pheno.txt'))
+pheno <- as_tibble(fread(paste0(dir_scratch,'pheno.txt')))
 
 # loads list of CRFs
-loc_CFRs_tbl <- paste0(dir_script,"../input_data/CRFs_table.txt")
+loc_CFRs_tbl <- paste0(dir_repo,"input_data/CRFs_table.txt")
 CRFs_tbl <- as_tibble(fread(loc_CFRs_tbl))
 
 # cross validation cox LASSO regression ####

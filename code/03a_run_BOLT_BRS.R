@@ -5,7 +5,7 @@ source('code/00_paths.R')
 
 
 # manual table I made w/ analyses I want to run
-BOLT_tbl <- as_tibble(fread('input_data/BOLT_tbl.csv')) %>%
+BOLT_tbl <- as_tibble(fread(paste0(dir_repo,'input_data/BOLT_tbl.csv'))) %>%
   mutate(BRS1 = paste0('BRS-',training_cohort,'-',factors1),
          BRS2 = paste0('BRS-',training_cohort,'-',factors2),
          loc_script=NA, file=NA)
@@ -13,8 +13,8 @@ BOLT_tbl$BRS2[BOLT_tbl$factors2==''] <- NA
 
 dir_pheno <- paste0(dir_repo,'scratch/cohorts/')
 
-dir.create('scratch/gencorrs/', showWarnings = FALSE)
-dir.create('scratch/LMM/', showWarnings = FALSE)
+dir.create(paste0(dir_scratch,'gencorrs/'), showWarnings = FALSE)
+dir.create(paste0(dir_scratch,'LMM/'), showWarnings = FALSE)
 
 
 # makes copy of cohort_ALL but for training only ####

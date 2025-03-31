@@ -196,8 +196,8 @@ BRS_coeff_table <- fields %>%
   select(term,traitname) %>%
   filter(term %in% BRS_coeffs$term) %>%
   left_join(BRS_coeffs)
-fwrite(BRS_coeff_table, 'scratch/BRS_models/BRS_coefficients.txt', sep='\t')
-fwrite(tbl_Cstat, 'scratch/BRS_models/BRS_Cstats.txt')
+fwrite(BRS_coeff_table, paste0(dir_scratch,'BRS_models/BRS_coefficients.txt'), sep='\t')
+fwrite(tbl_Cstat, paste0(dir_scratch,'BRS_models/BRS_Cstats.txt'), sep='\t')
 
 # saves cohorts w/ BRS to system
 dir.create(paste0(dir_scratch,'cohorts/'), showWarnings = FALSE)

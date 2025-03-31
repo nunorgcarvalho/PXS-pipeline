@@ -8,15 +8,15 @@ source('code/00_paths.R')
 
 # general files/variables ####
 col_BRS <- 'BRS-ALL-cov_bvr' # main BRS term
-shortnames <- as_tibble(fread('input_data/term_shortnames.tsv'))
-fields <- as_tibble(fread('scratch/fields_tbl.txt'))
+shortnames <- as_tibble(fread(paste0(dir_repo,'input_data/term_shortnames.tsv')))
+fields <- as_tibble(fread(paste0(dir_scratch,'fields_tbl.txt')))
 col_covs_ALL <- fields$term[fields$use_type == 'covar']
 col_bvrs_ALL <- fields$term[fields$use_type == 'behavior']
 col_CRFs <- fields$term[fields$use_type == 'CRF']
 
 # reads phenotype and relevant columns
-pheno <- as_tibble(fread('scratch/cohorts/BRS_cohort_ALL.txt'))
-BRS_coeffs <- as_tibble(fread('scratch/BRS_models/BRS_coefficients.txt')) %>%
+pheno <- as_tibble(fread(paste0(dir_scratch,'cohorts/BRS_cohort_ALL.txt')))
+BRS_coeffs <- as_tibble(fread(paste0(dir_scratch,'BRS_models/BRS_coefficients.txt'))) %>%
   select(term, traitname, beta = all_of(paste0('beta-',col_BRS))) %>%
   drop_na() %>% filter(beta != 0)
 col_covs <- BRS_coeffs$term[BRS_coeffs$term %in% col_covs_ALL]
