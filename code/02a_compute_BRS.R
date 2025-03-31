@@ -8,8 +8,9 @@ source('code/00_paths.R')
 fields <- as_tibble(fread(paste0(dir_scratch,'fields_tbl.txt')))
 col_covs <- fields$term[fields$use_type == 'covar']
 col_behaviors <- fields$term[fields$use_type == 'behavior']
+col_SES <- fields$term[fields$use_type == 'SES']
 
-pheno <- as_tibble(fread('scratch/pheno.txt'))
+pheno <- as_tibble(fread(paste0(dir_scratch,'pheno.txt')))
 
 # cross validation cox LASSO regression ####
 get_cvglm_obj <- function(training_tbl, cols_use) {
@@ -25,53 +26,69 @@ get_cvglm_obj <- function(training_tbl, cols_use) {
 cohorts <- list(
   'ALL' = pheno,
   'normal_BMI' = pheno %>% filter(overweight==0),
-  'high_BMI' = pheno %>% filter(overweight==1)
+  'high_BMI' = pheno %>% filter(overweight==1),
+  'females' = pheno %>% filter(sex==0),
+  'males' = pheno %>% filter(sex == 1),
+  'T2D_early' = pheno %>% filter(T2D_onset_cat %in% c('early','control')),
+  'T2D_late' = pheno %>%  filter(T2D_onset_cat %in% c('late','control'))
 )
 lasso_factors <- list(
   'cov' = c(col_covs),
   'cov_bvr' = c(col_covs,col_behaviors),
   'cov_BMI' = c(col_covs, 'f21001'),
-  'cov_BMI_bvr' = c(col_covs, 'f21001', col_behaviors)
+  'cov_BMI_bvr' = c(col_covs, 'f21001', col_behaviors),
+  'cov_SES' = c(col_covs,col_SES),
+  'cov_bvr_SES' = c(col_covs,col_behaviors,col_SES)
 )
+
+# makes table of models to run LASSO on
+models2run <- expand_grid(cohort = names(cohorts)[1:3], factor_set = names(lasso_factors)[1:4]) %>%
+  as_tibble() %>%
+  add_row(expand_grid(cohort = names(cohorts)[1], factor_set = names(lasso_factors)[5:6])) %>%
+  add_row(expand_grid(cohort = names(cohorts)[4:7], factor_set = names(lasso_factors)[1:2] ))
 
 set.seed(2024)
 models <- list()
-for (i in 1:length(cohorts)) {
-  cohort <- names(cohorts)[i]
-  training_tbl <- cohorts[[i]] %>% filter(sample_group=='A')
-  
-  for (j in 1:length(lasso_factors)) {
-    training_tbl_j <- training_tbl %>% 
-      select(T2D_onset, T2D_onset_days,
-             all_of(lasso_factors[[j]])) %>%
-      drop_na()
-    factor_set <- names(lasso_factors)[j]
-    model_name <- paste0(cohort,'-',factor_set)
-    print(paste(i, j, model_name))
-    models[[model_name]] <- get_cvglm_obj(training_tbl_j, lasso_factors[[j]])
-    print(paste(i, j, model_name,models[[model_name]]$cvm[models[[1]]$index[2]]))
-    
-    # gets standard deviations of factors, for later rescaling if desired
-    models[[model_name]]$factor_SDs <- sapply(training_tbl_j[,-c(1,2)], sd)
-    
-    # makes BMI-adjusted cov-bvr models
-    if (factor_set == 'cov_BMI_bvr') {
-      # BMIadj1: removes direct effect of BMI on T2D
-      # by setting model coefficient to 0
-      full_model <- models[[model_name]]
-      BMI_index <- which(full_model$glmnet.fit$beta@Dimnames[[1]] == 'f21001')
-      full_model$glmnet.fit$beta[BMI_index,] <- 0
-      
-      model_name <- paste0(cohort,'-',str_replace(factor_set,'_BMI',''), '_BMIadj1')
-      print(paste(i, j, model_name))
-      models[[model_name]] <- full_model
-    }
+######
+for (i in 1:nrow(models2run)) {
+  cohort <- models2run$cohort[i]
+  factor_set <- models2run$factor_set[i]
+  model_name <- paste0(cohort,'-',factor_set)
+  if (model_name %in% names(models)) {
+    print(paste(i, model_name,'SKIPPING'))
+    next
   }
+  print(paste(i, model_name))
+  
+  training_tbl_j <- cohorts[[cohort]] %>% filter(sample_group=='A') %>%
+    select(T2D_onset, T2D_onset_days,
+           all_of(lasso_factors[[factor_set]])) %>%
+    drop_na()
+  
+  models[[model_name]] <- get_cvglm_obj(training_tbl_j, lasso_factors[[factor_set]])
+  print(paste(i, model_name, models[[model_name]]$cvm[models[[model_name]]$index[2]]))
+  
+  # gets standard deviations of factors, for later rescaling if desired
+  models[[model_name]]$factor_SDs <- sapply(training_tbl_j[,-c(1,2)], sd)
+  
+  # makes BMI-adjusted cov-bvr models
+  if (factor_set == 'cov_BMI_bvr') {
+    # BMIadj1: removes direct effect of BMI on T2D
+    # by setting model coefficient to 0
+    full_model <- models[[model_name]]
+    BMI_index <- which(full_model$glmnet.fit$beta@Dimnames[[1]] == 'f21001')
+    full_model$glmnet.fit$beta[BMI_index,] <- 0
+    
+    model_name <- paste0(cohort,'-',str_replace(factor_set,'_BMI',''), '_BMIadj1')
+    print(paste(i, model_name))
+    models[[model_name]] <- full_model
+  }
+  
 }
 
-dir.create('scratch/BRS_models', showWarnings = FALSE)
-#save(models, file='scratch/BRS_models/cv_glm_models.RData')
-#load('scratch/BRS_models/cv_glm_models.RData')
+dir.create(paste0(dir_scratch,'BRS_models'), showWarnings = FALSE)
+#save(models, file=paste0(dir_scratch,'BRS_models/cv_glm_models.RData'))
+#load(paste0(dir_scratch,'BRS_models/cv_glm_models.RData'))
 
 # computes each BRS for all individuals ####
 # also saves coefficients
@@ -99,7 +116,6 @@ for (i in 1:length(models)) {
     BRS_coeffs <- BRS_coeffs %>%
       full_join(betas_tbl)
   }
-  
   
   ## computing and C-statistic ####
   model_name <- names(models)[i]
@@ -184,12 +200,12 @@ fwrite(BRS_coeff_table, 'scratch/BRS_models/BRS_coefficients.txt', sep='\t')
 fwrite(tbl_Cstat, 'scratch/BRS_models/BRS_Cstats.txt')
 
 # saves cohorts w/ BRS to system
-dir.create('scratch/cohorts/', showWarnings = FALSE)
+dir.create(paste0(dir_scratch,'cohorts/'), showWarnings = FALSE)
 for (j in 1:length(cohorts)) {
   cohort_name <- names(cohorts)[j]
   cohort_tbl <- cohorts[[j]]
   
-  loc_out <- paste0('scratch/cohorts/BRS_cohort_',cohort_name,'.txt')
+  loc_out <- paste0(dir_scratch,'cohorts/BRS_cohort_',cohort_name,'.txt')
   fwrite(cohort_tbl, file=loc_out, sep='\t', na="NA", quote=FALSE)
 }
 
@@ -209,35 +225,3 @@ ggplot(tbl_Cstat, aes(x = testing_cohort , y=C_stat,
   theme_bw() +
   facet_wrap(~model_label, nrow=1) +
   theme(legend.position = 'top')
-
-
-# visualizing BRSs ####
-data <- cohorts[['ALL']]
-data2 <- data %>%
-  mutate(across( starts_with('BRS-cov'),
-                ~ qnorm( rank(.x)/ (length(.x)+1) ) ))
-
-cor.test(data$`BRS-cov_BMI`, data$`BRS-cov_BMI_bvr`)
-cor.test(data2$`BRS-cov_BMI`, data2$`BRS-cov_BMI_bvr`)
-
-ggplot(data2, aes(x=`BRS-cov_BMI`,y=`BRS-cov_BMI_bvr`,
-                 color = as.factor(overweight))) +
-  geom_point(shape=1, alpha = 0.025, size=0.5) +
-  geom_smooth(method='lm') +
-  theme_bw() +
-  theme(legend.position = 'top')
-
-# visualizing coeffs ####
-BRS_coeff_table$traitname[nchar(BRS_coeff_table$traitname)==0] <- BRS_coeff_table$term[nchar(BRS_coeff_table$traitname)==0]
-library(ggrepel)
-ggplot(BRS_coeff_table, aes(x=`beta-BRS-normal_BMI-cov`,
-                            y=`beta-BRS-high_BMI-cov`)) +
-  geom_hline(linetype='dashed', yintercept = 0) +
-  geom_vline(linetype='dashed', xintercept = 0) +
-  geom_point() +
-  geom_abline(slope=1) +
-  geom_label_repel(data = BRS_coeff_table %>% filter(
-    `beta-BRS-normal_BMI-cov` != 0,
-    `beta-BRS-high_BMI-cov` != 0,
-  ), aes(label=traitname,)) +
-  theme_bw()
