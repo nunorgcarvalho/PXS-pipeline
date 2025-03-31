@@ -14,12 +14,12 @@ dir.create(dir_ldsc_bvrs, showWarnings = FALSE)
 dir_ldsc_pairs <- paste0(dir_ldsc_bvrs,'pairs/')
 dir.create(dir_ldsc_pairs, showWarnings = FALSE)
 
-pheno <- as_tibble(fread(paste0(dir_scratch,'cohorts/BRS_cohort_ALL.txt')))
 fields <- as_tibble(fread(paste0(dir_scratch,'fields_tbl.txt')))
 BRS_coeffs <- as_tibble(fread(paste0(dir_scratch,'BRS_models/BRS_coefficients.txt'))) %>%
   filter(term %in% fields$term[fields$use_type == 'behavior'],
          `beta-BRS-ALL-cov_bvr` != 0)
 bvrs <- BRS_coeffs$term
+pheno <- as_tibble(fread(paste0(dir_scratch,'cohorts/BRS_cohort_ALL.txt')))
 
 # phenotypic correlations ####
 
@@ -74,6 +74,9 @@ ldsc_files <- tibble(
 ) %>% add_row( # manually insert BRS in there
   term = 'BRS', term_='BRS',
   filepath = paste0(dir_scratch,'LMM/LMM.ALL.BRS-ALL-cov_bvr.bgen.txt')
+) %>% add_row( # manually insert CRS in there
+  term = 'CRS', term_='CRS',
+  filepath = paste0(dir_scratch,'LMM/LMM.ALL.CRS-ALL-cov_bvr.bgen.txt')
 ) %>%
   mutate(
     sbatch_oe = paste0('ldsc.',term_),

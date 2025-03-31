@@ -11,6 +11,7 @@ source('code/00_paths.R')
 sumtbl <- as_tibble(fread('scratch/general_results/sumtbl.tsv'))
 fields <- as_tibble(fread('scratch/fields_tbl.txt'))
 gencorr_REML <- as_tibble(fread('scratch/general_results/gencorr_REML.tsv'))
+rg_tbl <- as_tibble(fread(paste0(dir_scratch,'general_results/behavior_rg_table.tsv')))
 shortnames <- as_tibble(fread('input_data/term_shortnames.tsv'))
 
 # shared variables ####
@@ -72,6 +73,60 @@ ggplot(gc2, aes(x=factor(shortname, levels=shortname), y=abs(rg))) +
   theme(legend.position = 'top',
         axis.text.y = element_text(size=6,
                                    face = ifelse(boldings, 'bold','plain')))
+
+
+# rg w/ T2D ####
+gc4 <- rg_tbl %>% filter(term1 == 'T2D' | term2 == 'T2D') %>%
+  select(-starts_with('h2g'),-starts_with('intercept'), -file) %>%
+  mutate(term2 = str_replace_all(term2,'_','\\.')) %>%
+  mutate(term2 = ifelse(term2=='BRS',col_BRS,term2)) %>%
+  left_join(shortnames, by=c('term2'='term')) %>%
+  left_join(sumtbl %>% select(term,beta_norm), by=c('term2'='term')) %>%
+  arrange(-abs(rg)) %>%
+  mutate(rg_low = rg - CI95_z*rg_se,
+         rg_upp = rg + CI95_z*rg_se,
+         sign = ifelse(rg>0,'Positive','Negative'),
+         shortname = factor(shortname),
+         rg_low_abs = ifelse(rg_low < 0 & rg>0, -Inf,abs(rg_low)),
+         rg_upp_abs = ifelse(rg_upp > 0 & rg<0, -Inf,abs(rg_upp)),
+         concordant = sign(rg) == sign(beta_norm))
+
+ggplot(gc4, aes(x=factor(shortname, levels=shortname), y=abs(rg))) +
+  geom_col(aes(fill = concordant)) +
+  geom_errorbar(aes(ymin=rg_low_abs, ymax=rg_upp_abs), width=0.5) +
+  coord_flip() +
+  scale_x_discrete(labels = function(x) str_wrap(x, width=40)) +
+  scale_y_continuous(expand=c(0,0,0.1,0)) +
+  labs(x = 'Behaviors and BRS',
+       y = 'Absolute genetic correlation (95% CI) with Type 2 Diabetes',
+       fill = 'Genetic correlation concordant with BRS effect') +
+  theme_bw() +
+  theme(legend.position = 'top',
+        axis.text.y = element_text(size=6,
+                                   face = ifelse(boldings, 'bold','plain')))
+
+# rg w/ CRS vs T2D ####
+gc5 <- gc2 %>%
+  select(term, shortname, rg_CRS=rg, rg_CRS_low=rg_low, rg_CRS_upp=rg_upp) %>%
+  left_join(gc4 %>% select(term=term2, rg_T2D=rg, rg_T2D_low=rg_low, rg_T2D_upp=rg_upp),
+            by='term')
+
+gc5_cor <- cor.test(gc5$rg_T2D, gc5$rg_CRS)
+gc5_label <- paste0('r = ', round(gc5_cor$estimate,3),
+                    ' (p = ', formatC(gc5_cor$p.value,3),')')
+ggplot(gc5, aes(x=rg_T2D, y=rg_CRS)) +
+  geom_point() +
+  geom_errorbarh(aes(xmin=rg_T2D_low, xmax=rg_T2D_upp), alpha=0.25) +
+  geom_errorbar(aes(ymin=rg_CRS_low, ymax=rg_CRS_upp), alpha=0.25) +
+  geom_text_repel(aes(label = shortname), size=2) +
+  geom_vline(xintercept = 0, linetype='dashed') +
+  geom_hline(yintercept = 0, linetype='dashed') +
+  annotate('text', label = gc5_label,
+           x = Inf, y=-Inf, hjust=1.05, vjust=-1) +
+  labs(x = 'Genetic correlation (95% CI) with Type 2 Diabetes',
+       y = 'Genetic correlation (95% CI) with Clinical Risk Score (CRS)') +
+  theme_bw()
+  
 
 
 # h2 of bvrs/BRS ####
