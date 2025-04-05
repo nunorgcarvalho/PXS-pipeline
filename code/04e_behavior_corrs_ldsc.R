@@ -22,12 +22,13 @@ bvrs <- BRS_coeffs$term
 pheno <- as_tibble(fread(paste0(dir_scratch,'cohorts/BRS_cohort_ALL.txt')))
 
 # phenotypic correlations ####
-
-pheno_bvrs <- pheno %>% select(all_of(BRS_coeffs$term)) %>% as.data.frame()
+col_BRS <- 'BRS-ALL-cov_bvr'
+pheno_bvrs <- pheno %>% select(all_of(c(col_BRS,BRS_coeffs$term))) %>% as.data.frame()
 # change columns to factors if categorical, booleans if binary
 for (i in 1:length(colnames(pheno_bvrs))) {
   term <- colnames(pheno_bvrs)[i]
   print(paste(i,term))
+  if (term == col_BRS) {next}
   data_type <- fields$data_type[fields$term == term]
   
   if (data_type == 'catord') { # ordered categorical variable
@@ -76,7 +77,7 @@ ldsc_files <- tibble(
   filepath = paste0(dir_scratch,'LMM/LMM.ALL.BRS-ALL-cov_bvr.bgen.txt')
 ) %>% add_row( # manually insert CRS in there
   term = 'CRS', term_='CRS',
-  filepath = paste0(dir_scratch,'LMM/LMM.ALL.CRS-ALL-cov_bvr.bgen.txt')
+  filepath = paste0(dir_scratch,'LMM/LMM.CRS-ALL.bgen.txt')
 ) %>%
   mutate(
     sbatch_oe = paste0('ldsc.',term_),
@@ -204,12 +205,13 @@ echo "Formatting summary file for ldsc"
 # ldsc gencorrs ####
 
 ## behaviors x behaviors ####
+# (plus CRS, BRS, and T2D)
 
 # makes table of all gencorr jobs
 # each gencorr computation takes very little time (~60 seconds)
 # but there are a lot of them: K*(K-1)/2 computations (for K behaviors)
 # so I split the jobs across K-1 jobs, so each job is performing K/2 computations
-bvrs2 <- c('T2D','BRS',bvrs)
+bvrs2 <- c('CRS','T2D','BRS',bvrs)
 K <- length(bvrs2)
 ldsc_rgs <- combn(str_replace_all(bvrs2,'\\.','_'), 2) %>%
   t() %>% as_tibble() %>% rename(term1_=V1, term2_=V2) %>% mutate(
