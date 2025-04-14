@@ -4,6 +4,7 @@
 library(tidyverse)
 library(data.table)
 source('code/00_paths.R')
+source('code/00_plotting.R')
 
 fields <- as_tibble(fread(paste0(dir_scratch,'fields_tbl.txt')))
 col_covs <- fields$term[fields$use_type == 'covar']
@@ -89,6 +90,12 @@ for (i in 1:nrow(models2run)) {
 dir.create(paste0(dir_scratch,'BRS_models'), showWarnings = FALSE)
 #save(models, file=paste0(dir_scratch,'BRS_models/cv_glm_models.RData'))
 #load(paste0(dir_scratch,'BRS_models/cv_glm_models.RData'))
+
+# plots C-index vs lambda
+png(paste0(dir_figs,'BRS_LASSO.png'), width=180, height=120, units="mm", res=300)
+plot(models[['ALL-cov_bvr']])
+dev.off()
+
 
 # computes each BRS for all individuals ####
 # also saves coefficients

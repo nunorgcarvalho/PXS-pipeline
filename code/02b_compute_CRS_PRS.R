@@ -32,6 +32,7 @@ training_tbl <- pheno %>% filter(sample_group == 'A') %>%
   drop_na()
 
 cvglm_CRS <- get_cvglm_obj(training_tbl, cols_use)
+#save(cvglm_CRS, file=paste0(dir_scratch,'BRS_models/cvglm_CRS.RData'))
 
 coef_matrix <- as.matrix(cvglm_CRS$glmnet.fit$beta)
 index_1se <- cvglm_CRS$index[2] #1se

@@ -5,6 +5,7 @@ library(tidyverse)
 library(data.table)
 library(pROC)
 source('code/00_paths.R')
+source('code/00_plotting.R')
 
 # general files/variables ####
 col_BRS <- 'BRS-ALL-cov_bvr' # main BRS term
@@ -69,13 +70,11 @@ for (i in 1:nrow(ROC_tbl)) {
   } else {
     cols_use <- c(col_covs, term)
   }
+  cvglm_i <- get_cvglm_obj(training_tbl, cols_use)
+  cvglm_list[[term]] <- cvglm_i
   
-  if (i >= 1) {
-    cvglm_i <- get_cvglm_obj(training_tbl, cols_use)
-    cvglm_list[[term]] <- cvglm_i
-  } else {
-    cvglm_i <- cvglm_list[[term]]
-  }
+  # gets standard deviations of factors, for later rescaling if desired
+  cvglm_list[[term]]$factor_SDs <- sapply(training_tbl[,cols_use], function(x) sd(x, na.rm=TRUE))
   
   betas <- coef(cvglm_i, s='lambda.1se') %>% as.numeric()
   factors_matrix <- as.matrix( testing_tbl[,cols_use] )
@@ -166,13 +165,20 @@ ggplot(ROC_long_bvr, aes(x = 1 - specificity, y = sensitivity,
   geom_point(data=ROC_youden_bvr) +
   scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0)) +
   scale_color_identity() + scale_size_identity() +
-  theme_bw() + theme(legend.position = 'none') +
-  labs(x = '1 - Specificity',
-       y = 'Sensitivity',
-       title = 'The Behavioral Risk Score predicts Type 2 Diabetes better than individual behaviors',
-       subtitle = paste0(
-         'Youden point for each ROC is marked',
-         '\nIndividual behaviors in gray. Behavioral Risk Score (BRS) in red. Covariate-only model in black.'))
+  labs(
+    # title = 'The BRS predicts T2D better than individual behaviors',
+    # subtitle = paste0(
+    #   'Youden point for each ROC is marked',
+    #   '\nIndividual behaviors in gray. BRS in red. Covariate-only model in black.'),
+     x = '1 - Specificity',
+     y = 'Sensitivity') +
+  coord_fixed(expand = FALSE) +
+  theme_bw() +
+  theme(legend.position = 'none',
+        plot.margin = margin(r = 5, l=1, unit = "mm"))
+
+loc_fig <- paste0(dir_figs,'ROC_behaviors_BRS')
+ggsave(paste0(loc_fig,".png"), width=180, height=180, units="mm", dpi=300)
 
 # View 
 shortnames$term[shortnames$term == col_BRS] <- 'BRS'
@@ -205,7 +211,14 @@ ggplot(ROC_long_CRF, aes(x = 1 - specificity, y = sensitivity,
   scale_color_identity() + scale_size_identity() +
   theme_bw() + theme(legend.position = 'none') +
   labs(x = '1 - Specificity',
-       y = 'Sensitivity')
+       y = 'Sensitivity',
+       title = 'The CRS predicts T2D better than individual clinical risk factors',
+       subtitle = paste0(
+         'Youden point for each ROC is marked',
+         '\nIndividual CRFs in gray. CRS in red. Covariate-only model in black.'))
+
+loc_fig <- paste0(dir_figs,'ROC_CRF_CRS')
+ggsave(paste0(loc_fig,".png"), width=180, height=180, units="mm", dpi=300)
 
 
 
@@ -226,6 +239,9 @@ ggplot(ROC_tbl_scores, aes(x=fct_rev(shortname))) +
   labs(x = 'Model',
        y = 'AUC (95% CI)') +
   coord_flip()
+loc_fig <- paste0(dir_figs,"main_model_AUCs")
+ggsave(paste0(loc_fig,".png"), width=150, height=90, units="mm", dpi=300)
+
 
 ## DeLong test for comparing ROCs ####
 roc.test(ROC_list[['BRS']], ROC_list[['PRS']])

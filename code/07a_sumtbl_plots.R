@@ -5,6 +5,7 @@ library(tidyverse)
 library(data.table)
 library(ggrepel)
 source('code/00_paths.R')
+source('code/00_plotting.R')
 
 
 # main data sources ####
@@ -41,7 +42,10 @@ ggplot(gc1, aes(x=factor(shortname, levels=shortname), y=abs(rg))) +
        y = 'Absolute genetic correlation (95% CI) with Behavioral Risk Score (BRS)',
        fill = 'Sign') +
   theme_bw() +
-  theme(legend.position = 'top')
+  theme(legend.position = 'top',
+        legend.margin = margin(b = -5))
+loc_fig <- paste0(dir_figs,"gencorr_BRS_CRFs")
+ggsave(paste0(loc_fig,".png"), width=180, height=120, units="mm", dpi=300)
 
 
 # rg w/ CRS ####
@@ -72,11 +76,16 @@ ggplot(gc2, aes(x=factor(shortname, levels=shortname), y=abs(rg))) +
   theme_bw() +
   theme(legend.position = 'top',
         axis.text.y = element_text(size=6,
-                                   face = ifelse(boldings, 'bold','plain')))
+                                   face = ifelse(boldings, 'bold','plain')),
+        legend.margin = margin(b = -5))
+
+loc_fig <- paste0(dir_figs,"gencorr_CRS_bvrs")
+ggsave(paste0(loc_fig,".png"), width=180, height=120, units="mm", dpi=300)
 
 
 # rg w/ T2D ####
-gc4 <- rg_tbl %>% filter(term1 == 'T2D' | term2 == 'T2D') %>%
+gc4 <- rg_tbl %>% filter(term1 == 'T2D' | term2 == 'T2D',
+                         term1 != 'CRS') %>%
   select(-starts_with('h2g'),-starts_with('intercept'), -file) %>%
   mutate(term2 = str_replace_all(term2,'_','\\.')) %>%
   mutate(term2 = ifelse(term2=='BRS',col_BRS,term2)) %>%
@@ -103,7 +112,10 @@ ggplot(gc4, aes(x=factor(shortname, levels=shortname), y=abs(rg))) +
   theme_bw() +
   theme(legend.position = 'top',
         axis.text.y = element_text(size=6,
-                                   face = ifelse(boldings, 'bold','plain')))
+                                   face = ifelse(boldings, 'bold','plain')),
+        legend.margin = margin(b = -5))
+loc_fig <- paste0(dir_figs,"gencorr_T2D_bvrs")
+ggsave(paste0(loc_fig,".png"), width=180, height=120, units="mm", dpi=300)
 
 # rg w/ CRS vs T2D ####
 gc5 <- gc2 %>%
@@ -126,7 +138,8 @@ ggplot(gc5, aes(x=rg_T2D, y=rg_CRS)) +
   labs(x = 'Genetic correlation (95% CI) with Type 2 Diabetes',
        y = 'Genetic correlation (95% CI) with Clinical Risk Score (CRS)') +
   theme_bw()
-  
+#loc_fig <- paste0(dir_figs,"gencorr_T2D_vs_CRS")
+#ggsave(paste0(loc_fig,".png"), width=180, height=180, units="mm", dpi=300)
 
 
 # h2 of bvrs/BRS ####
@@ -151,6 +164,8 @@ ggplot(hg1, aes(x=factor(shortname, levels=shortname), y=h2)) +
   theme(legend.position = 'none',
         axis.text.y = element_text(size=6,
                                    face = ifelse(boldings, 'bold','plain')))
+loc_fig <- paste0(dir_figs,"h2g_bvrs")
+ggsave(paste0(loc_fig,".png"), width=180, height=180, units="mm", dpi=300)
 
 # effect vs rg w/ CRS ####
 gc3 <- sumtbl %>%
@@ -171,6 +186,8 @@ ggplot(gc3, aes(x=beta_norm, y=rg)) +
        y = 'Genetic correlation (95%) w/ Clinical Risk Score (CRS)',
        subtitle = paste0('r = ', round(gc3_cor$estimate,3),
                          ' :: p = ', formatC(gc3_cor$p.value,3)))
+loc_fig <- paste0(dir_figs,"gencorr_CRS_vs_effect")
+ggsave(paste0(loc_fig,".png"), width=180, height=180, units="mm", dpi=300)
 
 # effect vs h2 ####
 hg2 <- sumtbl %>%
@@ -204,27 +221,33 @@ ggplot(hg2, aes(x=log10(abs(beta_norm)), y=h2)) +
 
 # AUC vs Effect Size
 auc1 <- sumtbl %>%
-  filter(term != col_BRS)
+  filter(term != 'BRS')
 ROC_tbl <- as_tibble(fread(paste0(dir_scratch,'general_results/ROC_tbl.tsv'))) %>%
   filter(term %in% c('cov','BRS'))
 
 auc1_cor <- cor.test(auc1$AUC, abs(auc1$beta_norm))
 ggplot(auc1, aes(x=abs(beta_norm), y=AUC)) +
+  annotate('rect', fill='black', alpha=0.1, xmin=-Inf, xmax=Inf,
+           ymin = ROC_tbl$AUC_low[1], ymax = ROC_tbl$AUC_upp[1]) +
+  geom_hline(yintercept=ROC_tbl$AUC[1], linetype='dashed') + # cov-only
+  annotate('rect', fill='black', alpha=0.1, xmin=-Inf, xmax=Inf,
+           ymin = ROC_tbl$AUC_low[2], ymax = ROC_tbl$AUC_upp[2]) +
+  geom_hline(yintercept=ROC_tbl$AUC[2], linetype='dashed') + # BRS
   geom_point() +
   geom_errorbar(aes(ymin = AUC_low, ymax = AUC_upp), alpha=0.5) +
-  geom_hline(yintercept=ROC_tbl$AUC[1], linetype='dashed') + # cov-only
-  geom_hline(yintercept=ROC_tbl$AUC[2], linetype='dashed') + # BRS
   geom_text_repel(aes(label = shortname), size=2) +
   annotate('text', x=Inf, y=ROC_tbl$AUC[1], vjust=-0.5, hjust=1.05, size=3,
            label='AUC for covariate-only model') +
   annotate('text', x=Inf, y=ROC_tbl$AUC[2], vjust=1.5, hjust=1.05, size=3,
            label='AUC for BRS model') +
+  annotate('text')
   theme_bw() +
   labs(x = 'Absolute effect on BRS (normalized)',
        y = 'AUC for Type 2 Diabetes',
        subtitle = paste0('r = ', round(auc1_cor$estimate,3),
                          ' :: p = ', formatC(auc1_cor$p.value,3)))
-
+loc_fig <- paste0(dir_figs,"bvrs_AUC_vs_effect")
+ggsave(paste0(loc_fig,".png"), width=180, height=180, units="mm", dpi=300)
 
 
 
