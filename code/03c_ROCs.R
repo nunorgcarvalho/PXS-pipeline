@@ -4,6 +4,8 @@
 library(tidyverse)
 library(data.table)
 library(pROC)
+library(ggrepel)
+library(ggpubr)
 source('code/00_paths.R')
 source('code/00_plotting.R')
 
@@ -16,12 +18,12 @@ col_bvrs_ALL <- fields$term[fields$use_type == 'behavior']
 col_CRFs <- fields$term[fields$use_type == 'CRF']
 
 # reads phenotype and relevant columns
-pheno <- as_tibble(fread(paste0(dir_scratch,'cohorts/BRS_cohort_ALL.txt')))
 BRS_coeffs <- as_tibble(fread(paste0(dir_scratch,'BRS_models/BRS_coefficients.txt'))) %>%
   select(term, traitname, beta = all_of(paste0('beta-',col_BRS))) %>%
   drop_na() %>% filter(beta != 0)
 col_covs <- BRS_coeffs$term[BRS_coeffs$term %in% col_covs_ALL]
 col_bvrs <- BRS_coeffs$term[BRS_coeffs$term %in% col_bvrs_ALL]
+pheno <- as_tibble(fread(paste0(dir_scratch,'cohorts/BRS_cohort_ALL.txt')))
 
 # i end up only using the sex, age, PC1,11-12, because these were the only
 # covariates that came up as significant. saves some compute time
@@ -103,7 +105,8 @@ CI95_z <- qnorm(1 - (1 - 0.95)/2)
 ROC_tbl$AUC_se <- (ROC_tbl$AUC_upp - ROC_tbl$AUC_low) / (2*CI95_z)
 
 # saves to system
-fwrite(ROC_tbl, file=paste0(dir_scratch, 'general_results/ROC_tbl.tsv'))
+#fwrite(ROC_tbl, file=paste0(dir_scratch, 'general_results/ROC_tbl.tsv'))
+#ROC_tbl <- as_tibble(fread(paste0(dir_scratch, 'general_results/ROC_tbl.tsv')))
 
 # View top-performing models
 ROC_tbl %>% left_join(shortnames, by='term') %>%
@@ -147,8 +150,8 @@ ROC_youden <- ROC_long %>% group_by(term) %>%
 col_highlight <- c('BRS', 'cov')
 # makes table for BRS vs behavior plotting purposes
 ROC_long_bvr <- ROC_long %>% filter(term %in% c(col_bvrs, col_highlight) ) %>%
-  mutate(color = ifelse(term == 'BRS','red',
-                        ifelse(term == 'cov','black','gray60')),
+  mutate(color_label = ifelse(term == 'BRS', 'Behavioral Risk Score',
+                              ifelse(term == 'cov', 'Covariate-only', 'Behavior')),
          size = ifelse(term %in% col_highlight, 0.5, 0.1)) %>%
   arrange(term %in% col_highlight) # easier plotting later
 ROC_youden_bvr <- ROC_long_bvr %>%
@@ -156,32 +159,40 @@ ROC_youden_bvr <- ROC_long_bvr %>%
   filter(youden_J == max_youden_J) %>%
   mutate(size = ifelse(term=='BRS', 2, 1))
 
+# ROC plot shared features
+add_ROC_plot_elements <- function(gg, legend=TRUE) {
+  gg <- gg +
+    geom_abline(slope=1, linetype='dashed') +
+    scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0)) +
+    scale_size_identity() +
+    labs(color = 'Model Type',
+         x = '1 - Specificity',
+         y = 'Sensitivity') +
+    coord_fixed(expand = FALSE) +
+    theme_bw() +
+    theme(legend.position = c(1,0), legend.justification = c(1.05,-0.05),
+          legend.box.background = element_rect(color = "black"),
+          plot.margin = margin(r = 5, l=1, unit = "mm"))
+  if (legend==FALSE) {
+    gg <- gg + theme(legend.position = 'none')
+  }
+  return(gg)
+}
+
 # plot
-ggplot(ROC_long_bvr, aes(x = 1 - specificity, y = sensitivity,
-                         color=color, size=size)) +
+gg <- ggplot(ROC_long_bvr, aes(x = 1 - specificity, y = sensitivity,
+                         color=color_label, size=size)) +
   geom_line(data=ROC_long_bvr %>% filter(!(term %in% col_highlight)), aes(group=term)) +
   geom_line(data=ROC_long_bvr %>% filter(term %in% col_highlight), aes(group=term)) +
-  geom_abline(slope=1, linetype='dashed') +
   geom_point(data=ROC_youden_bvr) +
-  scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0)) +
-  scale_color_identity() + scale_size_identity() +
-  labs(
-    # title = 'The BRS predicts T2D better than individual behaviors',
-    # subtitle = paste0(
-    #   'Youden point for each ROC is marked',
-    #   '\nIndividual behaviors in gray. BRS in red. Covariate-only model in black.'),
-     x = '1 - Specificity',
-     y = 'Sensitivity') +
-  coord_fixed(expand = FALSE) +
-  theme_bw() +
-  theme(legend.position = 'none',
-        plot.margin = margin(r = 5, l=1, unit = "mm"))
-
-loc_fig <- paste0(dir_figs,'ROC_behaviors_BRS')
+  scale_color_manual(breaks = c('Behavioral Risk Score','Behavior','Covariate-only'),
+                     values = c('red','gray60','black'))
+add_ROC_plot_elements(gg)
+  
+loc_fig <- paste0(dir_figs,'ROC_bvrs_BRS')
 ggsave(paste0(loc_fig,".png"), width=180, height=180, units="mm", dpi=300)
 
 # View 
-shortnames$term[shortnames$term == col_BRS] <- 'BRS'
 ROC_tbl %>% filter(term %in% c(col_bvrs, 'BRS') ) %>% arrange(-AUC) %>%
   left_join(shortnames, by='term') %>%
   select(term, shortname, starts_with('AUC'))
@@ -191,57 +202,91 @@ ROC_tbl %>% filter(term %in% c(col_bvrs, 'BRS') ) %>% arrange(-AUC) %>%
 col_highlight <- c('CRS', 'cov')
 # makes table for CRS vs CRFs plotting purposes
 ROC_long_CRF <- ROC_long %>% filter(term %in% c(col_CRFs[-4], col_highlight) ) %>%
-  mutate(color = ifelse(term == 'CRS','red',
-                        ifelse(term == 'cov','black','gray60')),
+  mutate(color_label = ifelse(term == 'CRS', 'Clinical Risk Score',
+                              ifelse(term == 'cov', 'Covariate-only', 'Clinical Risk Factor')),
          size = ifelse(term %in% col_highlight, 0.5, 0.1)) %>%
   arrange(term %in% col_highlight) # easier plotting later
 ROC_youden_CRF <- ROC_long_CRF %>%
   left_join(ROC_youden, by='term') %>%
   filter(youden_J == max_youden_J) %>%
-  mutate(size = ifelse(term=='CRS', 2, 1))
+  mutate(size = ifelse(term=='CRS', 2, 1)) %>%
+  left_join(shortnames %>% select(term, shortname) %>%
+              filter(term %in% col_CRFs), by='term')
 
 # plot
-ggplot(ROC_long_CRF, aes(x = 1 - specificity, y = sensitivity,
-                         color=color, size=size)) +
+gg <- ggplot(ROC_long_CRF, aes(x = 1 - specificity, y = sensitivity,
+                         color=color_label, size=size)) +
   geom_line(data=ROC_long_CRF %>% filter(!(term %in% col_highlight)), aes(group=term)) +
   geom_line(data=ROC_long_CRF %>% filter(term %in% col_highlight), aes(group=term)) +
-  geom_abline(slope=1, linetype='dashed') +
   geom_point(data=ROC_youden_CRF) +
-  scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0)) +
-  scale_color_identity() + scale_size_identity() +
-  theme_bw() + theme(legend.position = 'none') +
-  labs(x = '1 - Specificity',
-       y = 'Sensitivity',
-       title = 'The CRS predicts T2D better than individual clinical risk factors',
-       subtitle = paste0(
-         'Youden point for each ROC is marked',
-         '\nIndividual CRFs in gray. CRS in red. Covariate-only model in black.'))
+  geom_text_repel(data=ROC_youden_CRF, aes(label=shortname),
+                  color='gray60', size=2) +
+  scale_color_manual(breaks = c('Clinical Risk Score','Clinical Risk Factor','Covariate-only'),
+                     values = c('red','gray60','black'))
+add_ROC_plot_elements(gg)
 
 loc_fig <- paste0(dir_figs,'ROC_CRF_CRS')
 ggsave(paste0(loc_fig,".png"), width=180, height=180, units="mm", dpi=300)
 
 
 
+
 # risk score comparisons ####
+
+## AUC comparison ####
 ROC_tbl_scores <- ROC_tbl %>%
   filter(!(term %in% c(col_bvrs_ALL, col_covs_ALL, col_CRFs))) %>%
-  mutate(shortname = ifelse(term == 'cov', 'covariate-only',
-         str_replace_all(term, '\\+',' + '))) %>%
+  mutate(shortname = ifelse(term == 'cov', 'Covariate-only',
+                     ifelse(term == 'BRS', 'Behavioral Risk Score (BRS)',
+                     ifelse(term == 'CRS', 'Clinical Risk Score (CRS)',
+                     ifelse(term == 'PRS', 'Polygenic Risk Score (PRS)',
+                            str_replace_all(term, '\\+',' + ')))))) %>%
   mutate(shortname = factor(shortname, levels=shortname))
 
-ggplot(ROC_tbl_scores, aes(x=fct_rev(shortname))) +
+gg_mm1 <- ggplot(ROC_tbl_scores, aes(x=fct_rev(shortname), color=shortname)) +
   geom_point(aes(y=AUC)) +
   geom_errorbar(aes(ymin = AUC_low, ymax = AUC_upp),
-                width=0.5) +
+                width=0.3) +
   theme_bw() +
-  scale_y_continuous(breaks = seq(0,1,1/20),
-                     minor_breaks = seq(0,1,1/100)) +
+  scale_y_continuous(breaks = seq(0,1,1/20), minor_breaks = seq(0,1,1/100)) +
   labs(x = 'Model',
-       y = 'AUC (95% CI)') +
-  coord_flip()
+       y = 'AUC for Type 2 Diabetes (95% CI)') +
+  coord_flip() +
+  scale_x_discrete(labels = function(x) str_wrap(x, width=15)) +
+  theme(legend.position='none',
+        axis.title = element_text(size=7),
+        axis.text = element_text(size=6))
 loc_fig <- paste0(dir_figs,"main_model_AUCs")
-ggsave(paste0(loc_fig,".png"), width=150, height=90, units="mm", dpi=300)
+ggsave(paste0(loc_fig,".png"), gg_mm1, width=120, height=180, units="mm", dpi=300)
 
+## ROC comparison ####
+# makes table for CRS vs CRFs plotting purposes
+ROC_long_RS <- ROC_long %>% filter(term %in% ROC_tbl_scores$term ) %>%
+  mutate(term = factor(term, levels = unique(ROC_long$term))) %>%
+  arrange(term) %>% # easier plotting later
+  left_join(ROC_tbl_scores %>% select(term, shortname), by='term')
+ROC_youden_RS <- ROC_long_RS %>%
+  left_join(ROC_youden, by='term') %>%
+  filter(youden_J == max_youden_J)
+
+# plot
+gg_mm2 <- ggplot(ROC_long_RS, aes(x = 1 - specificity, y = sensitivity,
+                              color = shortname)) +
+  geom_line(aes(group=term)) +
+  geom_point(data=ROC_youden_RS) +
+  geom_label_repel(data=ROC_youden_RS, aes(label=shortname), size=2)
+gg_mm2 <- add_ROC_plot_elements(gg, legend=FALSE)
+gg_mm2 <- gg_mm2 + theme(
+  axis.title = element_text(size=7),
+  axis.text = element_text(size=6))
+loc_fig <- paste0(dir_figs,"main_models_ROCs")
+ggsave(paste0(loc_fig,".png"), gg_mm2, width=180, height=180, units="mm", dpi=300)
+
+
+ggarrange(plotlist = list(gg_mm2, gg_mm1), ncol=2, labels='AUTO',
+          align='h', widths=c(1.5,1), vjust=2)
+loc_fig <- paste0(dir_figs,"main_models_combined")
+ggsave(paste0(loc_fig,".png"), width=240, height=140, units="mm", dpi=300)
 
 ## DeLong test for comparing ROCs ####
 roc.test(ROC_list[['BRS']], ROC_list[['PRS']])

@@ -240,66 +240,10 @@ ggplot(auc1, aes(x=abs(beta_norm), y=AUC)) +
            label='AUC for covariate-only model') +
   annotate('text', x=Inf, y=ROC_tbl$AUC[2], vjust=1.5, hjust=1.05, size=3,
            label='AUC for BRS model') +
-  annotate('text')
+  annotate('text', label = annotate_cor.test(auc1_cor), # throws out harmless warning message
+           x=-Inf, y=ROC_tbl$AUC_low[2], vjust=1.05, hjust=-0.05, parse=FALSE) +
   theme_bw() +
   labs(x = 'Absolute effect on BRS (normalized)',
-       y = 'AUC for Type 2 Diabetes',
-       subtitle = paste0('r = ', round(auc1_cor$estimate,3),
-                         ' :: p = ', formatC(auc1_cor$p.value,3)))
+       y = 'AUC for Type 2 Diabetes')
 loc_fig <- paste0(dir_figs,"bvrs_AUC_vs_effect")
-ggsave(paste0(loc_fig,".png"), width=180, height=180, units="mm", dpi=300)
-
-
-
-
-
-
-
-
-
-
-#############################################################
-# clean table ####
-Cstats <- as_tibble(fread('scratch/BRS_models/BRS_Cstats.txt'))
-
-## h2 of different BRSs####
-h2_table <- bind_rows(
-  gencorr_REML %>% select(h2_cohort, trait=trait1, h2g=trait1_h2g, h2g_err=trait1_h2g_err),
-  gencorr_REML %>% select(h2_cohort, trait=trait2, h2g=trait2_h2g, h2g_err=trait2_h2g_err)
-) %>% #drop_na() %>%
-  mutate(training_cohort = sapply(str_split(trait, "-"), `[`, 2),
-         model_factors = sapply(str_split(trait, "-"), `[`, 3)) %>%
-  left_join(Cstats %>% select(training_cohort, model_factors, model_label) %>% distinct(),
-            by=c('training_cohort','model_factors')) %>%
-  select(h2_cohort, training_cohort, model_label, h2g, h2g_err) %>%
-  group_by(h2_cohort, training_cohort, model_label) %>%
-  summarize(h2g = mean(h2g), h2g_err = mean(h2g_err))
-
-ggplot(h2_table, aes(x=model_label, color=training_cohort)) +
-  geom_point(aes(y=h2g), position = position_dodge(width = 0.5)) +
-  geom_errorbar(aes(ymin = h2g - 2*h2g_err, ymax = h2g + 2*h2g_err),
-                position = position_dodge(width = 0.5), width=0.5) +
-  facet_wrap(~ h2_cohort, nrow=1) +
-  theme_bw() +
-  theme(legend.position = 'top') +
-  labs(x = 'Model Factors',
-       y = 'h2 (95% CI)',
-       color = 'BRS trained in:',
-       subtitle = 'Panels denote the cohort that h2 was estimated from')
-
-
-
-## gencorr ####
-rg_table <- gencorr_REML %>%
-  mutate(training_cohort = sapply(str_split(trait1, "-"), `[`, 2),
-         trait1_model_factors = sapply(str_split(trait1, "-"), `[`, 3),
-         trait2_model_factors = sapply(str_split(trait2, "-"), `[`, 3)) %>%
-  left_join(Cstats %>%
-              select(training_cohort, trait1_model_factors = model_factors,
-                     trait1_model_label = model_label) %>% distinct(),
-            by=c('training_cohort','trait1_model_factors')) %>%
-  left_join(Cstats %>%
-              select(training_cohort, trait2_model_factors = model_factors,
-                     trait2_model_label = model_label) %>% distinct(),
-            by=c('training_cohort','trait2_model_factors')) %>%
-  select(h2_cohort, training_cohort, trait1_model_label, trait2_model_label, rg, rg_err)
+ggsave(paste0(loc_fig,".png"), width=180, height=150, units="mm", dpi=300)
