@@ -256,8 +256,8 @@ gg_mm1 <- ggplot(ROC_tbl_scores, aes(x=fct_rev(shortname), color=shortname)) +
   theme(legend.position='none',
         axis.title = element_text(size=7),
         axis.text = element_text(size=6))
-loc_fig <- paste0(dir_figs,"main_model_AUCs")
-ggsave(paste0(loc_fig,".png"), gg_mm1, width=120, height=180, units="mm", dpi=300)
+#loc_fig <- paste0(dir_figs,"main_model_AUCs")
+#ggsave(paste0(loc_fig,".png"), gg_mm1, width=120, height=180, units="mm", dpi=300)
 
 ## ROC comparison ####
 # makes table for CRS vs CRFs plotting purposes
@@ -279,8 +279,8 @@ gg_mm2 <- add_ROC_plot_elements(gg, legend=FALSE)
 gg_mm2 <- gg_mm2 + theme(
   axis.title = element_text(size=7),
   axis.text = element_text(size=6))
-loc_fig <- paste0(dir_figs,"main_models_ROCs")
-ggsave(paste0(loc_fig,".png"), gg_mm2, width=180, height=180, units="mm", dpi=300)
+#loc_fig <- paste0(dir_figs,"main_models_ROCs")
+#ggsave(paste0(loc_fig,".png"), gg_mm2, width=180, height=180, units="mm", dpi=300)
 
 
 ggarrange(plotlist = list(gg_mm2, gg_mm1), ncol=2, labels='AUTO',

@@ -4,7 +4,7 @@
 
 Software needed (and specific version used; other versions may work too):
 
--   `R 4.1.2` with packages `tidyverse`, `data.table`, `callr`, `missMDA`, `GenomicRanges`, `gt`, `polycor`, and `ggrepel`
+-   `R 4.1.2` with packages `tidyverse`, `data.table`, `callr`, `missMDA`, `GenomicRanges`, `gt`, `polycor`, `ggrepel`, and `ggpubr`
 
 -   `BOLT-LMM v2.3.2`
 
