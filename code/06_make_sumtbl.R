@@ -6,10 +6,12 @@ library(data.table)
 source('code/00_paths.R')
 
 # relevant files/variables
-gencorr_REML <- as_tibble(fread(paste0(dir_scratch,'general_results/gencorr_REML.tsv')))
-GWAS_summary_tbl <- as_tibble(fread(paste0(dir_scratch,'general_results/GWAS_summary_tbl.txt')))
 ROC_tbl <- as_tibble(fread(paste0(dir_scratch,'general_results/ROC_tbl.tsv')))
 shortnames <- as_tibble(fread(paste0(dir_repo,'input_data/term_shortnames.tsv')))
+gencorr_REML <- as_tibble(fread(paste0(dir_scratch,'general_results/gencorr_REML.tsv')))
+ldsc_rg <- as_tibble(fread(paste0(dir_scratch,'general_results/behavior_rg_table.tsv')))
+GWAS_summary_tbl <- as_tibble(fread(paste0(dir_scratch,'general_results/GWAS_summary_tbl.txt')))
+gene_assoc_n <- as_tibble(fread(paste0(dir_scratch,'general_results/gene_associations_n.tsv')))
 
 fields <- as_tibble(fread(paste0(dir_scratch,'fields_tbl.txt')))
 col_bvrs <- fields$term[fields$use_type == 'behavior']
@@ -32,7 +34,8 @@ BRS_coeffs <- as_tibble(fread(paste0(dir_scratch,'BRS_models/BRS_coefficients.tx
 # constructs summary table (behaviors + BRS)
 sumtbl <- tibble(term = c(col_BRS, col_bvrs[col_bvrs %in% BRS_coeffs$term])) %>%
   # adds shortened names
-  left_join(shortnames, by='term') %>%
+  left_join(shortnames %>%
+              mutate(category = ifelse(category=='',NA,category)), by='term') %>%
   # adds data and use type
   left_join(fields %>% select(term, data_type, use_type), by='term') %>%
   # adds BRS coefficient (set to 1 for BRS itself)
@@ -40,19 +43,31 @@ sumtbl <- tibble(term = c(col_BRS, col_bvrs[col_bvrs %in% BRS_coeffs$term])) %>%
               add_row(term=col_BRS, beta=1, beta_norm=1), by='term') %>%
   # adds AUC for T2D
   left_join(ROC_tbl, by='term') %>%
-  # adds h2 estimate and rg w/ CRS-ALL estimate
+  # adds h2 estimate and rg w/ CRS-ALL estimate (BOLT-REML)
   left_join(gencorr_REML %>% 
               mutate(term = str_replace_all(trait2,'_','\\.')) %>%
               filter(term %in% BRS_coeffs$term, trait1 == 'CRS-ALL') %>%
-              mutate(h2=trait2_h2g, h2_err = trait2_h2g_err) %>%
+              mutate(h2=trait2_h2g, h2_se = trait2_h2g_err) %>%
               add_row(
                 gencorr_REML %>% filter(trait1==col_BRS, trait2=='CRS-ALL') %>%
-                  mutate(term=trait1, h2=trait1_h2g, h2_err = trait1_h2g_err)) %>%
-              select(term, h2, h2_err, rg_CRS = rg, rg_err_CRS = rg_err), by='term') %>%
+                  mutate(term=trait1, h2=trait1_h2g, h2_se = trait1_h2g_err)) %>%
+              select(term, h2, h2_se, rg_CRS = rg, rg_se_CRS = rg_err), by='term') %>%
+  # adds ldsc: h2 estimate, intercept, rg w/ T2D
+  left_join(ldsc_rg %>% filter(term1 == 'T2D') %>%
+              select(term=term2, h2_ldsc = h2g2, h2_se_ldsc = h2g_se2,
+                     rg_T2D = rg, rg_se_T2D = rg_se, ldsc_intercept=intercept2) %>%
+              mutate(term = ifelse(term == 'BRS', col_BRS,
+                                   str_replace(term,'_','.'))),
+            by='term') %>%
   # adds GWAS summary data
   left_join(GWAS_summary_tbl %>%
               mutate(term = ifelse(trait == 'ALL.BRS-ALL-cov_bvr', col_BRS, trait)) %>%
-              select(-trait), by='term')
+              select(-trait), by='term') %>%
+  # adds # of genes for GWAS signals
+  left_join(gene_assoc_n %>% rename(n_sig_genes = n), by='shortname') %>% 
+  mutate(term = ifelse(term == col_BRS, 'BRS', term))
+
+
 
 # writes to folder
 fwrite(sumtbl, paste0(dir_scratch,'general_results/sumtbl.tsv'), sep='\t')

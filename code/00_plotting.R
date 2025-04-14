@@ -3,7 +3,9 @@
 # paths/directories ####
 source('code/00_paths.R')
 dir_figs <- paste0(dir_repo, 'final_results/figures/')
+dir_tbls <- paste0(dir_repo, 'final_results/tables/')
 dir.create(dir_figs, showWarnings = FALSE, recursive=TRUE)
+dir.create(dir_tbls, showWarnings = FALSE, recursive=TRUE)
 
 CI95_z <- qnorm(1 - (1 - 0.95)/2)
 dash_color <- 'gray50'
