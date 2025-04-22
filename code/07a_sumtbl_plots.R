@@ -21,6 +21,44 @@ col_CRFs <- fields$term[fields$use_type == 'CRF']
 col_BRS <- 'BRS-ALL-cov_bvr' # main BRS term
 CI95_z <- qnorm(1 - (1 - 0.95)/2)
 
+# rg BRS vs CRFs comparisons ####
+gc1 <- gencorr_REML %>%
+  filter(trait1 == col_BRS,
+         trait2 %in% c(col_CRFs, 'CRS-ALL')) %>%
+  left_join(shortnames %>% select(trait2=term, shortname), by='trait2') %>%
+  select(trait1,trait2,rg,rg_err, shortname) %>%
+  arrange(-abs(rg)) %>%
+  mutate(shortname = ifelse(shortname=='HbA1c','HbA1c*',shortname)) %>%
+  mutate(rg_low = rg - CI95_z*rg_err,
+         rg_upp = rg + CI95_z*rg_err,
+         sign = ifelse(rg>0,'Positive','Negative'),
+         shortname = factor(shortname))
+
+boldings <- gc1$trait2 == 'CRS-ALL'
+ggplot(gc1, aes(x=factor(shortname, levels=shortname), y=abs(rg))) +
+  geom_col(aes(fill = sign)) +
+  geom_errorbar(aes(ymin=abs(rg_low), ymax=abs(rg_upp)),
+                width=0.5) +
+  coord_flip() +
+  scale_x_discrete(labels = function(x) str_wrap(x, width=18)) +
+  scale_y_continuous(expand=c(0,0,0.1,0)) +
+  labs(x = 'Clinical Risk Factors and Score',
+       y = 'Absolute genetic correlation (95% CI) with the BRS',
+       fill = 'Sign') +
+  theme_bw() +
+  theme(legend.position = c(1,1),
+        legend.justification = c(1.1, 1.1),
+        legend.box.background = element_rect(color = "black"),
+        legend.title = element_text(size = 9),
+        legend.title.align = 0.5,
+        legend.text = element_text(size = 7),
+        axis.title = element_text(size = 8),
+        axis.text = element_text(size = 6),
+        axis.text.y = element_text(face = ifelse(boldings, 'bold','plain')))
+loc_fig <- paste0(dir_figs,"gencorr_BRS_CRFs")
+ggsave(paste0(loc_fig,".png"), width=120, height=90, units="mm", dpi=300)
+
+
 # rg w/ CRS ####
 gc2 <- sumtbl %>%
   select(term, shortname, rg=rg_CRS, rg_se=rg_se_CRS, beta) %>%
