@@ -59,6 +59,12 @@ sumtbl <- tibble(term = c(col_BRS, col_bvrs[col_bvrs %in% BRS_coeffs$term])) %>%
               mutate(term = ifelse(term == 'BRS', col_BRS,
                                    str_replace(term,'_','.'))),
             by='term') %>%
+  # adds ldsc rg w/ CRS
+  left_join(ldsc_rg %>% filter(term1 == 'CRS') %>%
+              select(term=term2, rg_CRS_ldsc = rg, rg_se_CRS_ldsc = rg_se) %>%
+              mutate(term = ifelse(term == 'BRS', col_BRS,
+                                   str_replace(term,'_','.'))),
+            by='term') %>%
   # adds GWAS summary data
   left_join(GWAS_summary_tbl %>%
               mutate(term = ifelse(trait == 'ALL.BRS-ALL-cov_bvr', col_BRS, trait)) %>%
