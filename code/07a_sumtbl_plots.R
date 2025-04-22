@@ -21,34 +21,6 @@ col_CRFs <- fields$term[fields$use_type == 'CRF']
 col_BRS <- 'BRS-ALL-cov_bvr' # main BRS term
 CI95_z <- qnorm(1 - (1 - 0.95)/2)
 
-# rg BRS vs CRFs comparisons ####
-gc1 <- gencorr_REML %>%
-  filter(trait1 == col_BRS,
-         trait2 %in% col_CRFs) %>%
-  left_join(shortnames %>% select(trait2=term, shortname), by='trait2') %>%
-  arrange(-abs(rg)) %>%
-  mutate(rg_low = rg - CI95_z*rg_err,
-         rg_upp = rg + CI95_z*rg_err,
-         sign = ifelse(rg>0,'Positive','Negative'),
-         shortname = factor(shortname))
-
-ggplot(gc1, aes(x=factor(shortname, levels=shortname), y=abs(rg))) +
-  geom_col(aes(fill = sign)) +
-  geom_errorbar(aes(ymin=abs(rg_low), ymax=abs(rg_upp)),
-                width=0.5) +
-  coord_flip() +
-  scale_x_discrete(labels = function(x) str_wrap(x, width=20)) +
-  scale_y_continuous(expand=c(0,0,0.1,0)) +
-  labs(x = 'Clinical Risk Factors and Score',
-       y = 'Absolute genetic correlation (95% CI) with Behavioral Risk Score (BRS)',
-       fill = 'Sign') +
-  theme_bw() +
-  theme(legend.position = 'top',
-        legend.margin = margin(b = -5))
-#loc_fig <- paste0(dir_figs,"gencorr_BRS_CRFs")
-#ggsave(paste0(loc_fig,".png"), width=180, height=120, units="mm", dpi=300)
-
-
 # rg w/ CRS ####
 gc2 <- sumtbl %>%
   select(term, shortname, rg=rg_CRS, rg_se=rg_se_CRS, beta) %>%
@@ -60,29 +32,6 @@ gc2 <- sumtbl %>%
          rg_low_abs = ifelse(rg_low < 0 & rg>0, -Inf,abs(rg_low)),
          rg_upp_abs = ifelse(rg_upp > 0 & rg<0, -Inf,abs(rg_upp)),
          concordant = sign(rg) == sign(beta))
-
-# vector denoting which traitnames to bold
-boldings <- gc2$term == 'BRS'
-
-ggplot(gc2, aes(x=factor(shortname, levels=shortname), y=abs(rg))) +
-  geom_col(aes(fill = concordant)) +
-  geom_errorbar(aes(ymin=rg_low_abs, ymax=rg_upp_abs),
-                width=0.5) +
-  coord_flip() +
-  scale_x_discrete(labels = function(x) str_wrap(x, width=40)) +
-  scale_y_continuous(expand=c(0,0,0.1,0)) +
-  labs(x = 'Behaviors and BRS',
-       y = 'Absolute genetic correlation (95% CI) with Clinical Risk Score (CRS)',
-       fill = 'Genetic correlation concordant with BRS effect') +
-  theme_bw() +
-  theme(legend.position = 'top',
-        axis.text.y = element_text(size=6,
-                                   face = ifelse(boldings, 'bold','plain')),
-        legend.margin = margin(b = -5))
-
-#loc_fig <- paste0(dir_figs,"gencorr_CRS_bvrs")
-#ggsave(paste0(loc_fig,".png"), width=180, height=120, units="mm", dpi=300)
-
 
 # rg w/ T2D ####
 gc4 <- rg_tbl %>% filter(term1 == 'T2D' | term2 == 'T2D',
@@ -100,23 +49,6 @@ gc4 <- rg_tbl %>% filter(term1 == 'T2D' | term2 == 'T2D',
          rg_low_abs = ifelse(rg_low < 0 & rg>0, -Inf,abs(rg_low)),
          rg_upp_abs = ifelse(rg_upp > 0 & rg<0, -Inf,abs(rg_upp)),
          concordant = sign(rg) == sign(beta_norm))
-
-ggplot(gc4, aes(x=factor(shortname, levels=shortname), y=abs(rg))) +
-  geom_col(aes(fill = concordant)) +
-  geom_errorbar(aes(ymin=rg_low_abs, ymax=rg_upp_abs), width=0.5) +
-  coord_flip() +
-  scale_x_discrete(labels = function(x) str_wrap(x, width=40)) +
-  scale_y_continuous(expand=c(0,0,0.1,0)) +
-  labs(x = 'Behaviors and BRS',
-       y = 'Absolute genetic correlation (95% CI) with Type 2 Diabetes',
-       fill = 'Genetic correlation concordant with BRS effect') +
-  theme_bw() +
-  theme(legend.position = 'top',
-        axis.text.y = element_text(size=6,
-                                   face = ifelse(boldings, 'bold','plain')),
-        legend.margin = margin(b = -5))
-#loc_fig <- paste0(dir_figs,"gencorr_T2D_bvrs")
-#ggsave(paste0(loc_fig,".png"), width=180, height=120, units="mm", dpi=300)
 
 # rg w/ CRS vs T2D ####
 gc5 <- gc2 %>%
@@ -176,18 +108,19 @@ gg_hg1 <- ggplot(hg1, aes(x=factor(shortname, levels=shortname), y=h2)) +
         axis.text.y = element_text(size=5,
                                    face = ifelse(boldings, 'bold','plain')))
 
+# combined plot ####
 ggarrange(plotlist = list(gg_hg1, gg_gc5), ncol=2, labels='AUTO',
           align='h', widths=c(1.5,2))
 loc_fig <- paste0(dir_figs,"bvrs_h2g_rgs")
 ggsave(paste0(loc_fig,".png"), width=240, height=140, units="mm", dpi=300)
-
 
 rg_tbl %>% filter(term1 == 'CRS', term2 %in% c('BRS','T2D')) %>%
   select(term1,term2, rg, rg_se) %>%
   mutate(rg_low = rg - CI95_z*rg_se,
          rg_upp = rg + CI95_z*rg_se)
 
-## BOLT-REML vs ldsc h2 estimates ####
+
+# BOLT-REML vs ldsc h2 estimates ####
 lm_h2 <- lm(h2_ldsc ~ h2, data=hg1)
 cor_h2 <- cor.test(hg1$h2, hg1$h2_ldsc)
 ggplot(hg1, aes(x = h2, y=h2_ldsc)) +
@@ -204,7 +137,7 @@ loc_fig <- paste0(dir_figs,"h2g_bvrs")
 ggsave(paste0(loc_fig,".png"), width=160, height=160, units="mm", dpi=300)
 
 
-# (BRS effects, AUC) vs (h2g, rg_CRS, rg_T2D) ####
+# performance vs genetic metrics ####
 gc3 <- sumtbl %>%
   select(term, shortname, beta_norm, AUC, AUC_se, rg_CRS, rg_CRS_se = rg_se_CRS,
          rg_T2D, rg_T2D_se = rg_se_T2D, h2, h2_se) %>%
@@ -288,9 +221,7 @@ loc_fig <- paste0(dir_figs,"beta_AUC_rg_h2")
 ggsave(paste0(loc_fig,".png"), width=270, height=150, units="mm", dpi=300)
 
 
-
-
-# AUC vs Effect Size
+# AUC vs Effect Size ####
 auc1 <- sumtbl %>%
   filter(term != 'BRS')
 ROC_tbl <- as_tibble(fread(paste0(dir_scratch,'general_results/ROC_tbl.tsv'))) %>%
