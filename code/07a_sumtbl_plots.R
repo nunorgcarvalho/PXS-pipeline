@@ -144,11 +144,13 @@ ggplot(gc5, aes(x=rg_T2D, y=rg_CRS)) +
 
 # h2 of bvrs/BRS ####
 hg1 <- sumtbl %>%
-  select(term, shortname, h2, h2_err) %>%
-  mutate(h2_low = h2 - CI95_z*h2_err,
-         h2_upp = h2 + CI95_z*h2_err) %>%
+  select(term, shortname, starts_with('h2')) %>%
+  mutate(h2_low = h2 - CI95_z*h2_se,
+         h2_upp = h2 + CI95_z*h2_se,
+         h2_low_ldsc = h2_ldsc - CI95_z*h2_se_ldsc,
+         h2_upp_ldsc = h2_ldsc + CI95_z*h2_se_ldsc) %>%
   arrange(-h2)
-
+boldings <- hg1$term == 'BRS'
 ggplot(hg1, aes(x=factor(shortname, levels=shortname), y=h2)) +
   geom_col() +
   geom_errorbar(aes(ymin=abs(h2_low), ymax=abs(h2_upp)),
@@ -166,6 +168,23 @@ ggplot(hg1, aes(x=factor(shortname, levels=shortname), y=h2)) +
                                    face = ifelse(boldings, 'bold','plain')))
 loc_fig <- paste0(dir_figs,"h2g_bvrs")
 ggsave(paste0(loc_fig,".png"), width=180, height=180, units="mm", dpi=300)
+
+## BOLT-REML vs ldsc h2 estimates ####
+lm_h2 <- lm(h2_ldsc ~ h2, data=hg1)
+cor_h2 <- cor.test(hg1$h2, hg1$h2_ldsc)
+ggplot(hg1, aes(x = h2, y=h2_ldsc)) +
+  geom_abline(slope=1, color=dash_color, linetype='dashed') +
+  geom_point() +
+  geom_text_repel(aes(label = shortname), size=2) +
+  geom_errorbarh(aes(xmin = h2_low, xmax = h2_upp), alpha=0.5) +
+  geom_errorbar(aes(ymin = h2_low_ldsc, ymax = h2_upp_ldsc), alpha=0.5) +
+  annotate('text', label = annotate_cor.test(cor_h2), # throws out harmless warning message
+           x=Inf, y=-Inf, vjust=-0.5, hjust=1.05, parse=FALSE, size=3) +
+  labs(x = 'h2 estimated by BOLT-REML (95% CI)',
+       y = 'h2 estimated by BOLT-LDsc (95% CI)')
+loc_fig <- paste0(dir_figs,"h2g_bvrs")
+ggsave(paste0(loc_fig,".png"), width=160, height=160, units="mm", dpi=300)
+
 
 # effect vs rg w/ CRS ####
 gc3 <- sumtbl %>%
