@@ -45,8 +45,8 @@ ggplot(gc1, aes(x=factor(shortname, levels=shortname), y=abs(rg))) +
   theme_bw() +
   theme(legend.position = 'top',
         legend.margin = margin(b = -5))
-loc_fig <- paste0(dir_figs,"gencorr_BRS_CRFs")
-ggsave(paste0(loc_fig,".png"), width=180, height=120, units="mm", dpi=300)
+#loc_fig <- paste0(dir_figs,"gencorr_BRS_CRFs")
+#ggsave(paste0(loc_fig,".png"), width=180, height=120, units="mm", dpi=300)
 
 
 # rg w/ CRS ####
@@ -80,8 +80,8 @@ ggplot(gc2, aes(x=factor(shortname, levels=shortname), y=abs(rg))) +
                                    face = ifelse(boldings, 'bold','plain')),
         legend.margin = margin(b = -5))
 
-loc_fig <- paste0(dir_figs,"gencorr_CRS_bvrs")
-ggsave(paste0(loc_fig,".png"), width=180, height=120, units="mm", dpi=300)
+#loc_fig <- paste0(dir_figs,"gencorr_CRS_bvrs")
+#ggsave(paste0(loc_fig,".png"), width=180, height=120, units="mm", dpi=300)
 
 
 # rg w/ T2D ####
@@ -115,8 +115,8 @@ ggplot(gc4, aes(x=factor(shortname, levels=shortname), y=abs(rg))) +
         axis.text.y = element_text(size=6,
                                    face = ifelse(boldings, 'bold','plain')),
         legend.margin = margin(b = -5))
-loc_fig <- paste0(dir_figs,"gencorr_T2D_bvrs")
-ggsave(paste0(loc_fig,".png"), width=180, height=120, units="mm", dpi=300)
+#loc_fig <- paste0(dir_figs,"gencorr_T2D_bvrs")
+#ggsave(paste0(loc_fig,".png"), width=180, height=120, units="mm", dpi=300)
 
 # rg w/ CRS vs T2D ####
 gc5 <- gc2 %>%
@@ -143,8 +143,8 @@ gg_gc5 <- ggplot(gc5, aes(x=rg_T2D, y=rg_CRS)) +
   geom_errorbar(aes(ymin=rg_CRS_low, ymax=rg_CRS_upp), alpha=0.25) +
   geom_text_repel(aes(label = shortname), size=1.5, seed = 2025,
                   force = 1, force_pull=1) +
-  geom_vline(xintercept = 0, linetype='dashed') +
-  geom_hline(yintercept = 0, linetype='dashed') +
+  geom_vline(xintercept = 0, linetype='dashed', color=dash_color) +
+  geom_hline(yintercept = 0, linetype='dashed', color=dash_color) +
   annotate('text', label = annotate_cor.test(gc5_cor), # throws out harmless warning message
            x=Inf, y=-Inf, hjust=1.05, vjust=-0.5, parse=FALSE, size=3) +
   labs(x = 'Genetic correlation (95% CI) with Type 2 Diabetes',
@@ -204,56 +204,90 @@ loc_fig <- paste0(dir_figs,"h2g_bvrs")
 ggsave(paste0(loc_fig,".png"), width=160, height=160, units="mm", dpi=300)
 
 
-# effect vs rg w/ CRS ####
+# (BRS effects, AUC) vs (h2g, rg_CRS, rg_T2D) ####
 gc3 <- sumtbl %>%
-  filter(term != col_BRS) %>%
-  rename(rg=rg_CRS, rg_err=rg_err_CRS) %>%
-  mutate(rg_low = rg - CI95_z*rg_err,
-         rg_upp = rg + CI95_z*rg_err)
+  select(term, shortname, beta_norm, AUC, AUC_se, rg_CRS, rg_CRS_se = rg_se_CRS,
+         rg_T2D, rg_T2D_se = rg_se_T2D, h2, h2_se) %>%
+  mutate(beta_norm_se = 0) %>%
+  filter(term !='BRS')
 
-gc3_cor <- cor.test(gc3$rg, gc3$beta_norm)
-ggplot(gc3, aes(x=beta_norm, y=rg)) +
-  geom_hline(yintercept = 0, linetype='dashed') +
-  geom_vline(xintercept = 0, linetype='dashed') +
-  geom_point() +
-  geom_errorbar(aes(ymin = rg_low, ymax = rg_upp), alpha=0.5) +
-  geom_text_repel(aes(label = shortname), size=2) +
-  theme_bw() +
-  labs(x = 'Effect on BRS (normalized)',
-       y = 'Genetic correlation (95%) w/ Clinical Risk Score (CRS)',
-       subtitle = paste0('r = ', round(gc3_cor$estimate,3),
-                         ' :: p = ', formatC(gc3_cor$p.value,3)))
-loc_fig <- paste0(dir_figs,"gencorr_CRS_vs_effect")
-ggsave(paste0(loc_fig,".png"), width=180, height=180, units="mm", dpi=300)
+# variable terms and labels
+var1s <- list('beta_norm' = 'Effect on the BRS (normalized)',
+              'AUC' = 'AUC for T2D')
+var2s <- list('rg_CRS' = 'Genetic Correlation with CRS',
+              'rg_T2D' = 'Genetic Correlation with T2D',
+              'h2' = 'SNP Heritability')
+gc3_plots <- list()
+for (i in 1:length(var1s)) {
+  var1 <- names(var1s)[i]
+  for (j in 1:length(var2s)) {
+    var2 <- names(var2s)[j]
+    gc3_ij <- gc3 %>% select(term, shortname)
+    gc3_ij$var1 <- gc3[[var1]]
+    gc3_ij$var2 <- gc3[[var2]]
+    # determines if absolute value is used for a variable
+    var1_abs <- FALSE
+    var2_abs <- FALSE
+    if (var1 == 'AUC') { var2_abs = TRUE }
+    if (var2 == 'h2' ) { var1_abs = TRUE }
+    
+    # sets absolute values
+    if (var1_abs) {gc3_ij$var1 <- abs( gc3_ij$var1 )}
+    if (var2_abs) {gc3_ij$var2 <- abs( gc3_ij$var2 )}
+    
+    # sets 95% CIs
+    gc3_ij$var1_low <- gc3_ij$var1 - CI95_z * gc3[[paste0(var1,'_se')]]
+    gc3_ij$var1_upp <- gc3_ij$var1 + CI95_z * gc3[[paste0(var1,'_se')]]
+    gc3_ij$var2_low <- gc3_ij$var2 - CI95_z * gc3[[paste0(var2,'_se')]]
+    gc3_ij$var2_upp <- gc3_ij$var2 + CI95_z * gc3[[paste0(var2,'_se')]]
+    
+    # gets correlation object
+    cor_obj <- cor.test(gc3_ij$var1, gc3_ij$var2)
+    # main plot
+    gg0 <- ggplot(gc3_ij, aes(x=var2, y=var1)) +
+      geom_smooth(method='lm', formula='y~x', se=FALSE) +
+      geom_point(size=1) +
+      geom_errorbar(aes(ymin = var1_low, ymax = var1_upp), alpha=0.25) +
+      geom_errorbarh(aes(xmin = var2_low, xmax = var2_upp), alpha=0.25) +
+      geom_text_repel(aes(label=shortname), max.overlaps = 5, size=2) +
+      annotate('text', label = annotate_cor.test(cor_obj), # throws out harmless warning message
+               x=-Inf, y=Inf, vjust=1.5, hjust=-0.05, parse=FALSE, size=3) +
+      labs(x=var2s[j], y=var1s[i]) +
+      theme_bw() +
+      theme(axis.title = element_text(size=8),
+            axis.text = element_text(size=6))
+      
+      
+    # adds bars at x=0 or y=0
+    if (!(var1_abs | var1=='AUC')) {gg0 <- gg0 + geom_hline(yintercept = 0, color=dash_color, linetype='dashed')}
+    if (!(var2_abs | var2=='h2' )) {gg0 <- gg0 + geom_vline(xintercept = 0, color=dash_color, linetype='dashed')}
+    
+    # adds top/right ticks
+    if (i == 1) { gg0 <- gg0 + scale_x_continuous(position = 'top')}
+    if (j == 3) { gg0 <- gg0 + scale_y_continuous(position = 'right')}
+    
+    # removes y-axis labels for middle column
+    if (!(j %in% c(1,3))) {
+      gg0 <- gg0 + theme(axis.title.y = element_blank(),
+                         axis.text.y = element_blank(),
+                         axis.ticks.y = element_blank())
+    }
+    
+    # adds the word "Absolute" to axis label
+    if (var1 == 'beta_norm' & var2 == 'h2') {gg0 <- gg0 + labs(y=paste0('Absolute ', var1s[i]))}
+    if (var1 == 'AUC' & var2 != 'h2') {gg0 <- gg0 + labs(x=paste0('Absolute ', var2s[j]))}
+    
+    gc3_plots[[(i-1)*3 + j]] <- gg0
+  }
+}
+ggarrange(plotlist=gc3_plots,ncol=3, nrow=2, labels = 'AUTO',
+          hjust= 0.5 * c(-1,1,1, -1,1,1),
+          vjust= c(rep(1.25,3), rep(0.25,3)),
+          widths=c(1,0.9,1), heights=c(1,1))
+loc_fig <- paste0(dir_figs,"beta_AUC_rg_h2")
+ggsave(paste0(loc_fig,".png"), width=270, height=150, units="mm", dpi=300)
 
-# effect vs h2 ####
-hg2 <- sumtbl %>%
-  filter(term != col_BRS) %>%
-  mutate(h2_low = h2 - CI95_z*h2_err,
-         h2_upp = h2 + CI95_z*h2_err)
 
-hg2_cor <- cor.test(hg2$h2, abs(hg2$beta_norm))
-ggplot(hg2, aes(x=abs(beta_norm), y=h2)) +
-  geom_point() +
-  geom_errorbar(aes(ymin = h2_low, ymax = h2_upp), alpha=0.5) +
-  geom_text_repel(aes(label = shortname), size=2) +
-  theme_bw() +
-  labs(x = 'Absolute effect on BRS (normalized)',
-       y = 'Heritability (95%)',
-       subtitle = paste0('r = ', round(hg2_cor$estimate,3),
-                         ' :: p = ', formatC(hg2_cor$p.value,3)))
-
-# log-transformed effect
-hg2b_cor <- cor.test(hg2$h2, log10(abs(hg2$beta_norm)) )
-ggplot(hg2, aes(x=log10(abs(beta_norm)), y=h2)) +
-  geom_point() +
-  geom_errorbar(aes(ymin = h2_low, ymax = h2_upp), alpha=0.5) +
-  geom_text_repel(aes(label = shortname), size=2) +
-  theme_bw() +
-  labs(x = 'Log10 of Absolute effect on BRS (normalized)',
-       y = 'Heritability (95%)',
-       subtitle = paste0('r = ', round(hg2b_cor$estimate,3),
-                         ' :: p = ', formatC(hg2b_cor$p.value,3)))
 
 
 # AUC vs Effect Size

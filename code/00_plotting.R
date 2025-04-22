@@ -59,7 +59,7 @@ get_r_expr <- function(r, r_digits = 3) {
 get_p_expr <- function(p, p_digits = 2, p_limit1 = 0.001, p_limit2 = 2.2e-16) {
   comp <- '=='
   if (p > p_limit1) {
-    p_val <- formatC(p, digits = p_digits, format = "f")
+    p_val <- formatC(p, digits = p_digits, format = "fg", flag='#')
     p_expr <- bquote(p == .(p_val))
   } else {
     if (p == 0) {
