@@ -53,3 +53,11 @@ model_AUCs <- ROC_tbl %>%
 loc_out <- paste0(dir_tbls,'model_AUCs.csv')
 fwrite(model_AUCs, loc_out, sep=',')
 
+# pairwise_correlations.csv ####
+pairwise_correlations <- as_tibble(fread(paste0(dir_scratch,'general_results/pairwise_corrs.tsv'))) %>%
+  left_join(sumtbl %>% select(term1=term, shortname1=shortname), by='shortname1') %>%
+  left_join(sumtbl %>% select(term2=term, shortname2=shortname), by='shortname2') %>%
+  select(term1,term2,shortname1,shortname2,pheno_corr, geno_corr) %>%
+  arrange(term1, term2)
+loc_out <- paste0(dir_tbls,'pairwise_correlations.csv')
+fwrite(pairwise_correlations, loc_out, sep=',')

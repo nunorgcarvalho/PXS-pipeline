@@ -138,6 +138,8 @@ joint_tbl2 <- joint_tbl %>% filter(type=='pheno') %>%
   mutate(corr_diff = geno_corr - pheno_corr) %>%
   arrange(-abs(corr_diff))
 
+fwrite(joint_tbl2, paste0(dir_scratch,'general_results/pairwise_corrs.tsv'), sep='\t')
+
 cor_corrs <- cor.test(joint_tbl2$pheno_corr, joint_tbl2$geno_corr)
 ggplot(joint_tbl2, aes(x=pheno_corr, geno_corr)) +
   geom_point(shape=1) +
@@ -146,7 +148,7 @@ ggplot(joint_tbl2, aes(x=pheno_corr, geno_corr)) +
   geom_vline(xintercept=0,linetype='dashed', color=dash_color) +
   #geom_smooth(method='lm',formula='y~x') +
   annotate('text', label = annotate_cor.test(cor_corrs), # throws out harmless warning message
-           x=Inf, y=-Inf, vjust=-0.5, hjust=1.05, parse=FALSE) +
+           x=Inf, y=-Inf, vjust=-0.5, hjust=1.05, parse=FALSE, size=3) +
   scale_x_continuous(limits=c(-1,1), expand=c(0,0)) +
   scale_y_continuous(limits=c(-1,1), expand=c(0,0)) +
   labs(x='Phenotypic correlation',

@@ -4,6 +4,7 @@
 library(tidyverse)
 library(data.table)
 library(ggrepel)
+library(ggpubr)
 source('code/00_paths.R')
 source('code/00_plotting.R')
 
@@ -50,10 +51,10 @@ ggsave(paste0(loc_fig,".png"), width=180, height=120, units="mm", dpi=300)
 
 # rg w/ CRS ####
 gc2 <- sumtbl %>%
-  select(term, shortname, rg=rg_CRS, rg_err=rg_err_CRS, beta) %>%
+  select(term, shortname, rg=rg_CRS, rg_se=rg_se_CRS, beta) %>%
   arrange(-abs(rg)) %>%
-  mutate(rg_low = rg - CI95_z*rg_err,
-         rg_upp = rg + CI95_z*rg_err,
+  mutate(rg_low = rg - CI95_z*rg_se,
+         rg_upp = rg + CI95_z*rg_se,
          sign = ifelse(rg>0,'Positive','Negative'),
          shortname = factor(shortname),
          rg_low_abs = ifelse(rg_low < 0 & rg>0, -Inf,abs(rg_low)),
@@ -61,7 +62,7 @@ gc2 <- sumtbl %>%
          concordant = sign(rg) == sign(beta))
 
 # vector denoting which traitnames to bold
-boldings <- gc2$term == col_BRS
+boldings <- gc2$term == 'BRS'
 
 ggplot(gc2, aes(x=factor(shortname, levels=shortname), y=abs(rg))) +
   geom_col(aes(fill = concordant)) +
@@ -120,27 +121,35 @@ ggsave(paste0(loc_fig,".png"), width=180, height=120, units="mm", dpi=300)
 # rg w/ CRS vs T2D ####
 gc5 <- gc2 %>%
   select(term, shortname, rg_CRS=rg, rg_CRS_low=rg_low, rg_CRS_upp=rg_upp) %>%
-  left_join(gc4 %>% select(term=term2, rg_T2D=rg, rg_T2D_low=rg_low, rg_T2D_upp=rg_upp),
-            by='term')
+  left_join(gc4 %>% select(term=term2, rg_T2D=rg, rg_T2D_low=rg_low, rg_T2D_upp=rg_upp) %>%
+              mutate(term = ifelse(term == col_BRS, 'BRS',term)),
+            by='term') %>%
+  left_join(sumtbl %>% select(term, rg_CRS_ldsc), by='term')
 
 gc5_cor <- cor.test(gc5$rg_T2D, gc5$rg_CRS)
+gc5_cor_ldsc <- cor.test(gc5$rg_T2D, gc5$rg_CRS_ldsc)
+gc5_cor_CRS <- cor.test(gc5$rg_CRS, gc5$rg_CRS_ldsc)
 gc5_label <- paste0('r = ', round(gc5_cor$estimate,3),
                     ' (p = ', formatC(gc5_cor$p.value,3),')')
-ggplot(gc5, aes(x=rg_T2D, y=rg_CRS)) +
-  geom_point() +
+
+gg_h2g_rgs_theme <- theme(
+  axis.title = element_text(size=7),
+  axis.text = element_text(size=6)
+)
+
+gg_gc5 <- ggplot(gc5, aes(x=rg_T2D, y=rg_CRS)) +
+  geom_point(size=1) +
   geom_errorbarh(aes(xmin=rg_T2D_low, xmax=rg_T2D_upp), alpha=0.25) +
   geom_errorbar(aes(ymin=rg_CRS_low, ymax=rg_CRS_upp), alpha=0.25) +
-  geom_text_repel(aes(label = shortname), size=2) +
+  geom_text_repel(aes(label = shortname), size=1.5, seed = 2025,
+                  force = 1, force_pull=1) +
   geom_vline(xintercept = 0, linetype='dashed') +
   geom_hline(yintercept = 0, linetype='dashed') +
-  annotate('text', label = gc5_label,
-           x = Inf, y=-Inf, hjust=1.05, vjust=-1) +
+  annotate('text', label = annotate_cor.test(gc5_cor), # throws out harmless warning message
+           x=Inf, y=-Inf, hjust=1.05, vjust=-0.5, parse=FALSE, size=3) +
   labs(x = 'Genetic correlation (95% CI) with Type 2 Diabetes',
        y = 'Genetic correlation (95% CI) with Clinical Risk Score (CRS)') +
-  theme_bw()
-#loc_fig <- paste0(dir_figs,"gencorr_T2D_vs_CRS")
-#ggsave(paste0(loc_fig,".png"), width=180, height=180, units="mm", dpi=300)
-
+  theme_bw() + gg_h2g_rgs_theme
 
 # h2 of bvrs/BRS ####
 hg1 <- sumtbl %>%
@@ -151,7 +160,7 @@ hg1 <- sumtbl %>%
          h2_upp_ldsc = h2_ldsc + CI95_z*h2_se_ldsc) %>%
   arrange(-h2)
 boldings <- hg1$term == 'BRS'
-ggplot(hg1, aes(x=factor(shortname, levels=shortname), y=h2)) +
+gg_hg1 <- ggplot(hg1, aes(x=factor(shortname, levels=shortname), y=h2)) +
   geom_col() +
   geom_errorbar(aes(ymin=abs(h2_low), ymax=abs(h2_upp)),
                 width=0.5) +
@@ -160,14 +169,23 @@ ggplot(hg1, aes(x=factor(shortname, levels=shortname), y=h2)) +
   scale_y_continuous(expand=c(0,0,0.1,0),
                      breaks = seq(0,1,5/100),
                      minor_breaks = seq(0,1,1/100)) +
-  labs(x = 'Behaviors and BRS',
-       y = 'Heritability (h2)') +
-  theme_bw() +
+  labs(x = 'Behaviors and Behavioral Risk Score',
+       y = 'SNP Heritability (95% CI)') +
+  theme_bw() + gg_h2g_rgs_theme +
   theme(legend.position = 'none',
-        axis.text.y = element_text(size=6,
+        axis.text.y = element_text(size=5,
                                    face = ifelse(boldings, 'bold','plain')))
-loc_fig <- paste0(dir_figs,"h2g_bvrs")
-ggsave(paste0(loc_fig,".png"), width=180, height=180, units="mm", dpi=300)
+
+ggarrange(plotlist = list(gg_hg1, gg_gc5), ncol=2, labels='AUTO',
+          align='h', widths=c(1.5,2))
+loc_fig <- paste0(dir_figs,"bvrs_h2g_rgs")
+ggsave(paste0(loc_fig,".png"), width=240, height=140, units="mm", dpi=300)
+
+
+rg_tbl %>% filter(term1 == 'CRS', term2 %in% c('BRS','T2D')) %>%
+  select(term1,term2, rg, rg_se) %>%
+  mutate(rg_low = rg - CI95_z*rg_se,
+         rg_upp = rg + CI95_z*rg_se)
 
 ## BOLT-REML vs ldsc h2 estimates ####
 lm_h2 <- lm(h2_ldsc ~ h2, data=hg1)
