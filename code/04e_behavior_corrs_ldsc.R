@@ -202,16 +202,63 @@ echo "Formatting summary file for ldsc"
 # and submit that job from inside dir_ldsc_bvrs: sbatch ldsc.T2D.sh
 
 
+
+## MAGIC HOMA-B and HOMA-IR ####
+
+### prep summary stats ####
+
+### ldsc munge ####
+# from README pdf in MAGIC website
+N_cases <- 51750
+N_control <- 58074
+
+for (HOMA in HOMAs) {
+  # writes ldsc munge_sumstats script
+  loc_HOMA <- paste0(dir_T2DGWAS, 'MAGIC_',HOMA,'_raw.txt')
+  script <- cat('#!/bin/sh
+#SBATCH -c 4
+#SBATCH -t 0-00:10
+#SBATCH -p short
+#SBATCH --mem=4G
+#SBATCH -o ldsc.',HOMA,'.out
+#SBATCH -e ldsc.',HOMA,'.err
+
+cd ',dir_ldsc_bvrs,'
+
+module load miniconda3
+conda env create --file ',dir_ldsc,'environment.yml
+source activate ldsc
+
+echo "Formatting summary file for ldsc"
+',dir_ldsc,'munge_sumstats.py \\
+--sumstats ',loc_HOMA,' \\
+--N-cas ',N_cases,' \\
+--N-con ',N_control,' \\
+--snp Snp \\
+--a1 effect_allele \\
+--a2 other_allele \\
+--signed-sumstats MainEffects,0 \\
+--p MainP \\
+--merge-alleles ',paste0(dir_ldsc_bvrs,'ldsc.BRS.sumstats.gz'),' \\
+--chunksize 1000000 \\
+--out ',paste0(dir_ldsc_bvrs,'ldsc.',HOMA),'
+
+', sep='', file=paste0(dir_ldsc_bvrs,'ldsc.',HOMA,'.sh'))
+}
+# and submit both jobs from inside dir_ldsc_bvrs: sbatch ldsc.HOMAB.sh ldsc.HOMAIR.sh
+
+
+
 # ldsc gencorrs ####
 
 ## behaviors x behaviors ####
-# (plus CRS, BRS, and T2D)
+# (plus HOMAB, HOMAIR, CRS, BRS, T2D, )
 
 # makes table of all gencorr jobs
 # each gencorr computation takes very little time (~60 seconds)
 # but there are a lot of them: K*(K-1)/2 computations (for K behaviors)
 # so I split the jobs across K-1 jobs, so each job is performing K/2 computations
-bvrs2 <- c('CRS','T2D','BRS',bvrs)
+bvrs2 <- c(HOMAs,'CRS','T2D','BRS',bvrs)
 K <- length(bvrs2)
 ldsc_rgs <- combn(str_replace_all(bvrs2,'\\.','_'), 2) %>%
   t() %>% as_tibble() %>% rename(term1_=V1, term2_=V2) %>% mutate(
@@ -269,43 +316,3 @@ echo ',slice_i$term1_,',',slice_i$term2_,'
 
 # then run the following bash command inside script directory:
 cat('for file in',paste0(ldsc_jobs$file_sh, collapse=' '),'; do sbatch "$file";done')
-
-
-
-
-
-
-## T2D x behaviors ####
-
-# gencorr between T2D and behaviors (+BRS)
-script <- cat('#!/bin/sh
-#SBATCH -c 4
-#SBATCH -t 0-00:',K*max_mins_per_rg,'
-#SBATCH -p short
-#SBATCH --mem=4G
-#SBATCH -o ',slice_k$sbatch_oe,'.out
-#SBATCH -e ',slice_k$sbatch_oe,'.err
-
-cd ',dir_ldsc_pairs,'
-
-module load miniconda3
-conda env create --file ',dir_ldsc,'environment.yml
-source activate ldsc
-', sep='', file=slice_k$loc_script)
-
-for (i in slice_k$job_i_start:slice_k$job_i_stop) {
-  slice_i <- ldsc_rgs[i,]
-  script_rg <- cat('
-echo "Running LDscore genetic correlation"
-echo ',slice_i$term1_,',',slice_i$term2_,'
-',dir_ldsc,'ldsc.py \\
---rg ',slice_i$filepath1,',',slice_i$filepath2,' \\
---ref-ld-chr ',dir_LDscore,'LDscore. \\
---w-ld-chr ',dir_LDscore,'LDscore. \\
---out ',slice_i$loc_out_stem,'
-', sep='', file=slice_k$loc_script, append=TRUE)
-}
-
-for (i in 1:nrow(ldsc_files)) {
-  term2_ <- ldsc_files$term_[i]
-}

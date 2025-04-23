@@ -4,7 +4,7 @@
 dir_scratch='/n/groups/patel/nuno/PXS-pipeline/scratch/'
 dir_T2DGWAS=${dir_scratch}'T2D/'
 mkdir -p ${dir_T2DGWAS}
-cd dir_T2DGWAS
+cd ${dir_T2DGWAS}
 
 # Installation of bigBedToBed
 wget http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64.v385/bigBedToBed
@@ -35,3 +35,19 @@ loc_T2DGWAS='All_Metal_LDSC-CORR_Neff.v2.txt'
 # the files that matter from this script are going to be:
 # - the unzipped T2DGWAS file ('All_Metal_LDSC-CORR_Neff.v2.txt')
 # - the resulting bed file: ('rsID_coordinates_hg19.bed')
+
+
+
+# we're also going to use this opportunity to download GWAS summary stats for
+# HOMA-IR and HOMA-B, from here:
+# http://magicinvestigators.org/downloads/
+# "Glucose and insulin results accounting for BMI"
+wget http://magicinvestigators.org/downloads/MAGIC_Manning_et_al_HOMAB_MainEffect.txt.gz
+wget http://magicinvestigators.org/downloads/MAGIC_Manning_et_al_HOMAIR_MainEffect.txt.gz
+# gunzip files, converts spaces to tabs, and saves to system
+gunzip -c MAGIC_Manning_et_al_HOMAB_MainEffect.txt.gz | \
+awk '{OFS="\t"; print $1, $3, $4, $5, $7}' > MAGIC_HOMAB_raw.txt
+
+gunzip -c MAGIC_Manning_et_al_HOMAIR_MainEffect.txt.gz | \
+awk '{OFS="\t"; print $1, $3, $4, $5, $7}' > MAGIC_HOMAIR_raw.txt
+# these will be processed in the behaviors_corr_ldsc.R file
