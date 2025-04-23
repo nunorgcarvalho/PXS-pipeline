@@ -296,7 +296,7 @@ for (k in 1:(K-1)) {
 cd ',dir_ldsc_pairs,'
 
 module load miniconda3
-conda env create --file ',dir_ldsc,'environment.yml
+#conda env create --file ',dir_ldsc,'environment.yml
 source activate ldsc
 ', sep='', file=slice_k$loc_script)
   

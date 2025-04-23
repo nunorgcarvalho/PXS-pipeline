@@ -52,16 +52,21 @@ sumtbl <- tibble(term = c(col_BRS, col_bvrs[col_bvrs %in% BRS_coeffs$term])) %>%
                 gencorr_REML %>% filter(trait1==col_BRS, trait2=='CRS-ALL') %>%
                   mutate(term=trait1, h2=trait1_h2g, h2_se = trait1_h2g_err)) %>%
               select(term, h2, h2_se, rg_CRS = rg, rg_se_CRS = rg_err), by='term') %>%
-  # adds ldsc: h2 estimate, intercept, rg w/ T2D
+  # adds ldsc: h2 estimate, intercept
   left_join(ldsc_rg %>% filter(term1 == 'T2D') %>%
               select(term=term2, h2_ldsc = h2g2, h2_se_ldsc = h2g_se2,
-                     rg_T2D = rg, rg_se_T2D = rg_se, ldsc_intercept=intercept2) %>%
+                     ldsc_intercept=intercept2) %>%
               mutate(term = ifelse(term == 'BRS', col_BRS,
                                    str_replace(term,'_','.'))),
             by='term') %>%
-  # adds ldsc rg w/ CRS
-  left_join(ldsc_rg %>% filter(term1 == 'CRS') %>%
-              select(term=term2, rg_CRS_ldsc = rg, rg_se_CRS_ldsc = rg_se) %>%
+  # adds ldsc rg w/ CRS, HOMA-B, HOMA-IR
+  left_join(ldsc_rg %>%
+              filter(term1 %in% c('T2D','CRS', 'HOMAB', 'HOMAIR')) %>%
+              mutate(term1 = ifelse(term1=='CRS','CRS_ldsc',term1)) %>%
+              select(term=term2, term1, rg, rg_se) %>%
+              pivot_wider(names_from = term1,
+                          names_glue = '{.value}_{term1}',
+                          values_from = c(rg, rg_se)) %>%
               mutate(term = ifelse(term == 'BRS', col_BRS,
                                    str_replace(term,'_','.'))),
             by='term') %>%

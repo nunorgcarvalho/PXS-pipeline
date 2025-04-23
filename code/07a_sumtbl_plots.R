@@ -287,3 +287,21 @@ ggplot(auc1, aes(x=abs(beta_norm), y=AUC)) +
        y = 'AUC for Type 2 Diabetes')
 loc_fig <- paste0(dir_figs,"bvrs_AUC_vs_effect")
 ggsave(paste0(loc_fig,".png"), width=180, height=150, units="mm", dpi=300)
+
+
+
+# HOMA rg plots ####
+gc6 <- sumtbl %>%
+  select(term, shortname, contains('HOMA')) %>%
+  mutate(rg_HOMAB_low = rg_HOMAB - CI95_z*rg_se_HOMAB,
+         rg_HOMAB_upp = rg_HOMAB + CI95_z*rg_se_HOMAB,
+         rg_HOMAIR_low = rg_HOMAIR - CI95_z*rg_se_HOMAIR,
+         rg_HOMAIR_upp = rg_HOMAIR + CI95_z*rg_se_HOMAIR,
+         )
+
+ggplot(gc6, aes(x=rg_HOMAIR, y=rg_HOMAB)) +
+  geom_point() +
+  geom_text_repel(aes(label = shortname), size=2, seed = 2025) +
+  geom_errorbar(aes(ymin = rg_HOMAB_low, ymax = rg_HOMAB_upp), alpha=0.25) +
+  geom_errorbarh(aes(xmin = rg_HOMAIR_low, xmax = rg_HOMAIR_upp), alpha=0.25) +
+  geom_abline(slope=1, linetype='dashed', color=dash_color)
