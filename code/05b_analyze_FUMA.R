@@ -6,10 +6,12 @@ library(ggrepel)
 library(rjson)
 library(curl)
 source('code/00_paths.R')
+source('code/00_plotting.R')
 
 dir_FUMA <- paste0(dir_scratch,"FUMA_results/")
 dir.create(paste0(dir_results,"figures/"), showWarnings = FALSE)
 dir_figs <- paste0(dir_results,"figures/")
+col_BRS <- 'BRS-ALL-cov_bvr'
 
 # Shared code ####
 
@@ -39,22 +41,10 @@ for (i in 1:length(zips)) {
 
 # used for plotting purposes
 sumtbl <- as_tibble(fread(paste0(dir_scratch,'general_results/sumtbl.tsv')))
+sumtbl$term[1] <- col_BRS
 bvr_order <- factor( (sumtbl %>% arrange(-abs(beta_norm)))$shortname )
 term_BRS <- sumtbl$term[1]
-
-# shared theme for multiple plots
-tileplot_theme <- theme(
-  legend.key.size = unit(2, "mm"),
-  legend.title = element_text(size=6),
-  legend.text = element_text(size=5),
-  legend.margin = margin(0,-1,0,-2, unit="mm"),
-  legend.text.align = 1,
-  plot.title = element_text(size=7),
-  plot.subtitle = element_text(size=5),
-  axis.title = element_text(size=6),
-  axis.text = element_text(size=5)
-)
-
+boldings <- bvr_order == sumtbl$shortname[1]
 
 # function for reading FUMA results for all jobs
 read_FUMAs <- function(dir_FUMAs, FUMA_file, skip='VARIABLE') {
@@ -87,48 +77,48 @@ read_FUMAs <- function(dir_FUMAs, FUMA_file, skip='VARIABLE') {
 # GTEx Data ####
 
 ## GTEx common theme ####
-GTEx_theme <- theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
-                    legend.key.size = unit(4, "mm"),
-                    legend.title = element_text(size=5))
+GTEx_theme <- theme(
+  axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size=5),
+  axis.text.y = element_text(size=5, face = ifelse(boldings, "bold", "plain")),
+  legend.key.size = unit(4, "mm"),
+  legend.title = element_text(size=5))
 
 ## General Tissue data ####
 GTEx_general <- read_FUMAs(dir_FUMAs,
                            'magma_exp_gtex_v8_ts_general_avg_log2TPM.gsa.out') %>%
   # restricts to just individual behaviors and BRS
-  filter(term %in% sumtbl$term) %>%
+  filter(term %in% c(sumtbl$term,col_BRS)) %>%
   left_join(sumtbl %>% select(term,shortname),by='term') %>%
-  mutate(tissue_name = sapply(VARIABLE, function(x) gsub("_", " ", x)))
+  mutate(tissue_name = sapply(VARIABLE, function(x) gsub("_", " ", x)),
+         shortname = factor(shortname, levels = bvr_order))
 
 # Bonferroni correction (FUMA already Bonferonni corrects within each trait)
 GTEx_general$P_adjusted <- p.adjust(GTEx_general$P / length(unique(GTEx_general$VARIABLE)), method = 'bonferroni')
 GTEx_general$significant_P_adj <- GTEx_general$P_adjusted < 0.05
+GTEx_general <- GTEx_general %>% mutate(
+  label = ifelse(P_adjusted < 1e-3, '***',
+                 ifelse(P_adjusted < 1e-2, '**',
+                        ifelse(P_adjusted < 0.05, '*','')))
+)
 GTEx_general %>% filter(significant_P_adj) %>% arrange(P_adjusted) %>%
   select(tissue_name, term, shortname,P_adjusted) %>% print(n=Inf)
 # saves to system
 loc_out <- paste0(dir_scratch, 'general_results/GTEx_general.tsv')
 fwrite(GTEx_general, loc_out, sep="\t")
+
 ### tile plot ####
-ggplot(GTEx_general, aes(x = tissue_name,
-                         y = fct_rev(factor(shortname, levels=bvr_order)))) +
+ggplot(GTEx_general, aes(x = tissue_name, y = shortname)) +
   geom_tile(aes(fill=-log10(P_adjusted))) +
-  # geom_rect(aes(xmin = -Inf, xmax = Inf,
-  #               ymin = length(bvr_order)-0.5, ymax = length(bvr_order)+0.5),
-  #           color = "black", fill = NA) +
+  geom_text(aes(label=label), size = 2, nudge_y = -0.10) +
   scale_x_discrete(labels = function(x) str_wrap(x, width=30), expand = c(0, 0)) +
   scale_y_discrete(labels = function(x) str_wrap(x, width=20), expand = c(0, 0)) +
   scale_fill_gradient2(low="#DE1B1B",mid="white", high="#93CF1A", midpoint = -log10(0.05)) +
-  xlab("Tissue Category") + ylab("Trait") +
-  labs(#title = "Average gene expression per tissue category for each behavior",
-       #subtitle = "Using MAGMA with GTEx through FUMA. White: adjusted p = 0.05",
+  labs(x = "Tissue Category", y = "Behavior",
        fill = bquote(-log[10](P)) ) +
-  theme_light() +
-  tileplot_theme +
-  GTEx_theme
+  theme_bw() + tileplot_theme + GTEx_theme
 # saves to system
 loc_fig <- paste0(dir_figs,"GTEx_category")
-ggsave(paste0(loc_fig,".png"), width=180, height=120, units="mm", dpi=300)
-ggsave(paste0(loc_fig,".pdf"), width=180, height=120, units="mm", dpi=300)
-
+ggsave(paste0(loc_fig,".png"), width=180, height=180, units="mm", dpi=300)
 
 
 
@@ -136,85 +126,40 @@ ggsave(paste0(loc_fig,".pdf"), width=180, height=120, units="mm", dpi=300)
 GTEx_specific <- read_FUMAs(dir_FUMAs,
                              'magma_exp_gtex_v8_ts_avg_log2TPM.gsa.out') %>%
   # restricts to just individual behaviors and BRS
-  filter(term %in% sumtbl$term) %>%
+  filter(term %in% c(sumtbl$term,col_BRS)) %>%
   left_join(sumtbl %>% select(term,shortname),by='term') %>%
-  mutate(tissue_name = sapply(VARIABLE, function(x) gsub("_", " ", x)))
+  mutate(tissue_name = sapply(VARIABLE, function(x) gsub("_", " ", x)),
+         shortname = factor(shortname, levels = bvr_order))
 
 # Bonferroni correction (FUMA already Bonferonni corrects within each trait)
 GTEx_specific$P_adjusted <- p.adjust(GTEx_specific$P / length(unique(GTEx_specific$VARIABLE)), method = 'bonferroni')
 GTEx_specific$significant_P_adj <- GTEx_specific$P_adjusted < 0.05
 GTEx_specific$tissue_name <- sapply(GTEx_specific$FULL_NAME, function(x) gsub("_", " ", x))
+GTEx_specific <- GTEx_specific %>% mutate(
+  label = ifelse(P_adjusted < 1e-3, '***',
+                 ifelse(P_adjusted < 1e-2, '**',
+                        ifelse(P_adjusted < 0.05, '*','')))
+)
 GTEx_specific %>% filter(significant_P_adj) %>% arrange(P_adjusted) %>%
   select(tissue_name, term, shortname,P_adjusted) %>% print(n=Inf)
 # saves to system
 loc_out <- paste0(dir_scratch, 'general_results/GTEx_specific.tsv')
 fwrite(GTEx_specific, loc_out, sep="\t")
 ### tile plot ####
-ggplot(GTEx_specific, aes(x = tissue_name,
-                         y = fct_rev(factor(shortname, levels=bvr_order)))) +
+ggplot(GTEx_specific, aes(x = tissue_name, y =shortname)) +
   geom_tile(aes(fill=-log10(P_adjusted))) +
-  # geom_rect(aes(xmin = -Inf, xmax = Inf,
-  #               ymin = length(bvr_order)-0.5, ymax = length(bvr_order)+0.5),
-  #           color = "black", fill = NA) +
+  geom_text(aes(label=label), size = 1.5, nudge_y = -0.10) +
   scale_x_discrete(labels = function(x) str_wrap(x, width=25), expand = c(0, 0)) +
   scale_y_discrete(labels = function(x) str_wrap(x, width=20), expand = c(0, 0)) +
   scale_fill_gradient2(low="#DE1B1B",mid="white", high="#93CF1A", midpoint = -log10(0.05)) +
-  xlab("Tissue") + ylab("Trait") +
-  labs(#title = "Average gene expression per tissue for each behavior",
-       #subtitle = "Using MAGMA with GTEx through FUMA. White: adjusted p = 0.05",
+  labs(x = 'Tissue', y = 'Behavior',
        fill = bquote(-log[10](P)) ) +
-  theme_light() +
-  tileplot_theme +
-  GTEx_theme +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size = 4))
+  theme_bw() + tileplot_theme + GTEx_theme +
+  theme(axis.text.x = element_text(size = 4))
 
 # saves to system
 loc_fig <- paste0(dir_figs,"GTEx_specific")
-ggsave(paste0(loc_fig,".png"), width=180, height=120, units="mm", dpi=300)
-ggsave(paste0(loc_fig,".pdf"), width=180, height=120, units="mm", dpi=300)
-
-## Combined tissue data ####
-# keeps list of tissues with at least one significant GTEx result for BRS
-keep_general <- (GTEx_general %>% filter(term==term_BRS) %>% filter(significant_P_adj))$tissue_name %>% unname()
-keep_specific <- (GTEx_specific %>% filter(term==term_BRS) %>% filter(significant_P_adj))$tissue_name %>% unname()
-# keeps only the general tissue type if its duplicated as a specific tissue
-keep_specific <-  keep_specific[!keep_specific %in% keep_general]
-
-GTEx_combined <- GTEx_general %>% filter(tissue_name %in% keep_general) %>%
-  add_row( GTEx_specific %>% select(-FULL_NAME) %>% filter(tissue_name %in% keep_specific) ) %>%
-  select(-VARIABLE, -TYPE)
-
-### tile plot ####
-ggplot(GTEx_combined, aes(x = factor(tissue_name, levels = c(keep_general, keep_specific)),
-                          y = fct_rev(factor(shortname, levels=bvr_order)))) +
-  geom_tile(aes(fill=-log10(P_adjusted))) +
-  # geom_rect(aes(xmin = -Inf, xmax = Inf,
-  #               ymin = length(bvr_order)-0.5, ymax = length(bvr_order)+0.5),
-  #           color = "black", fill = NA) +
-  # geom_rect(aes(xmin = 0.5, xmax = length(keep_general)+0.5),
-  #               ymin = -Inf, ymax = Inf,
-  #           color = "black", fill = NA) +
-  geom_segment(x = length(keep_general)+0.5, xend=length(keep_general)+0.5,
-               y = -Inf, yend = Inf, color = "white", size=2) +
-  geom_rect(aes(xmin = 0.5, xmax = length(keep_general)+0.4),
-            ymin = -Inf, ymax = Inf,
-            color = "black", fill = NA, size=0.3) +
-  geom_rect(aes(xmin = length(keep_general)+0.6, xmax=Inf),
-            ymin = -Inf, ymax = Inf,
-            color = "black", fill = NA, size=0.3) +
-  scale_x_discrete(labels = function(x) str_wrap(x, width=15), expand = c(0, 0)) +
-  scale_y_discrete(labels = function(x) str_wrap(x, width=20), expand = c(0, 0)) +
-  scale_fill_gradient2(low="#DE1B1B",mid="white", high="#93CF1A", midpoint = -log10(0.05)) +
-  xlab("Tissue") + ylab("Trait") +
-  labs(#title = "Average gene expression per tissue for each behavior",
-       #subtitle = "Using MAGMA with GTEx through FUMA. White: adjusted p = 0.05",
-       fill = bquote(-log[10](P))) +
-  tileplot_theme +
-  GTEx_theme
-# saves to system
-loc_fig <- paste0(dir_figs,"GTEx_combined")
-ggsave(paste0(loc_fig,".png"), width=140, height=120, units="mm", dpi=300)
-ggsave(paste0(loc_fig,".pdf"), width=140, height=120, units="mm", dpi=300)
+ggsave(paste0(loc_fig,".png"), width=200, height=180, units="mm", dpi=300)
 
 # Genes ####
 
