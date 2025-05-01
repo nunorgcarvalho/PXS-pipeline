@@ -25,13 +25,14 @@ get_cvglm_obj <- function(training_tbl, cols_use) {
                                type.measure = 'C')
   return(cv_glm1)
 }
-
-cols_use <- c(col_covs, col_CRFs[-4])
+# shouldn't include assessment_center, although it impacts the final score VERY little
+cols_use <- c(col_covs[-3], col_CRFs[-4]) 
 training_tbl <- pheno %>% filter(sample_group == 'A') %>%
   select(T2D_onset, T2D_onset_days, all_of(cols_use)) %>%
   drop_na()
 
 cvglm_CRS <- get_cvglm_obj(training_tbl, cols_use)
+cvglm_CRS$factor_SDs <- sapply(training_tbl[,-c(1,2)], sd)
 #save(cvglm_CRS, file=paste0(dir_scratch,'BRS_models/cvglm_CRS.RData'))
 
 coef_matrix <- as.matrix(cvglm_CRS$glmnet.fit$beta)

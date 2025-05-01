@@ -10,11 +10,11 @@ source('code/00_plotting.R')
 
 
 # main data sources ####
-sumtbl <- as_tibble(fread('scratch/general_results/sumtbl.tsv'))
-fields <- as_tibble(fread('scratch/fields_tbl.txt'))
-gencorr_REML <- as_tibble(fread('scratch/general_results/gencorr_REML.tsv'))
+sumtbl <- as_tibble(fread(paste0(dir_scratch,'general_results/sumtbl.tsv')))
+fields <- as_tibble(fread(paste0(dir_scratch,'fields_tbl.txt')))
+gencorr_REML <- as_tibble(fread(paste0(dir_scratch,'general_results/gencorr_REML.tsv')))
 rg_tbl <- as_tibble(fread(paste0(dir_scratch,'general_results/behavior_rg_table.tsv')))
-shortnames <- as_tibble(fread('input_data/term_shortnames.tsv'))
+shortnames <- as_tibble(fread(paste0(dir_repo, 'input_data/term_shortnames.tsv')))
 
 # shared variables ####
 col_CRFs <- fields$term[fields$use_type == 'CRF']
@@ -291,7 +291,15 @@ ggsave(paste0(loc_fig,".png"), width=180, height=150, units="mm", dpi=300)
 
 
 # HOMA rg plots ####
-gc6 <- sumtbl %>%
+gc6 <- rg_tbl %>%
+  filter(term1 %in% c('HOMAIR','HOMAB'),
+         !(term2 %in% c('HOMAIR','HOMAB'))) %>%
+  select(term=term2, term1, rg, rg_se) %>%
+  pivot_wider(names_from = term1,
+              names_glue = '{.value}_{term1}',
+              values_from = c(rg, rg_se)) %>%
+  mutate(term = str_replace_all(term,'_','\\.')) %>%
+  left_join(shortnames %>% select(term, shortname), by='term') %>%
   select(term, shortname, contains('HOMA')) %>%
   mutate(rg_HOMAB_low = rg_HOMAB - CI95_z*rg_se_HOMAB,
          rg_HOMAB_upp = rg_HOMAB + CI95_z*rg_se_HOMAB,
@@ -299,9 +307,20 @@ gc6 <- sumtbl %>%
          rg_HOMAIR_upp = rg_HOMAIR + CI95_z*rg_se_HOMAIR,
          )
 
+cor_HOMA <- cor.test(gc6$rg_HOMAIR, gc6$rg_HOMAB)
 ggplot(gc6, aes(x=rg_HOMAIR, y=rg_HOMAB)) +
+  geom_abline(slope=1, linetype='dashed', color=dash_color) +
+  geom_hline(yintercept=0, linetype='dashed', color=dash_color) +
+  geom_vline(xintercept=0, linetype='dashed', color=dash_color) +
   geom_point() +
+  geom_smooth(method='lm', formula='y~x', se=FALSE) +
   geom_text_repel(aes(label = shortname), size=2, seed = 2025) +
   geom_errorbar(aes(ymin = rg_HOMAB_low, ymax = rg_HOMAB_upp), alpha=0.25) +
   geom_errorbarh(aes(xmin = rg_HOMAIR_low, xmax = rg_HOMAIR_upp), alpha=0.25) +
-  geom_abline(slope=1, linetype='dashed', color=dash_color)
+  annotate('text', label = annotate_cor.test(cor_HOMA), # throws out harmless warning message
+           x=Inf, y=-Inf, hjust=1.05, vjust=-0.5, parse=FALSE, size=3) +
+  coord_cartesian(xlim = c(-0.7, 0.9), ylim = c(-0.6, 0.6), expand=FALSE) +
+  labs(x = 'Genetic correlation (95% CI) with HOMA-IR',
+       y = 'Genetic correlation (95% CI) with HOMA-B')
+loc_fig <- paste0(dir_figs,"rg_HOMA")
+ggsave(paste0(loc_fig,".png"), width=180, height=180, units="mm", dpi=300)

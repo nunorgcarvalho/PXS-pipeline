@@ -35,7 +35,8 @@ annotate_cor.test <- function(
     r_digits = 3,
     p_digits = 2,
     p_limit1 = 0.001,
-    p_limit2 = 2.2e-16
+    p_limit2 = 2.2e-16,
+    modified = FALSE
 ) {
   r <- cor_obj$estimate
   p <- cor_obj$p.value
@@ -43,13 +44,17 @@ annotate_cor.test <- function(
   r_expr <- get_r_expr(r, r_digits)
   p_expr <- get_p_expr(p, p_digits, p_limit1, p_limit2)
   
-  return( bquote(.(r_expr) ~ "(" * .(p_expr) * ")") )
+  if (!modified) {
+    return( bquote(.(r_expr) ~ "(" * .(p_expr) * ")") )
+  } else {
+    return( bquote(.(r_expr) ~ .(p_expr) ) )
+  }
 }
 
 # formats a correlation value as: r = 0.120
 # using bquote() (set parse=FALSE, such as inside annotate)
 get_r_expr <- function(r, r_digits = 3) {
-  r_val <- formatC(r, digits = r_digits, format = "f")
+  r_val <- formatC(r, digits = r_digits, format = "f") %>% unname()
   r_expr <- bquote(r == .(r_val))
   return(r_expr)
 }
@@ -59,7 +64,7 @@ get_r_expr <- function(r, r_digits = 3) {
 get_p_expr <- function(p, p_digits = 2, p_limit1 = 0.001, p_limit2 = 2.2e-16) {
   comp <- '=='
   if (p > p_limit1) {
-    p_val <- formatC(p, digits = p_digits, format = "fg", flag='#')
+    p_val <- formatC(p, digits = p_digits, format = "fg", flag='#')  %>% unname()
     p_expr <- bquote(p == .(p_val))
   } else {
     if (p == 0) {
@@ -68,7 +73,11 @@ get_p_expr <- function(p, p_digits = 2, p_limit1 = 0.001, p_limit2 = 2.2e-16) {
     }
     p_exp <- floor(log10(p))
     p_base <- p / 10^p_exp
-    p_val <- formatC(p_base, digits = p_digits - 1, format = "f")
+    if (round(p_base, p_digits) == 10) {
+      p_exp <- p_exp + 1
+      p_base <- 1
+    }
+    p_val <- formatC(p_base, digits = p_digits - 1, format = "f")  %>% unname()
     if (comp == '==') {p_expr <- bquote(p == .(p_val) %*% 10^.(p_exp))
     } else {p_expr <- bquote(p < .(p_val) %*% 10^.(p_exp))}
     
