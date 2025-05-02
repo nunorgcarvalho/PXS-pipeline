@@ -161,16 +161,20 @@ ggplot(GTEx_specific, aes(x = tissue_name, y =shortname)) +
 loc_fig <- paste0(dir_figs,"GTEx_specific")
 ggsave(paste0(loc_fig,".png"), width=200, height=180, units="mm", dpi=300)
 
+
+# the code after this is messy and all over the place and I wrote it years ago
+# but importantly, it seems to work
+
 # Genes ####
 
 ## extracts FUMA gene results ####
 Genes <- read_FUMAs(dir_FUMAs, 'genes.txt',skip='ensg') %>%
   # restricts to just individual behaviors and BRS
-  filter(term %in% sumtbl$term) %>%
+  filter(term %in% c(sumtbl$term,col_BRS)) %>%
   left_join(sumtbl %>% select(term,shortname),by='term')
 
 # gets T2D gene associations from AMP
-AMP_T2D_genes <- as_tibble(fread("scratch_2023/AMP/AMP_T2D_gene_table.csv"))
+AMP_T2D_genes <- as_tibble(fread("sandbox/scratch_2023/AMP/AMP_T2D_gene_table.csv"))
 # makes joint list of gene associations
 Bonferroni_gene <- 2.5E-6 # 0.05 / 20000
 Genes_BRS <- Genes %>% filter(term==term_BRS) %>%
@@ -215,7 +219,7 @@ fwrite(Genes_trait, loc_out, sep="\t")
 # Genomic Loci ####
 GRLoci <- read_FUMAs(dir_FUMAs, 'GenomicRiskLoci.txt', skip='GenomicLocus') %>%
   # restricts to just individual behaviors and BRS
-  filter(term %in% sumtbl$term) %>%
+  filter(term %in% c(sumtbl$term, col_BRS)) %>%
   left_join(sumtbl %>% select(term,shortname),by='term')
 
 # shared loci
@@ -318,5 +322,5 @@ BRS_tableS3 <- top_SNPs %>%
   select(topSNP = rsID, CHR=chr, BP=pos, A0=non_effect_allele, A1=effect_allele,
          MAF, beta, se, p, closest_gene = nearestGene, all_locus_genes = genes)
 
-loc_out <- paste0(dir_scratch, 'general_results/GenomicLoci_BRS.csv')
+loc_out <- paste0(dir_results, 'tables/GenomicLoci_BRS.csv')
 fwrite(BRS_tableS3, loc_out)
