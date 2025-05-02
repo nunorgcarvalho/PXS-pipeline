@@ -2,6 +2,7 @@
 library(tidyverse)
 library(data.table)
 source('code/00_paths.R')
+source('code/00_plotting.R')
 
 dir_LMM <- paste0(dir_scratch, 'LMM/')
 dir_Manhattan <- paste0(dir_LMM,'Manhattan_plots/')
@@ -47,7 +48,6 @@ GWAS_summary_tbl <- tibble(trait = as.character(),
 
 # Loops through and prints Manhattan plot ####
 for (i in 1:nrow(LMM_outs)) {
-  if (i<=40) {next}
   path <- LMM_outs$path[i]
   trait <- LMM_outs$trait[i]
   traitname <- LMM_outs$traitname[i]
@@ -109,7 +109,7 @@ for (i in 1:nrow(LMM_outs)) {
     # geom_text(data=sig_SNPs, aes(label=SNP,x=BP_cum,y=-log10(P_BOLT_LMM_INF)),
     #                 nudge_y = 0.3, size = 1.2) +
     scale_color_manual(values = rep(colors, 22)) +
-    scale_x_continuous(label = axes_tbl$CHR, breaks = axes_tbl$center_bp, expand = c(0.01,0.01)) +
+    scale_x_continuous(label = axes_tbl$CHR, breaks = axes_tbl$center_bp, expand = c(0.05,0.01)) +
     scale_y_continuous(expand = c(0,0), breaks = c(0:max_logP), limits = c(0,max_logP+0.5)) +
     theme_light() +
     labs(title = title, subtitle=subtitle) +
@@ -127,24 +127,28 @@ for (i in 1:nrow(LMM_outs)) {
     )
   #gg
   
-  # if (trait == col_BRS) {
-  #   top_loci <- as_tibble(fread('final_results/tables/GenomicLoci_PXS_T2D.csv')) %>%
-  #     filter(p < 1E-10) %>%
-  #     select(SNP=topSNP,CHR,BP,P_BOLT_LMM_INF=p, closest_gene) %>%
-  #     left_join(manhattan_tbl %>% select(SNP,total_bp, BP_cum), by='SNP') %>%
-  #     mutate(locus_label = paste0(SNP,'\n',closest_gene),
-  #            BP_window = round(BP_cum / (1E8))) %>%
-  #     distinct() %>%
-  #     group_by(BP_window) %>%
-  #     filter(P_BOLT_LMM_INF == min(P_BOLT_LMM_INF))
-  #   
-  #   gg <- gg +
-  #     geom_text(data=top_loci, aes(label=locus_label),
-  #               nudge_y = 0.4, size = 1.2)
-  # }
+  if (trait == col_BRS) {
+    top_loci <- as_tibble(fread(paste0(dir_results,'tables/GenomicLoci_BRS.csv'))) %>%
+      filter(p < 1E-10) %>%
+      select(SNP=topSNP,CHR,BP,P_BOLT_LMM_INF=p, closest_gene) %>%
+      left_join(manhattan_tbl %>% select(SNP,total_bp, BP_cum), by='SNP') %>%
+      mutate(locus_label = paste0(SNP,'\n',closest_gene),
+             BP_window = round(BP_cum / (1E8))) %>%
+      distinct() %>%
+      group_by(BP_window) %>%
+      filter(P_BOLT_LMM_INF == min(P_BOLT_LMM_INF))
+
+    gg <- gg +
+      labs(title=NULL, subtitle = NULL) +
+      geom_text(data=top_loci, aes(label=locus_label),
+                nudge_y = 0.8, size = 1.2)
+  }
   
   print(paste0(i, ' ', trait, " :: Saving Manhattan plot"))
   loc_out <- paste0(dir_Manhattan, "Manhattan.",trait)
+  if (trait == col_BRS) {
+    loc_out <- paste0(dir_results,'figures/Manhattan_BRS')
+  }
   ggsave(paste0(loc_out,".png"), gg, width=180, height = 120, units="mm", dpi=900)
   if (trait == col_BRS) {
     ggsave(paste0(loc_out,".pdf"), gg, width=180, height = 120, units="mm", dpi=900)
