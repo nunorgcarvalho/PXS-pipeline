@@ -139,6 +139,16 @@ cat('for file in',paste0(ldsc_files$file_sh, collapse=' '),'; do sbatch "$file";
 
 ## T2D ####
 
+# EDIT 2025-05-08: ok so the BOLT-LMM results are in hg19, NOT hg38!
+# so, all this hg19-->hg38 conversion for the T2D GWAS summary stats is
+# unnecessary. Luckily, ldsc only aligns SNPs on the rsID, which remains
+# correct, and the LDsc filtering (SNPs with LD scores) ends up being
+# basically the exact same (~0.1% difference in # of SNPs)
+# for reference though, by merging on rsIDs, I get 7.4M SNPs in the T2DGWAS
+# but when merging correctly using hg19 CHR:POS, I get 11.8M SNPs
+# so, there is a sizeable difference if I were doing anything else with this
+# GWAS data
+
 ### prep summstats ####
 # ok I'm breaking my whole rule about only having to run lower-numbered
 # scripts, but I need you to run the bash code:
