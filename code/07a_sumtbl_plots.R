@@ -170,7 +170,7 @@ ggplot(hg1, aes(x = h2, y=h2_ldsc)) +
   annotate('text', label = annotate_cor.test(cor_h2), # throws out harmless warning message
            x=Inf, y=-Inf, vjust=-0.5, hjust=1.05, parse=FALSE, size=3) +
   labs(x = 'h2 estimated by BOLT-REML (95% CI)',
-       y = 'h2 estimated by BOLT-LDsc (95% CI)')
+       y = 'h2 estimated by LDsc (95% CI)')
 loc_fig <- paste0(dir_figs,"h2g_bvrs")
 ggsave(paste0(loc_fig,".png"), width=160, height=160, units="mm", dpi=300)
 
